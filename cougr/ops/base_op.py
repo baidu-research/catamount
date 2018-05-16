@@ -8,4 +8,4 @@ class Op:
 
     @property
     def name(self):
-        self._name
+        return self._name
