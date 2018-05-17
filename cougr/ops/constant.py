@@ -11,7 +11,16 @@ class NoOp(base_op.Op):
     def __init__(self, name):
         super(NoOp, self).__init__(name)
 
+    def calcAlgFlops(self):
+        # NoOps have no Flops
+        return 0
+
+
 class ConstOp(base_op.Op):
     def __init__(self, name):
         super(ConstOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # Constants have no Flops
+        return 0
 

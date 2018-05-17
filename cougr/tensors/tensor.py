@@ -59,3 +59,6 @@ class Tensor:
             assert self._consumers[op.name] == op
             return
         self._consumers[op.name] = op
+
+    def hasConsumers(self):
+        return len(self._consumers.keys()) > 0

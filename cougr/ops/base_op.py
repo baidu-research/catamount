@@ -17,6 +17,18 @@ class Op:
         self._outputs.append(tensor)
         tensor.setProducer(self)
 
+    def calcAlgFlops(self):
+        raise NotImplementedError('Op calcAlgFlops not implemented!',
+                                  type(self))
+
+    def calcAlgBytes(self):
+        raise NotImplementedError('Op calcAlgBytes not implemented!',
+                                  type(self))
+
+    def calcAlgFootprint(self):
+        raise NotImplementedError('Op calcAlgFootprint not implemented!',
+                                  type(self))
+
     @property
     def name(self):
         return self._name

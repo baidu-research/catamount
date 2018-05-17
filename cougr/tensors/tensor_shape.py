@@ -1,4 +1,4 @@
-
+import sympy
 
 class TensorShape(object):
     """Represents the shape of a `Tensor`.
@@ -17,7 +17,7 @@ class TensorShape(object):
             TypeError: If dims cannot be converted to a list of dimensions.
         """
         if dims is None:
-            self._dims = None
+            self._dims = []
         elif isinstance(dims, int):
             self._dims = [dims]
         elif isinstance(dims, list):
@@ -46,3 +46,21 @@ class TensorShape(object):
         """Returns a list of Dimensions, or None if the shape is unspecified."""
         return self._dims
 
+    def getDim(self, idx):
+        assert(len(self._dims) > idx)
+        to_return = self._dims[idx]
+        if to_return is None:
+            sym_name = 'dim_{}'.format(idx)
+            to_return = sympy.Symbol(sym_name)
+        return to_return
+
+    def numElements(self):
+        num_elts = 1
+        for idx, dim in enumerate(self._dims):
+            if dim is None:
+                sym_name = 'dim_{}'.format(idx)
+                dim_elts = sympy.Symbol(sym_name)
+            else:
+                dim_elts = dim
+            num_elts *= dim_elts
+        return num_elts

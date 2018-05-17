@@ -1,6 +1,6 @@
 
-from utils.tf_tests import run_tf_import_test
+from utils.tf_tests import *
 
 
-def test_import_graph():
-    run_tf_import_test()
+def test_graph_calcs():
+    run_tf_calculate_tests()
