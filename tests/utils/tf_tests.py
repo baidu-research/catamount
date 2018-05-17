@@ -11,8 +11,8 @@ def run_tf_calculate_tests():
     algorithmic_flops = graph.calcAlgFlops()
 
     import sympy
-    dim_0 = sympy.Symbol('dim_0')
-    correct_alg_flops = 65536 * dim_0 + 131074
+    dim_0, dim_1 = sympy.symbols('dim_0 dim_1')
+    correct_alg_flops = 65536 * dim_0 + 512 * dim_1 + 98306
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Counted algorithmic flops {}'.format(algorithmic_flops)

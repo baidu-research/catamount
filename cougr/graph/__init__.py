@@ -77,11 +77,38 @@ class Graph:
                     return False
         return True
 
-    # [_] TODO (Joel): add code that allows marking the nodes to be executed
-    # [_] TODO (Joel): add subroutine that only traverses marked nodes
-    def calcAlgFlops(self):
+    # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
+    def getOpsToExecute(self, feed_dict):
+        if feed_dict is None:
+            # Must execute all ops
+            return self._ops_by_name
+        ops_to_execute = {}
+        # [_] TODO (Joel): Can we abstract this traversal to reuse it
+        # in other parts of the code that want traversals?
+        for feed_name, feed_op in feed_dict.items():
+            ops_to_execute[feed_name] = feed_op
+            # Traverse graph to find all downstream ops from feed_op
+            # [_] TODO: NOTE: This fails for recurrent connections!
+            frontier_ops = []
+            for out_tensor in feed_op.outputs:
+                frontier_ops.extend(out_tensor.consumers.values())
+            while len(frontier_ops) > 0:
+                next_op = frontier_ops.pop(0)
+                if next_op is None:
+                    continue
+                ops_to_execute[next_op.name] = next_op
+                for out_tensor in next_op.outputs:
+                    frontier_ops.extend(out_tensor.consumers.values())
+        return ops_to_execute
+
+    # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
+    def calcAlgFlops(self, feed_dict=None):
+        ''' Calculate the algorithmic Flops for the compute graph based on
+        the ops that depend on ops in the feed_dict.
+        '''
+        ops_to_execute = self.getOpsToExecute(feed_dict)
         total_alg_flops = 0
-        for id, op in self._ops_by_id.items():
+        for op in ops_to_execute.values():
             op_alg_flops = op.calcAlgFlops()
             # print('Op: {}, alg_flops: {}'.format(op.name, op_alg_flops))
             total_alg_flops += op_alg_flops
