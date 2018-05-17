@@ -15,7 +15,16 @@ class Op:
     def addOutput(self, tensor):
         assert(isinstance(tensor, Tensor))
         self._outputs.append(tensor)
+        tensor.setProducer(self)
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def inputs(self):
+        return self._inputs
+
+    @property
+    def outputs(self):
+        return self._outputs

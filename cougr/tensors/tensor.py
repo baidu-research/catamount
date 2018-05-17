@@ -27,6 +27,8 @@ class Tensor:
         self._name = name
         self._shape = shape
         self._dtype = dtype
+        self._producer = None
+        self._consumers = {}
 
     @property
     def name(self):
@@ -40,3 +42,20 @@ class Tensor:
     def dtype(self):
         return self._dtype
 
+    @property
+    def producer(self):
+        return self._producer
+
+    @property
+    def consumers(self):
+        return self._consumers
+
+    def setProducer(self, op):
+        assert self._producer is None
+        self._producer = op
+
+    def addConsumer(self, op):
+        if op.name in self._consumers.keys():
+            assert self._consumers[op.name] == op
+            return
+        self._consumers[op.name] = op

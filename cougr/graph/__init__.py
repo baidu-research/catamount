@@ -18,13 +18,26 @@ class Graph:
 
     def addInputToOp(self, op, tensor):
         op.addInput(tensor)
+        tensor.addConsumer(op)
 
     @property
     def opsByName(self):
         return self._ops_by_name
 
     def isValid(self):
-        ''' Return whether the graph is fully specified.
+        ''' Return whether the graph is fully specified. Check whether all ops
+        have output tensors and whether their input and output tensors have
+        producers and consumers specified.
         '''
-        # [_] TODO (Joel): Fill in here
+        for id, op in self._ops_by_id.items():
+            for in_tensor in op.inputs:
+                if op.name not in in_tensor.consumers.keys():
+                    print('WARN: tensor {} not consumed by op {}'
+                          .format(in_tensor.name, op.name))
+                    return False
+            for out_tensor in op.outputs:
+                if out_tensor.producer is not op:
+                    print('WARN: tensor {} not produced by op {}'
+                          .format(out_tensor.name, op.name))
+                    return False
         return True
