@@ -1,4 +1,5 @@
 from cougr.ops.base_op import Op
+from cougr.ops.placeholder import PlaceholderOp
 
 class Graph:
     def __init__(self):
@@ -78,14 +79,20 @@ class Graph:
         return True
 
     # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
-    def getOpsToExecute(self, feed_dict):
-        if feed_dict is None:
+    def getOpsToExecute(self, feed_dict=None, fetches_dict=None):
+        if feed_dict is None and fetches_dict is None:
             # Must execute all ops
             return self._ops_by_name
+
+        if fetches_dict is not None:
+            raise NotImplementedError(
+                'getOpsToExecute does not yet take fetches')
+
         ops_to_execute = {}
         # [_] TODO (Joel): Can we abstract this traversal to reuse it
         # in other parts of the code that want traversals?
         for feed_name, feed_op in feed_dict.items():
+            assert type(feed_op) == PlaceholderOp
             ops_to_execute[feed_name] = feed_op
             # Traverse graph to find all downstream ops from feed_op
             # [_] TODO: NOTE: This fails for recurrent connections!
@@ -102,11 +109,11 @@ class Graph:
         return ops_to_execute
 
     # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
-    def calcAlgFlops(self, feed_dict=None):
+    def calcAlgFlops(self, feed_dict=None, fetches_dict=None):
         ''' Calculate the algorithmic Flops for the compute graph based on
         the ops that depend on ops in the feed_dict.
         '''
-        ops_to_execute = self.getOpsToExecute(feed_dict)
+        ops_to_execute = self.getOpsToExecute(feed_dict, fetches_dict)
         total_alg_flops = 0
         for op in ops_to_execute.values():
             op_alg_flops = op.calcAlgFlops()
