@@ -1,14 +1,33 @@
 import os
 import tensorflow as tf
 
-from cougr.ops.placeholder import PlaceholderOp
+from cougr.ops.array_ops import *
+from cougr.ops.constant import *
+from cougr.ops.init_ops import *
+from cougr.ops.math_ops import *
+from cougr.ops.placeholder import *
+from cougr.ops.variable import *
 
 # Tools to import Tensorflow MetaGraphs into CouGr format
 
 TF_TO_COUGR_MAP = {
     'SaveV2': None, # Ignore Saver ops
     'RestoreV2': None, # Ignore Restore ops
+    'NoOp': None, # Ignore no-ops
+    'Add': AddOp,
+    'Assign': AssignOp,
+    'Const': ConstOp,
+    'Identity': IdentityOp,
+    'MatMul': MatMulOp,
+    'Mul': MulOp,
+    'Pack': StackOp,
     'Placeholder': PlaceholderOp,
+    'RandomUniform': RandomInitializerOp,
+    'Shape': ShapeOp,
+    'SplitV': SplitOp,
+    'StridedSlice': StridedSliceOp,
+    'Sub': SubOp,
+    'VariableV2': VariableOp,
 }
 
 def import_graph(tf_filename):
