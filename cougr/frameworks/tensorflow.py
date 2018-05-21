@@ -18,22 +18,76 @@ TF_OP_TO_COUGR = {
     'NoOp': NoOp, # Ignore no-ops
     'Add': AddOp,
     'Assign': AssignOp,
+    'AssignAdd': AddOp, # Here, TF reuses the input tensor for output
+    'AssignSub': SubOp, # Here, TF reuses the input tensor for output
+    'BiasAdd': AddOp, # Here, TF special-case for 1D bias input
+    'Cast': CastOp,
     'Const': ConstOp,
+    'Conv2D': Conv2DOp,
+    'FloorDiv': BasePointwiseOp,
+    'FloorMod': BasePointwiseOp,
     'Identity': IdentityOp,
+    'LogicalNot': LogicalNotOp,
     'MatMul': MatMulOp,
+    'Maximum': MaximumOp,
+    'Mean': ReduceOp,
     'Mul': MulOp,
     'Pack': StackOp,
     'Placeholder': PlaceholderOp,
+    'Prod': ReduceOp,
+    'Pow': PowOp,
     'RandomUniform': RandomInitializerOp,
+    'RealDiv': BasePointwiseOp,
+    'Relu': ReluOp,
+    'Reduce': ReduceOp,
+    'Reshape': ReshapeOp,
+    'Rsqrt': RsqrtOp,
     'Shape': ShapeOp,
     'SplitV': SplitOp,
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
+    'Sum': ReduceOp,
     'VariableV2': VariableOp,
 }
 
+# [_] TODO (Joel): Add these for ResNets!
+# AddN
+# ApplyMomentum
+# BiasAddGrad
+# BroadcastGradientArgs
+# Conv2DBackpropFilter
+# Conv2DBackpropInput
+# DynamicStitch
+# ExpandDims
+# FIFOQueueV2
+# Fill
+# FusedBatchNorm
+# FusedBatchNormGrad
+# InTopK
+# MaxPool
+# MaxPoolGrad
+# MergeSummary
+# PreventGradient
+# QueueCloseV2
+# QueueDequeueV2
+# QueueEnqueueV2
+# QueueSizeV2
+# Range
+# ReluGrad
+# ScalarSummary
+# SparseSoftmaxCrossEntropyWithLogits
+# Stage
+# Tile
+# TruncatedNormal
+# Unstage
+# ZerosLike
+
+
 TF_DTYPE_TO_COUGR = {
+    tf.bool: DataType.bool,
     tf.int32: DataType.int32,
+    tf.int64: DataType.int64,
+    tf.uint8: DataType.uint32,
     tf.float32: DataType.float32,
     tf.string: DataType.string,
 }
@@ -93,6 +147,9 @@ def import_graph(tf_filename):
             graph.addOp(op)
         else:
             print('WARN: Unknown op type: {}'.format(tf_op.type))
+
+#    print('Ops: {}'.format(graph.opsByName))
+#    print('Tensors: {}'.format(tensors))
 
     # Hook up all the op inputs to the ops that generate them
     for op_name in op_inputs.keys():

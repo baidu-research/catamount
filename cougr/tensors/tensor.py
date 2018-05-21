@@ -7,9 +7,12 @@ class DataType(Enum):
     int16 = 2
     int32 = 3
     int64 = 4
-    float16 = 5
-    float32 = 6
-    float64 = 7
+    uint16 = 5
+    uint32 = 6
+    uint64 = 7
+    float16 = 8
+    float32 = 9
+    float64 = 10
 
     string = 11
 

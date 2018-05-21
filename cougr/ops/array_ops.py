@@ -1,7 +1,15 @@
-from . import base_op
+from .base_op import Op
 
 
-class ShapeOp(base_op.Op):
+class ReshapeOp(Op):
+    def __init__(self, name):
+        super(ReshapeOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # ReshapeOps have no Flops
+        return 0
+
+class ShapeOp(Op):
     def __init__(self, name):
         super(ShapeOp, self).__init__(name)
 
@@ -9,7 +17,7 @@ class ShapeOp(base_op.Op):
         # ShapeOps have no Flops
         return 0
 
-class SplitOp(base_op.Op):
+class SplitOp(Op):
     def __init__(self, name):
         super(SplitOp, self).__init__(name)
 
@@ -17,7 +25,7 @@ class SplitOp(base_op.Op):
         # SplitOps have no Flops
         return 0
 
-class StackOp(base_op.Op):
+class StackOp(Op):
     def __init__(self, name):
         super(StackOp, self).__init__(name)
 
@@ -25,11 +33,19 @@ class StackOp(base_op.Op):
         # StackOps have no Flops
         return 0
 
-class StridedSliceOp(base_op.Op):
+class StridedSliceOp(Op):
     def __init__(self, name):
         super(StridedSliceOp, self).__init__(name)
 
     def calcAlgFlops(self):
         # StridedSliceOps have no Flops
+        return 0
+
+class TransposeOp(Op):
+    def __init__(self, name):
+        super(TransposeOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # TransposeOps have no Flops
         return 0
 

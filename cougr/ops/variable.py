@@ -1,7 +1,7 @@
-from . import base_op
+from .base_op import Op
 
 
-class VariableOp(base_op.Op):
+class VariableOp(Op):
     def __init__(self, name):
         super(VariableOp, self).__init__(name)
 
@@ -9,9 +9,17 @@ class VariableOp(base_op.Op):
         # Variables have no Flops
         return 0
 
-class AssignOp(base_op.Op):
+class AssignOp(Op):
     def __init__(self, name):
         super(AssignOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # Assignments have no Flops
+        return 0
+
+class CastOp(Op):
+    def __init__(self, name):
+        super(CastOp, self).__init__(name)
 
     def calcAlgFlops(self):
         # Assignments have no Flops
