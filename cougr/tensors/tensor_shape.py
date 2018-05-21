@@ -1,3 +1,4 @@
+import re
 import sympy
 
 class TensorShape(object):
@@ -27,30 +28,28 @@ class TensorShape(object):
         elif isinstance(dims, TensorShape):
             self._dims = dims.dims
         else:
-            raise TypeError("Unknown TensorShape type {}".format(type(dims)))
+            raise TypeError('Unknown TensorShape type {}'.format(type(dims)))
 
     def __repr__(self):
-        return "TensorShape(%r)" % self._dims
+        return 'TensorShape({})'.format(self._dims)
 
     def __str__(self):
-        # [_] TODO (Joel): FIXME!
-        if self.ndims is None:
-            return "<unknown>"
-        elif self.ndims == 1:
-            return "(%s,)" % self._dims[0]
-        else:
-            return "(%s)" % ", ".join(str(d) for d in self._dims)
+        return '(%s)'.format(', '.join(str(d) for d in self._dims))
 
     @property
     def dims(self):
-        """Returns a list of Dimensions, or None if the shape is unspecified."""
+        """Returns a list of dimensions, or None if the shape is unspecified.
+        """
         return self._dims
+
+    def getSymbolName(self, dim_index):
+        return 'dim_{}'.format(dim_index)
 
     def getDim(self, idx):
         assert(len(self._dims) > idx)
         to_return = self._dims[idx]
         if to_return is None:
-            sym_name = 'dim_{}'.format(idx)
+            sym_name = self.getSymbolName(idx)
             to_return = sympy.Symbol(sym_name)
         return to_return
 
@@ -58,7 +57,7 @@ class TensorShape(object):
         num_elts = 1
         for idx, dim in enumerate(self._dims):
             if dim is None:
-                sym_name = 'dim_{}'.format(idx)
+                sym_name = self.getSymbolName(idx)
                 dim_elts = sympy.Symbol(sym_name)
             else:
                 dim_elts = dim
