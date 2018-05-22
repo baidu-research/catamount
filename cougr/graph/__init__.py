@@ -78,6 +78,34 @@ class Graph:
                     return False
         return True
 
+    def propagateTensorShapeNames(self):
+        ''' Propagate bound tensor shape names through the network to bind
+        downstream shapes.
+        '''
+        # Topologically traverse from sources to sinks
+        # [_] TODO (Joel): Current traversal (bfs) won't work if there are
+        #                  nodes at varying levels. Must visit all parents
+        #                  before visiting a node
+        frontier_ops = list(self._sources.values())
+        visited_ops = set(frontier_ops)
+        while len(frontier_ops) > 0:
+            next_op = frontier_ops.pop(0)
+            next_op.propagateShapes()
+            for out_tensor in next_op.outputs:
+                for out_op in out_tensor.consumers.values():
+                    if out_op not in visited_ops:
+                        visited_ops.add(out_op)
+                        frontier_ops.append(out_op)
+
+    def bindTensorShapeNames(self, bind_dict):
+        for name in bind_dict.keys():
+            assert name in self._ops_by_name.keys()
+            op = self._ops_by_name[name]
+            assert type(op) == PlaceholderOp
+            shape_dim, shape_name = bind_dict[name]
+            op.bindTensorShapeName(shape_dim, shape_name)
+        self.propagateTensorShapeNames()
+
     # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
     def getOpsToExecute(self, feed_dict=None, fetches_dict=None):
         if feed_dict is None and fetches_dict is None:

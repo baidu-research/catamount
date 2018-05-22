@@ -7,13 +7,25 @@ class BasePointwiseOp(Op):
         super(BasePointwiseOp, self).__init__(name)
         self._flops_per_element = 1
 
-    def flops_pointwise(self, op):
-        assert(len(op.outputs) == 1)
-        out_shape = op.outputs[0].shape
+    def propagateShapes(self):
+        # Verify inputs have same shape
+        assert(len(self._inputs) == 2)
+        in_a_shape = self._inputs[0].shape
+        in_b_shape = self._inputs[1].shape
+        assert(in_a_shape == in_b_shape)
+        assert(len(self._outputs) == 1)
+        # Set the output dimensions
+        out_shape = self._outputs[0].shape
+        for idx, value in enumerate(out_shape.dims):
+            out_shape.setDim(idx, in_a_shape.getDim(idx))
+
+    def flopsPointwise(self):
+        assert(len(self._outputs) == 1)
+        out_shape = self._outputs[0].shape
         return out_shape.numElements() * self._flops_per_element
 
     def calcAlgFlops(self):
-        return self.flops_pointwise(self)
+        return self.flopsPointwise()
 
 
 class AddOp(BasePointwiseOp):
@@ -69,11 +81,29 @@ class MatMulOp(Op):
     def __init__(self, name):
         super(MatMulOp, self).__init__(name)
 
+    def propagateShapes(self):
+        # [_] TODO (Joel): Will need to handle transposes here...
+        # Verify that shapes can be correctly resolved
+        assert(len(self._inputs) == 2)
+        tensor_a = self._inputs[0]
+        tensor_b = self._inputs[1]
+        inner_dim = tensor_a.shape.getDim(1)
+        # [_] TODO (Joel): This assert will be too strict at some point
+        assert(inner_dim == tensor_b.shape.getDim(0))
+        # Resolve shapes
+        tensor_c = self._outputs[0]
+        first_dim = tensor_a.shape.getDim(0)
+        tensor_c.shape.setDim(0, first_dim)
+        second_dim = tensor_b.shape.getDim(1)
+        tensor_c.shape.setDim(1, second_dim)
+
     def calcAlgFlops(self):
+        # [_] TODO (Joel): Will need to handle transposes here...
         # Get matrix inner dimension
         assert(len(self._inputs) == 2)
         tensor_a = self._inputs[0]
         inner_dim = tensor_a.shape.getDim(1)
+        # [_] TODO (Joel): This assert will be too strict at some point
         assert(inner_dim == self._inputs[1].shape.getDim(0))
         # Get output number of elements
         assert(len(self._outputs) == 1)

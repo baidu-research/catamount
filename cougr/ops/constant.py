@@ -11,6 +11,10 @@ class NoOp(Op):
     def __init__(self, name):
         super(NoOp, self).__init__(name)
 
+    def propagateShapes(self):
+        # NoOps should be ignored when propagating shapes
+        pass
+
     def calcAlgFlops(self):
         # NoOps have no Flops
         return 0
@@ -19,6 +23,10 @@ class NoOp(Op):
 class ConstOp(Op):
     def __init__(self, name):
         super(ConstOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # Constants must have outputs fully specified. Nothing to propagate
+        pass
 
     def calcAlgFlops(self):
         # Constants have no Flops

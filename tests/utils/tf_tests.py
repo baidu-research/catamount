@@ -11,13 +11,31 @@ def run_tf_calculate_tests():
     algorithmic_flops = graph.calcAlgFlops()
 
     import sympy
-    add_dim_1 = sympy.Symbol('add:0::dim_1')
+    add_dim_0 = sympy.Symbol('add:0::dim_0')
     matmul_dim_0 = sympy.Symbol('matmul:0::dim_0')
-    mul_dim_1 = sympy.Symbol('mul:0::dim_1')
-    correct_alg_flops = 256 * add_dim_1 + \
+    mul_dim_0 = sympy.Symbol('mul:0::dim_0')
+    correct_alg_flops = 256 * add_dim_0 + \
                         65536 * matmul_dim_0 + \
-                        256 * mul_dim_1 + \
-                        98306
+                        256 * mul_dim_0 + \
+                        98307
+
+    assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
+        'Counted algorithmic flops {}'.format(algorithmic_flops)
+
+    # Now, bind tensor names in the graph and verify that the algorithmic
+    # Flop counts reflect the new name bindings
+    batch_size = sympy.Symbol('batch_size')
+    # Bind placeholders (a and b) output dimensions 0 to name batch_size
+    bind_dict = { 'a': (0, batch_size),
+                  'b': (0, batch_size) }
+    graph.bindTensorShapeNames(bind_dict)
+
+    algorithmic_flops = graph.calcAlgFlops()
+
+    # Update the algorithmic Flops formula
+    correct_alg_flops = correct_alg_flops.subs({ add_dim_0: batch_size,
+                                                 matmul_dim_0: batch_size,
+                                                 mul_dim_0: batch_size, })
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Counted algorithmic flops {}'.format(algorithmic_flops)

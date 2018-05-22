@@ -17,6 +17,17 @@ class Op:
         self._outputs.append(tensor)
         tensor.setProducer(self)
 
+    def propagateShapes(self):
+        print('Crashing in op {} propagateShapes...'.format(self._name))
+        for idx, input in enumerate(self._inputs):
+            print('In tensor[{}] name {}, shape {}'.format(idx,
+                  input.name, input.shape)) 
+        for idx, output in enumerate(self._outputs):
+            print('Out tensor[{}] name {}, shape {}'.format(idx,
+                  output.name, output.shape)) 
+        raise NotImplementedError('Op propagateShapes not implemented!',
+                                  type(self))
+
     def calcAlgFlops(self):
         raise NotImplementedError('Op calcAlgFlops not implemented!',
                                   type(self))

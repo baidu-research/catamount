@@ -30,40 +30,76 @@ class TensorShape(object):
             self._dims = dims.dims
         else:
             raise TypeError('Unknown TensorShape type {}'.format(type(dims)))
+        self._dim_names = [None for dim in self._dims]
 
     def __repr__(self):
         return 'TensorShape({})'.format(self._dims)
 
     def __str__(self):
-        return '(%s)'.format(', '.join(str(d) for d in self._dims))
+        return '({})'.format(', '.join(str(d) for d in self._dims))
+
+    def __eq__(self, other):
+        if self.rank == 0 or other.rank == 0:
+            return True
+        if self.rank != other.rank:
+            return False
+        for idx in range(self.rank):
+            if self.dims[idx] is not None and other.dims[idx] is not None:
+                if self.dims[idx] != other.dims[idx]:
+                    return False
+            elif self.dims[idx] is None or self.dims[idx] is None:
+                print('WARN: May need to check if dimension symbols are the same')
+        return True
 
     @property
     def dims(self):
-        """Returns a list of dimensions, or None if the shape is unspecified.
+        """Returns a list of dimensions.
         """
         return self._dims
+
+    @property
+    def rank(self):
+        return len(self._dims)
 
     def associateTensor(self, tensor):
         self._tensor = tensor
 
-    def getSymbolName(self, dim_index):
+    def setDim(self, dim_index, dim_val_or_name):
+        if type(dim_val_or_name) == sympy.Symbol:
+            self.setDimName(dim_index, dim_val_or_name)
+        else:
+            if self._dims[dim_index] is None:
+                self._dims[dim_index]
+            else:
+                assert dim_val_or_name == self._dims[dim_index]
+
+    def setDimName(self, dim_index, shape_symbol):
+        assert type(shape_symbol) == sympy.Symbol
+        self._dim_names[dim_index] = shape_symbol
+
+    def getDimSymbol(self, dim_index):
         assert self._tensor is not None
-        return '{}::dim_{}'.format(self._tensor.name, dim_index)
+        assert dim_index < len(self._dims)
+        # If the dimension name is not yet bound, return a template name
+        if self._dim_names[dim_index] is None:
+            sym_name = '{}::dim_{}'.format(self._tensor.name, dim_index)
+            to_return = sympy.Symbol(sym_name)
+        else:
+            to_return = self._dim_names[dim_index]
+        return to_return
 
     def getDim(self, idx):
-        assert(len(self._dims) > idx)
+        assert(idx < len(self._dims))
         to_return = self._dims[idx]
         if to_return is None:
-            sym_name = self.getSymbolName(idx)
-            to_return = sympy.Symbol(sym_name)
+            to_return = self.getDimSymbol(idx)
         return to_return
 
     def numElements(self):
         num_elts = 1
         for idx, dim in enumerate(self._dims):
             if dim is None:
-                sym_name = self.getSymbolName(idx)
-                dim_elts = sympy.Symbol(sym_name)
+                dim_elts = self.getDimSymbol(idx)
             else:
                 dim_elts = dim
             num_elts *= dim_elts
