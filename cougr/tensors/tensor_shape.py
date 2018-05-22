@@ -17,6 +17,7 @@ class TensorShape(object):
         Raises:
             TypeError: If dims cannot be converted to a list of dimensions.
         """
+        self._tensor = None
         if dims is None:
             self._dims = []
         elif isinstance(dims, int):
@@ -42,8 +43,12 @@ class TensorShape(object):
         """
         return self._dims
 
+    def associateTensor(self, tensor):
+        self._tensor = tensor
+
     def getSymbolName(self, dim_index):
-        return 'dim_{}'.format(dim_index)
+        assert self._tensor is not None
+        return '{}::dim_{}'.format(self._tensor.name, dim_index)
 
     def getDim(self, idx):
         assert(len(self._dims) > idx)

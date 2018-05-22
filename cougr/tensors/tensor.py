@@ -29,6 +29,7 @@ class Tensor:
     def __init__(self, name, shape, dtype=DataType.float32):
         self._name = name
         self._shape = shape
+        self._shape.associateTensor(self)
         self._dtype = dtype
         self._producer = None
         self._consumers = {}
