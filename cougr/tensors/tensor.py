@@ -54,6 +54,13 @@ class Tensor:
     def consumers(self):
         return self._consumers
 
+    def isValid(self):
+        # Valid tensors have a valid TensorShape
+        if type(self._shape) is not TensorShape or not self._shape.isValid():
+            print('WARN: Invalid shape for tensor {}'.format(self._name))
+            return False
+        return True
+
     def setProducer(self, op):
         assert self._producer is None
         self._producer = op

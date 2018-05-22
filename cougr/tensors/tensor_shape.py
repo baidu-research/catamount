@@ -48,7 +48,18 @@ class TensorShape(object):
                 if self.dims[idx] != other.dims[idx]:
                     return False
             elif self.dims[idx] is None or self.dims[idx] is None:
-                print('WARN: May need to check if dimension symbols are the same')
+                print('WARN: May need to check if dimension '
+                      'symbols are the same')
+        return True
+
+    def isValid(self):
+        if not isinstance(self._dims, list):
+            print('WARN: TensorShape dims must be a list (got {})!'
+                  .format(type(self._dims)))
+            return False
+        for dim in self._dims:
+            if dim is not None and not isinstance(dim, int):
+                print('WARN: Shape dim {} is not valid type'.format(dim))
         return True
 
     @property

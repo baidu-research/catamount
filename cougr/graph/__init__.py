@@ -48,9 +48,9 @@ class Graph:
 
     def isValid(self):
         ''' Return whether the graph is fully specified. Check whether all ops
-        have output tensors and whether their input and output tensors have
-        producers and consumers specified. Then, check that sources and sinks
-        are set up correctly.
+        have output tensors, whether those tensors have valid shapes, and
+        whether their input and output tensors have producers and consumers
+        specified. Then, check that sources and sinks are set up correctly.
         '''
         # Check op tensor producers and consumers
         for id, op in self._ops_by_id.items():
@@ -60,6 +60,8 @@ class Graph:
                           .format(in_tensor.name, op.name))
                     return False
             for out_tensor in op.outputs:
+                if not out_tensor.isValid():
+                    return False
                 if out_tensor.producer is not op:
                     print('WARN: tensor {} not produced by op {}'
                           .format(out_tensor.name, op.name))
