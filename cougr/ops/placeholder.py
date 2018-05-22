@@ -1,7 +1,7 @@
-from . import base_op
+from .base_op import Op
 
 
-class PlaceholderOp(base_op.Op):
+class PlaceholderOp(Op):
     def __init__(self, name):
         super(PlaceholderOp, self).__init__(name)
 

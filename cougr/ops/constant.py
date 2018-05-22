@@ -1,7 +1,7 @@
-from . import base_op
+from .base_op import Op
 
 
-class NoOp(base_op.Op):
+class NoOp(Op):
     ''' NoOps are special CouGr ops that fill in a place for non-functional
         compute graph ops, especially for those imported from different
         frameworks. For instance, Tensorflow Saver ops (Save, Restore) have
@@ -16,7 +16,7 @@ class NoOp(base_op.Op):
         return 0
 
 
-class ConstOp(base_op.Op):
+class ConstOp(Op):
     def __init__(self, name):
         super(ConstOp, self).__init__(name)
 

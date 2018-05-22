@@ -1,7 +1,7 @@
-from . import base_op
+from .base_op import Op
 
 
-class IdentityOp(base_op.Op):
+class IdentityOp(Op):
     def __init__(self, name):
         super(IdentityOp, self).__init__(name)
 
@@ -9,7 +9,7 @@ class IdentityOp(base_op.Op):
         # IdentityOps have no Flops
         return 0
 
-class RandomInitializerOp(base_op.Op):
+class RandomInitializerOp(Op):
     def __init__(self, name):
         super(RandomInitializerOp, self).__init__(name)
 
