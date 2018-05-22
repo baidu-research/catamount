@@ -1,7 +1,6 @@
 from .base_op import Op
 
 
-
 class BasePointwiseOp(Op):
     def __init__(self, name):
         super(BasePointwiseOp, self).__init__(name)
@@ -103,8 +102,13 @@ class MatMulOp(Op):
         assert(len(self._inputs) == 2)
         tensor_a = self._inputs[0]
         inner_dim = tensor_a.shape.getDim(1)
-        # [_] TODO (Joel): This assert will be too strict at some point
-        assert(inner_dim == self._inputs[1].shape.getDim(0))
+        # [_] TODO (Joel): HACK!!!!: FIX ME!!! (Create tensor dimension in
+        #                  the tensor_shape code, and add a check... either
+        #                  both int and equal, or symbols)
+        import sympy
+        assert(type(inner_dim) == sympy.Symbol or \
+               type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
+               inner_dim == self._inputs[1].shape.getDim(0))
         # Get output number of elements
         assert(len(self._outputs) == 1)
         out_shape = self._outputs[0].shape
