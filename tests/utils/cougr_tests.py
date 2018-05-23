@@ -106,8 +106,10 @@ def reduce(graph, name, op_func, out_shape, input, axis=0):
 def softmax(graph, name, out_shape, input, axis=1):
     output = pointwise(graph, '{}/exp'.format(name), ExpOp, out_shape, input)
     reduce_shape = [out_shape[1 - axis]]
-    reduced = reduce(graph, '{}/reduce'.format(name), 'Sum', reduce_shape, output, axis=axis)
-    normd_out = pointwise(graph, '{}/div'.format(name), DivOp, out_shape, output, reduced)
+    reduced = reduce(graph, '{}/reduce'.format(name), 'Sum', reduce_shape,
+                     output, axis=axis)
+    normd_out = pointwise(graph, '{}/div'.format(name), DivOp, out_shape,
+                          output, reduced)
     return normd_out
 
 
@@ -146,19 +148,29 @@ def run_manual_graph_test():
     graph = Graph()
 
     # 1) Embedding layer
+    input_seq = placeholder(graph, 'input', [batch_size, hidden_dim])
+
     # 2) Recurrent layers
+    for layer_id in range(num_layers):
+        print('Instantiating recurrent layer {}: {}'
+              .format(layer_id, layer_name))
 
     # 3) Projection layer
-    lstm_seq = placeholder(graph, 'lstm_out', [batch_size, hidden_dim])
-    proj_weights = variable(graph, 'projection_weights', [hidden_dim, projection_dim])
-    proj_seq = matmul(graph, 'projection', [batch_size, projection_dim], lstm_seq, proj_weights)
+    proj_weights = variable(graph, 'projection_weights',
+                            [hidden_dim, projection_dim])
+    proj_seq = matmul(graph, 'projection', [batch_size, projection_dim],
+                      input_seq, proj_weights)
 
     # 4) Output layer
-    output_weights = variable(graph, 'output_weights', [projection_dim, vocab_size])
-    output = matmul(graph, 'output_projection', [batch_size, vocab_size], proj_seq, output_weights)
+    output_weights = variable(graph, 'output_weights',
+                              [projection_dim, vocab_size])
+    output = matmul(graph, 'output_projection', [batch_size, vocab_size],
+                    proj_seq, output_weights)
     output_bias = variable(graph, 'output_bias', [vocab_size])
-    output = pointwise(graph, 'output_point', AddOp, [batch_size, vocab_size], output, output_bias)
-    normd_out = softmax(graph, 'output_softmax', [batch_size, vocab_size], output)
+    output = pointwise(graph, 'output_point', AddOp, [batch_size, vocab_size],
+                       output, output_bias)
+    normd_out = softmax(graph, 'output_softmax', [batch_size, vocab_size],
+                        output)
 
     assert graph.isValid()
 
