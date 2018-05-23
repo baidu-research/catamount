@@ -1,4 +1,4 @@
-
+import sympy
 import cougr.frameworks.tensorflow
 
 
@@ -10,7 +10,6 @@ def run_tf_calculate_tests():
 
     algorithmic_flops = graph.calcAlgFlops()
 
-    import sympy
     add_dim_0 = sympy.Symbol('add:0::dim_0')
     matmul_dim_0 = sympy.Symbol('matmul:0::dim_0')
     mul_dim_0 = sympy.Symbol('mul:0::dim_0')

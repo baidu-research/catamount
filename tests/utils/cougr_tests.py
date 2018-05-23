@@ -1,9 +1,11 @@
+import sympy
+
 import cougr
 from cougr.graph import Graph
 from cougr.ops import *
 from cougr.tensors import *
 
-def main():
+def run_manual_graph_test():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
     Modeling (here: https://arxiv.org/pdf/1602.02410.pdf).
@@ -62,10 +64,22 @@ def main():
     graph.addInputToOp(output_op, proj_seq)
     graph.addInputToOp(output_op, output_weights)
 
-    print(graph.calcAlgFlops())
+    assert graph.isValid()
+
+    algorithmic_flops = graph.calcAlgFlops()
+
+    # Expected algorithmic Flops
+    o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
+    o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
+    p_s_dim_1 = sympy.Symbol('proj_seq::dim_1')
+    correct_alg_flops = 2 * o_p_dim_0 * o_p_dim_1 * p_s_dim_1
+
+    assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
+        'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
+        .format(correct_alg_flops, algorithmic_flops)
 
 
 if __name__ == "__main__":
-    main()
+    run_manual_graph_test()
 
 
