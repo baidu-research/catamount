@@ -32,6 +32,16 @@ def matmul(graph, name, out_shape, in_a, in_b):
     return out_tensor
 
 
+def pointwise(graph, name, op_type, out_shape, in_a, in_b):
+    op = op_type(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    op.addOutput(out_tensor)
+    graph.addOp(op)
+    graph.addInputToOp(op, in_a)
+    graph.addInputToOp(op, in_b)
+    return out_tensor
+
+
 def run_manual_graph_test():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
@@ -82,6 +92,8 @@ def run_manual_graph_test():
     # 4) Output layer
     output_weights = variable(graph, 'output_weights', [projection_dim, vocab_size])
     output = matmul(graph, 'output_projection', [batch_size, vocab_size], proj_seq, output_weights)
+    output_bias = variable(graph, 'output_bias', [vocab_size])
+    output = pointwise(graph, 'output_point', AddOp, [batch_size, vocab_size], output, output_bias)
 
     assert graph.isValid()
 
@@ -98,8 +110,12 @@ def run_manual_graph_test():
     o_w_dim_1 = sympy.Symbol('output_weights::dim_1')
     o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
     o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
+    o_o_dim_0 = sympy.Symbol('output_point::dim_0')
+    o_o_dim_1 = sympy.Symbol('output_point::dim_1')
     correct_alg_flops = 2 * l_o_dim_1 * p_dim_0 * p_dim_1 + \
+                        o_o_dim_0 * o_o_dim_1 + \
                         2 * o_p_dim_0 * o_p_dim_1 * p_dim_1
+
     subs = {}
     if batch_size is not None:
         subs[p_dim_0] = batch_size
