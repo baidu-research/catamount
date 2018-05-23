@@ -22,6 +22,8 @@ def run_manual_graph_test():
        proj_seq = linear(projection_weights, lstm_seq)
     4) output_weights = variable(<proj_dim, vocab_size>)
        outputs = linear(output_weights, proj_seq)
+
+    NOTE: linear() is MatMul + BiasAdd
     '''
 
     # Sizes of everything
@@ -44,12 +46,25 @@ def run_manual_graph_test():
     # 1) Embedding layer
     # 2) Recurrent layers
     # 3) Projection layer
-    # 4) Output layer
-    proj_ph = PlaceholderOp('proj_ph')
-    proj_seq = Tensor('proj_seq', TensorShape([batch_size, projection_dim]))
-    proj_ph.addOutput(proj_seq)
-    graph.addOp(proj_ph)
+    lstm_ph = PlaceholderOp('lstm_out')
+    lstm_seq = Tensor(lstm_ph.name, TensorShape([batch_size, hidden_dim]))
+    lstm_ph.addOutput(lstm_seq)
+    graph.addOp(lstm_ph)
 
+    proj_var = VariableOp('projection_weights')
+    proj_weights = Tensor(proj_var.name,
+                          TensorShape([hidden_dim, projection_dim]))
+    proj_var.addOutput(proj_weights)
+    graph.addOp(proj_var)
+
+    proj_op = MatMulOp('projection')
+    proj_seq = Tensor(proj_op.name, TensorShape([batch_size, projection_dim]))
+    proj_op.addOutput(proj_seq)
+    graph.addOp(proj_op)
+    graph.addInputToOp(proj_op, lstm_seq)
+    graph.addInputToOp(proj_op, proj_weights)
+
+    # 4) Output layer
     output_var = VariableOp('output_weights')
     output_weights = Tensor(output_var.name,
                             TensorShape([projection_dim, vocab_size]))
@@ -71,8 +86,10 @@ def run_manual_graph_test():
     # Expected algorithmic Flops
     o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
     o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
-    p_s_dim_1 = sympy.Symbol('proj_seq::dim_1')
-    correct_alg_flops = 2 * o_p_dim_0 * o_p_dim_1 * p_s_dim_1
+    p_dim_0 = sympy.Symbol('projection::dim_0')
+    p_dim_1 = sympy.Symbol('projection::dim_1')
+    l_o_dim_1 = sympy.Symbol('lstm_out::dim_1')
+    correct_alg_flops = 2 * l_o_dim_1 * p_dim_0 * p_dim_1 + 2 * o_p_dim_0 * o_p_dim_1 * p_dim_1
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
