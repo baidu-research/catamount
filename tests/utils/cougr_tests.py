@@ -6,7 +6,32 @@ from cougr.ops import *
 from cougr.tensors import *
 
 
+# Build symbol table with this function (for verifying CouGr
+# Flops calculations)
+symbol_table = {}
+subs_table = {}
+correct_alg_flops = 0
+
+def add_symbols(name, out_shape):
+    global symbol_table
+    global subs_table
+    for idx, dim in enumerate(out_shape):
+        sym_name = '{}::dim_{}'.format(name, idx)
+        symbol = sympy.Symbol(sym_name)
+        assert sym_name not in symbol_table.keys()
+        symbol_table[sym_name] = symbol
+        if dim is not None:
+            subs_table[symbol] = dim
+
+
+# General flow for creating CouGr graph ops:
+# a) Create op
+# b) Create op output tensor, then addOutput to op
+# c) Tell graph to connect op's inputs to prior op output tensors
+
 def placeholder(graph, name, out_shape):
+    add_symbols(name, out_shape)
+
     ph_op = PlaceholderOp(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     ph_op.addOutput(out_tensor)
@@ -15,6 +40,8 @@ def placeholder(graph, name, out_shape):
 
 
 def variable(graph, name, out_shape):
+    add_symbols(name, out_shape)
+
     var_op = VariableOp(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     var_op.addOutput(out_tensor)
@@ -23,6 +50,14 @@ def variable(graph, name, out_shape):
 
 
 def matmul(graph, name, out_shape, in_a, in_b):
+    add_symbols(name, out_shape)
+    global correct_alg_flops
+    in_a_dim_1 = '{}::dim_1'.format(in_a.name)
+    out_dim_0 = '{}::dim_0'.format(name)
+    out_dim_1 = '{}::dim_1'.format(name)
+    correct_alg_flops += 2 * symbol_table[in_a_dim_1] * \
+        symbol_table[out_dim_0] * symbol_table[out_dim_1]
+
     mm_op = MatMulOp(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     mm_op.addOutput(out_tensor)
@@ -33,6 +68,12 @@ def matmul(graph, name, out_shape, in_a, in_b):
 
 
 def pointwise(graph, name, op_type, out_shape, in_a, in_b):
+    add_symbols(name, out_shape)
+    global correct_alg_flops
+    out_dim_0 = '{}::dim_0'.format(name)
+    out_dim_1 = '{}::dim_1'.format(name)
+    correct_alg_flops += symbol_table[out_dim_0] * symbol_table[out_dim_1]
+
     op = op_type(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     op.addOutput(out_tensor)
@@ -72,18 +113,13 @@ def run_manual_graph_test():
     num_layers = 2
     projection_dim = None
 
-    # General flow for creating CouGr graph:
-    # A) Create graph
-    # B) Create op
-    # C) Create op output tensor, then addOutput to op
-    # D) Tell graph to connect op's inputs to prior op output tensors
-
     # Model definition parts:
     # 0) Create graph
     graph = Graph()
 
     # 1) Embedding layer
     # 2) Recurrent layers
+
     # 3) Projection layer
     lstm_seq = placeholder(graph, 'lstm_out', [batch_size, hidden_dim])
     proj_weights = variable(graph, 'projection_weights', [hidden_dim, projection_dim])
@@ -100,40 +136,21 @@ def run_manual_graph_test():
     algorithmic_flops = graph.calcAlgFlops()
 
     # Expected algorithmic Flops
-    l_o_dim_0 = sympy.Symbol('lstm_out::dim_0')
-    l_o_dim_1 = sympy.Symbol('lstm_out::dim_1')
-    p_dim_0 = sympy.Symbol('projection::dim_0')
-    p_dim_1 = sympy.Symbol('projection::dim_1')
-    p_w_dim_0 = sympy.Symbol('projection_weights::dim_0')
-    p_w_dim_1 = sympy.Symbol('projection_weights::dim_1')
-    o_w_dim_0 = sympy.Symbol('output_weights::dim_0')
-    o_w_dim_1 = sympy.Symbol('output_weights::dim_1')
-    o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
-    o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
-    o_o_dim_0 = sympy.Symbol('output_point::dim_0')
-    o_o_dim_1 = sympy.Symbol('output_point::dim_1')
-    correct_alg_flops = 2 * l_o_dim_1 * p_dim_0 * p_dim_1 + \
-                        o_o_dim_0 * o_o_dim_1 + \
-                        2 * o_p_dim_0 * o_p_dim_1 * p_dim_1
+    global correct_alg_flops
+    global subs_table
+    correct_alg_flops = correct_alg_flops.subs(subs_table)
 
-    subs = {}
-    if batch_size is not None:
-        subs[p_dim_0] = batch_size
-        subs[o_p_dim_0] = batch_size
-    if vocab_size is not None:
-        subs[o_w_dim_1] = vocab_size
-        subs[o_p_dim_1] = vocab_size
-    if hidden_dim is not None:
-        subs[l_o_dim_1] = hidden_dim
-        subs[p_w_dim_0] = hidden_dim
-    if projection_dim is not None:
-        subs[p_dim_1] = projection_dim
-        subs[o_w_dim_0] = projection_dim
-    correct_alg_flops = correct_alg_flops.subs(subs)
-
+    print('CouGr:   {}'.format(algorithmic_flops))
+    print('Correct: {}'.format(correct_alg_flops))
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
+
+# TODO (Joel): Add binding tests
+#    batch_size = 'batch_size'
+#    feed_dict = { 'lstm_out': (0, batch_size) }
+#    graph.bind__(feed_dict)
+#    print(graph.calcAlgFlops())
 
 
 if __name__ == "__main__":
