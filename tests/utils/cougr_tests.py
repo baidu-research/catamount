@@ -67,7 +67,7 @@ def matmul(graph, name, out_shape, in_a, in_b):
     return out_tensor
 
 
-def pointwise(graph, name, op_type, out_shape, in_a, in_b):
+def pointwise(graph, name, op_type, out_shape, in_a, in_b=None):
     add_symbols(name, out_shape)
     global correct_alg_flops
     out_dim_0 = '{}::dim_0'.format(name)
@@ -79,8 +79,36 @@ def pointwise(graph, name, op_type, out_shape, in_a, in_b):
     op.addOutput(out_tensor)
     graph.addOp(op)
     graph.addInputToOp(op, in_a)
-    graph.addInputToOp(op, in_b)
+    if in_b is not None:
+        graph.addInputToOp(op, in_b)
     return out_tensor
+
+
+def reduce(graph, name, op_func, out_shape, input, axis=0):
+    assert len(input.shape.dims) == 2, \
+           'Reduce only supports 2 dimensional input for now'
+    assert len(out_shape) == 1, \
+           'Reduce only supports 2->1 dimensions for now'
+    add_symbols(name, out_shape)
+    global correct_alg_flops
+    in_dim = '{}::dim_{}'.format(input.name, axis)
+    out_dim = '{}::dim_{}'.format(name, 1 - axis)
+    correct_alg_flops += symbol_table[in_dim] * symbol_table[out_dim]
+
+    op = ReduceOp(name, axis=axis)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    op.addOutput(out_tensor)
+    graph.addOp(op)
+    graph.addInputToOp(op, input)
+    return out_tensor
+
+
+def softmax(graph, name, out_shape, input, axis=1):
+    output = pointwise(graph, '{}/exp'.format(name), ExpOp, out_shape, input)
+    reduce_shape = [out_shape[1 - axis]]
+    reduced = reduce(graph, '{}/reduce'.format(name), 'Sum', reduce_shape, output, axis=axis)
+    normd_out = pointwise(graph, '{}/div'.format(name), DivOp, out_shape, output, reduced)
+    return normd_out
 
 
 def run_manual_graph_test():
@@ -130,6 +158,7 @@ def run_manual_graph_test():
     output = matmul(graph, 'output_projection', [batch_size, vocab_size], proj_seq, output_weights)
     output_bias = variable(graph, 'output_bias', [vocab_size])
     output = pointwise(graph, 'output_point', AddOp, [batch_size, vocab_size], output, output_bias)
+    normd_out = softmax(graph, 'output_softmax', [batch_size, vocab_size], output)
 
     assert graph.isValid()
 

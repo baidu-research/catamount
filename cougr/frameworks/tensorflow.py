@@ -31,6 +31,8 @@ TF_OP_TO_COUGR = {
     'MatMul': MatMulOp,
     'Maximum': MaximumOp,
     'Mean': ReduceOp,
+    # tf.contrib.mpi_collectives.MPISize behaves like a placeholder
+    'MPISize': PlaceholderOp,
     'Mul': MulOp,
     'Pack': StackOp,
     'Placeholder': PlaceholderOp,

@@ -32,6 +32,11 @@ class AddOp(BasePointwiseOp):
         super(AddOp, self).__init__(name)
 
 
+class DivOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(DivOp, self).__init__(name)
+
+
 class LogicalNotOp(BasePointwiseOp):
     def __init__(self, name):
         super(LogicalNotOp, self).__init__(name)
@@ -50,6 +55,11 @@ class MulOp(BasePointwiseOp):
 class PowOp(BasePointwiseOp):
     def __init__(self, name):
         super(PowOp, self).__init__(name)
+
+
+class ExpOp(PowOp):
+    def __init__(self, name):
+        super(ExpOp, self).__init__(name)
 
 
 class ReluOp(BasePointwiseOp):
@@ -117,11 +127,17 @@ class MatMulOp(Op):
 
 
 class ReduceOp(Op):
-    def __init__(self, name):
+    def __init__(self, name, reduction_op='sum', axis=0):
         super(ReduceOp, self).__init__(name)
-        print('WARN: ReduceOp should specify reduction type?')
+        # TODO (Joel): Extend to handle multiple axis dims (like TF)
+        assert isinstance(axis, int)
+        self._axis = axis
 
     def calcAlgFlops(self):
-        raise NotImplementedError('ReduceOp alg Flops not implemented yet!')
+        assert(len(self._inputs) == 1)
+        in_dim = self._inputs[0].shape.getDim(self._axis)
+        assert(len(self._outputs) == 1)
+        out_dim = self._outputs[0].shape.getDim(1 - self._axis)
+        return (in_dim * out_dim)
 
 
