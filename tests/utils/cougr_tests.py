@@ -5,6 +5,33 @@ from cougr.graph import Graph
 from cougr.ops import *
 from cougr.tensors import *
 
+
+def placeholder(graph, name, out_shape):
+    ph_op = PlaceholderOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    ph_op.addOutput(out_tensor)
+    graph.addOp(ph_op)
+    return out_tensor
+
+
+def variable(graph, name, out_shape):
+    var_op = VariableOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    var_op.addOutput(out_tensor)
+    graph.addOp(var_op)
+    return out_tensor
+
+
+def matmul(graph, name, out_shape, in_a, in_b):
+    mm_op = MatMulOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    mm_op.addOutput(out_tensor)
+    graph.addOp(mm_op)
+    graph.addInputToOp(mm_op, in_a)
+    graph.addInputToOp(mm_op, in_b)
+    return out_tensor
+
+
 def run_manual_graph_test():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
@@ -22,6 +49,7 @@ def run_manual_graph_test():
        proj_seq = linear(projection_weights, lstm_seq)
     4) output_weights = variable(<proj_dim, vocab_size>)
        outputs = linear(output_weights, proj_seq)
+       outputs = softmax(outputs)
 
     NOTE: linear() is MatMul + BiasAdd
     '''
@@ -43,53 +71,49 @@ def run_manual_graph_test():
     # Model definition parts:
     # 0) Create graph
     graph = Graph()
+
     # 1) Embedding layer
     # 2) Recurrent layers
     # 3) Projection layer
-    lstm_ph = PlaceholderOp('lstm_out')
-    lstm_seq = Tensor(lstm_ph.name, TensorShape([batch_size, hidden_dim]))
-    lstm_ph.addOutput(lstm_seq)
-    graph.addOp(lstm_ph)
-
-    proj_var = VariableOp('projection_weights')
-    proj_weights = Tensor(proj_var.name,
-                          TensorShape([hidden_dim, projection_dim]))
-    proj_var.addOutput(proj_weights)
-    graph.addOp(proj_var)
-
-    proj_op = MatMulOp('projection')
-    proj_seq = Tensor(proj_op.name, TensorShape([batch_size, projection_dim]))
-    proj_op.addOutput(proj_seq)
-    graph.addOp(proj_op)
-    graph.addInputToOp(proj_op, lstm_seq)
-    graph.addInputToOp(proj_op, proj_weights)
+    lstm_seq = placeholder(graph, 'lstm_out', [batch_size, hidden_dim])
+    proj_weights = variable(graph, 'projection_weights', [hidden_dim, projection_dim])
+    proj_seq = matmul(graph, 'projection', [batch_size, projection_dim], lstm_seq, proj_weights)
 
     # 4) Output layer
-    output_var = VariableOp('output_weights')
-    output_weights = Tensor(output_var.name,
-                            TensorShape([projection_dim, vocab_size]))
-    output_var.addOutput(output_weights)
-    graph.addOp(output_var)
-
-    output_op = MatMulOp('output_projection')
-    out_tensor = Tensor(output_op.name,
-                        TensorShape([batch_size, vocab_size]))
-    output_op.addOutput(out_tensor)
-    graph.addOp(output_op)
-    graph.addInputToOp(output_op, proj_seq)
-    graph.addInputToOp(output_op, output_weights)
+    output_weights = variable(graph, 'output_weights', [projection_dim, vocab_size])
+    output = matmul(graph, 'output_projection', [batch_size, vocab_size], proj_seq, output_weights)
 
     assert graph.isValid()
 
     algorithmic_flops = graph.calcAlgFlops()
 
     # Expected algorithmic Flops
-    o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
-    o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
+    l_o_dim_0 = sympy.Symbol('lstm_out::dim_0')
+    l_o_dim_1 = sympy.Symbol('lstm_out::dim_1')
     p_dim_0 = sympy.Symbol('projection::dim_0')
     p_dim_1 = sympy.Symbol('projection::dim_1')
-    l_o_dim_1 = sympy.Symbol('lstm_out::dim_1')
-    correct_alg_flops = 2 * l_o_dim_1 * p_dim_0 * p_dim_1 + 2 * o_p_dim_0 * o_p_dim_1 * p_dim_1
+    p_w_dim_0 = sympy.Symbol('projection_weights::dim_0')
+    p_w_dim_1 = sympy.Symbol('projection_weights::dim_1')
+    o_w_dim_0 = sympy.Symbol('output_weights::dim_0')
+    o_w_dim_1 = sympy.Symbol('output_weights::dim_1')
+    o_p_dim_0 = sympy.Symbol('output_projection::dim_0')
+    o_p_dim_1 = sympy.Symbol('output_projection::dim_1')
+    correct_alg_flops = 2 * l_o_dim_1 * p_dim_0 * p_dim_1 + \
+                        2 * o_p_dim_0 * o_p_dim_1 * p_dim_1
+    subs = {}
+    if batch_size is not None:
+        subs[p_dim_0] = batch_size
+        subs[o_p_dim_0] = batch_size
+    if vocab_size is not None:
+        subs[o_w_dim_1] = vocab_size
+        subs[o_p_dim_1] = vocab_size
+    if hidden_dim is not None:
+        subs[l_o_dim_1] = hidden_dim
+        subs[p_w_dim_0] = hidden_dim
+    if projection_dim is not None:
+        subs[p_dim_1] = projection_dim
+        subs[o_w_dim_0] = projection_dim
+    correct_alg_flops = correct_alg_flops.subs(subs)
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
