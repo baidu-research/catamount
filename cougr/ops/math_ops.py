@@ -16,7 +16,7 @@ class BasePointwiseOp(Op):
         # Set the output dimensions
         out_shape = self._outputs[0].shape
         for idx, value in enumerate(out_shape.dims):
-            out_shape.setDim(idx, in_a_shape.getDim(idx))
+            out_shape.setDimension(idx, in_a_shape.getDim(idx))
 
     def flopsPointwise(self):
         assert(len(self._outputs) == 1)
@@ -92,9 +92,9 @@ class MatMulOp(Op):
         # Resolve shapes
         tensor_c = self._outputs[0]
         first_dim = tensor_a.shape.getDim(0)
-        tensor_c.shape.setDim(0, first_dim)
+        tensor_c.shape.setDimension(0, first_dim)
         second_dim = tensor_b.shape.getDim(1)
-        tensor_c.shape.setDim(1, second_dim)
+        tensor_c.shape.setDimension(1, second_dim)
 
     def calcAlgFlops(self):
         # [_] TODO (Joel): Will need to handle transposes here...

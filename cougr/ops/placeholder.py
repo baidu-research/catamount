@@ -5,9 +5,9 @@ class PlaceholderOp(Op):
     def __init__(self, name):
         super(PlaceholderOp, self).__init__(name)
 
-    def bindTensorShapeName(self, dim_index, shape_symbol):
+    def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol):
         assert len(self._outputs) == 1
-        out_shape = self._outputs[0].shape.setDimName(dim_index, shape_symbol)
+        self._outputs[0].shape.setDimension(dim_index, dim_name_or_symbol)
 
     def propagateShapes(self):
         # Placeholders have no inputs to propagate

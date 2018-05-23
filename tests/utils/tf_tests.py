@@ -20,7 +20,8 @@ def run_tf_calculate_tests():
                         98307
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
-        'Counted algorithmic flops {}'.format(algorithmic_flops)
+        'Initial alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
+        .format(correct_alg_flops, algorithmic_flops)
 
     # Now, bind tensor names in the graph and verify that the algorithmic
     # Flop counts reflect the new name bindings
@@ -28,7 +29,7 @@ def run_tf_calculate_tests():
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': (0, batch_size),
                   'b': (0, batch_size) }
-    graph.bindTensorShapeNames(bind_dict)
+    graph.bindTensorShapeDimensions(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()
 
@@ -38,7 +39,8 @@ def run_tf_calculate_tests():
                                                  mul_dim_0: batch_size, })
 
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
-        'Counted algorithmic flops {}'.format(algorithmic_flops)
+        'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
+        .format(correct_alg_flops, algorithmic_flops)
 
 
 if __name__ == "__main__":

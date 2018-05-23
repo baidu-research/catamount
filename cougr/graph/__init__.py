@@ -99,13 +99,13 @@ class Graph:
                         visited_ops.add(out_op)
                         frontier_ops.append(out_op)
 
-    def bindTensorShapeNames(self, bind_dict):
+    def bindTensorShapeDimensions(self, bind_dict):
         for name in bind_dict.keys():
             assert name in self._ops_by_name.keys()
             op = self._ops_by_name[name]
             assert type(op) == PlaceholderOp
-            shape_dim, shape_name = bind_dict[name]
-            op.bindTensorShapeName(shape_dim, shape_name)
+            shape_dim_idx, shape_name_or_symbol = bind_dict[name]
+            op.bindTensorShapeDimension(shape_dim_idx, shape_name_or_symbol)
         self.propagateTensorShapeNames()
 
     # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches

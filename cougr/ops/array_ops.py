@@ -19,7 +19,7 @@ class ShapeOp(Op):
         assert len(self._inputs) == 1
         out_rank = self._inputs[0].shape.rank
         assert len(self._outputs) == 1
-        self._outputs[0].shape.setDim(0, out_rank)
+        self._outputs[0].shape.setDimension(0, out_rank)
 
     def calcAlgFlops(self):
         # ShapeOps have no Flops
