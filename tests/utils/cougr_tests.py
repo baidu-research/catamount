@@ -72,7 +72,13 @@ def pointwise(graph, name, op_type, out_shape, in_a, in_b=None):
     global correct_alg_flops
     out_dim_0 = '{}::dim_0'.format(name)
     out_dim_1 = '{}::dim_1'.format(name)
-    correct_alg_flops += symbol_table[out_dim_0] * symbol_table[out_dim_1]
+    flops_per_elt = 1
+    if op_type == SigmoidOp:
+        flops_per_elt = 4
+    if op_type == TanhOp:
+        flops_per_elt = 6
+    correct_alg_flops += flops_per_elt * symbol_table[out_dim_0] * \
+                         symbol_table[out_dim_1]
 
     op = op_type(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
@@ -113,6 +119,40 @@ def softmax(graph, name, out_shape, input, axis=1):
     return normd_out
 
 
+def linear(graph, name, weights_shape, out_shape, input):
+    output_weights = variable(graph, '{}_weights'.format(name), weights_shape)
+    output = matmul(graph, '{}_projection'.format(name), out_shape, input,
+                    output_weights)
+    output_bias = variable(graph, '{}_bias'.format(name), [out_shape[1]])
+    output = pointwise(graph, '{}_point'.format(name), AddOp, out_shape,
+                       output, output_bias)
+    return output
+
+
+def split(graph, name, out_shape, input, num_splits=2, axis=0):
+    split_op = SplitOp(name, num_splits=num_splits, axis=axis)
+    out_tensors = []
+    for i in range(num_splits):
+        out_name = '{}_out{}'.format(name, i)
+        add_symbols(out_name, out_shape)
+
+        out_tensors.append(Tensor(out_name, TensorShape(out_shape)))
+        split_op.addOutput(out_tensors[i])
+    graph.addInputToOp(split_op, input)
+    return out_tensors
+
+
+def concat(graph, name, out_shape, input_list, axis=0):
+    add_symbols(name, out_shape)
+
+    concat_op = ConcatOp(name, axis=axis)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    concat_op.addOutput(out_tensor)
+    for input in input_list:
+        graph.addInputToOp(concat_op, input)
+    return out_tensor
+
+
 def run_manual_graph_test():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
@@ -149,26 +189,49 @@ def run_manual_graph_test():
 
     # 1) Embedding layer
     input_seq = placeholder(graph, 'input', [batch_size, hidden_dim])
+    lstm_seq = input_seq
 
     # 2) Recurrent layers
     for layer_id in range(num_layers):
-        print('Instantiating recurrent layer {}: {}'
-              .format(layer_id, layer_name))
+        layer_name = 'lstm_layer_{}'.format(layer_id)
+        # print('Instantiating recurrent layer {}: {}'
+        #       .format(layer_id, layer_name))
+
+        if hidden_dim is not None:
+            in_dim = 2 * hidden_dim
+            out_dim = 4 * hidden_dim
+        else:
+            in_dim = None
+            out_dim = None
+
+        # [_] TODO (Joel): Wrap this as an LSTM cell. Then, make it recurrent!
+        recur_state = variable(graph, '{}_init_state'.format(layer_name), [batch_size, in_dim])
+        c, h = split(graph, '{}_recur_split'.format(layer_name), [batch_size, hidden_dim], recur_state, num_splits=2, axis=1)
+        lstm_seq = concat(graph, '{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
+        recur_linear = linear(graph, layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_seq)
+        i, j, f, o = split(graph, '{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
+        forget_bias = variable(graph, '{}_f_bias'.format(layer_name), [hidden_dim])
+        f = pointwise(graph, '{}_f_add'.format(layer_name), AddOp, [batch_size, hidden_dim], f, forget_bias)
+        f = pointwise(graph, '{}_f_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], f)
+        i = pointwise(graph, '{}_i_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], i)
+        j = pointwise(graph, '{}_j_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], j)
+        mul_i_j = pointwise(graph, '{}_i_j_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], i, j)
+        new_c = pointwise(graph, '{}_c_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], c, f)
+        new_c = pointwise(graph, '{}_c_add'.format(layer_name), AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
+        o = pointwise(graph, '{}_o_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], o)
+        new_c_sig = pointwise(graph, '{}_new_c_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], new_c)
+        new_h = pointwise(graph, '{}_new_h'.format(layer_name), MulOp, [batch_size, hidden_dim], new_c_sig, o)
+        lstm_seq = new_h
 
     # 3) Projection layer
     proj_weights = variable(graph, 'projection_weights',
                             [hidden_dim, projection_dim])
     proj_seq = matmul(graph, 'projection', [batch_size, projection_dim],
-                      input_seq, proj_weights)
+                      lstm_seq, proj_weights)
 
     # 4) Output layer
-    output_weights = variable(graph, 'output_weights',
-                              [projection_dim, vocab_size])
-    output = matmul(graph, 'output_projection', [batch_size, vocab_size],
-                    proj_seq, output_weights)
-    output_bias = variable(graph, 'output_bias', [vocab_size])
-    output = pointwise(graph, 'output_point', AddOp, [batch_size, vocab_size],
-                       output, output_bias)
+    output = linear(graph, 'output', [projection_dim, vocab_size],
+                    [batch_size, vocab_size], proj_seq)
     normd_out = softmax(graph, 'output_softmax', [batch_size, vocab_size],
                         output)
 

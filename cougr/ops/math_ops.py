@@ -70,12 +70,30 @@ class ReluOp(BasePointwiseOp):
 class RsqrtOp(BasePointwiseOp):
     def __init__(self, name):
         super(RsqrtOp, self).__init__(name)
-        # Reciprocal square root is 2 Flops per element
+        # Assume reciprocal square root is 2 Flops per element
         self._flops_per_element = 2
+
+
+class SigmoidOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(SigmoidOp, self).__init__(name)
+        # For now, assume sigmoid consists of input negation, exponentiation,
+        # addition, and then inversion (i.e., 4 Flops per element)
+        self._flops_per_element = 4
+
 
 class SubOp(BasePointwiseOp):
     def __init__(self, name):
         super(SubOp, self).__init__(name)
+
+
+class TanhOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(TanhOp, self).__init__(name)
+        # For now, assume tanh consists of input negation, two
+        # exponentiations, addition and subtraction, and then inversion
+        # (i.e., 6 Flops per element)
+        self._flops_per_element = 6
 
 
 class Conv2DOp(Op):
@@ -116,9 +134,13 @@ class MatMulOp(Op):
         #                  the tensor_shape code, and add a check... either
         #                  both int and equal, or symbols)
         import sympy
-        assert(type(inner_dim) == sympy.Symbol or \
-               type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
-               inner_dim == self._inputs[1].shape.getDim(0))
+        assert (type(inner_dim) == sympy.Symbol or \
+                type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
+                inner_dim == self._inputs[1].shape.getDim(0)), \
+               'Dimension check failed in op {} with inputs {} and {}, '\
+               'and output {}'.format(self._name, self._inputs[0].shape,
+                                      self._inputs[1].shape,
+                                      self._outputs[0].shape)
         # Get output number of elements
         assert(len(self._outputs) == 1)
         out_shape = self._outputs[0].shape

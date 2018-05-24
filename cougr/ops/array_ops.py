@@ -1,6 +1,18 @@
 from .base_op import Op
 
 
+class ConcatOp(Op):
+    def __init__(self, name, axis=0):
+        super(ConcatOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # Assume ConcatOps have fully specified shapes
+        pass
+
+    def calcAlgFlops(self):
+        # ConcatOps have no Flops
+        return 0
+
 class ReshapeOp(Op):
     def __init__(self, name):
         super(ReshapeOp, self).__init__(name)
@@ -26,7 +38,7 @@ class ShapeOp(Op):
         return 0
 
 class SplitOp(Op):
-    def __init__(self, name):
+    def __init__(self, name, num_splits=0, axis=0):
         super(SplitOp, self).__init__(name)
 
     def propagateShapes(self):

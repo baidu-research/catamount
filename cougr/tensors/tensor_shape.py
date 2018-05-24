@@ -26,6 +26,12 @@ class Dimension(object):
             raise TypeError('Unknown Dimension type {}'.format(type(value)))
         self._symbol = None
 
+    def __str__(self):
+        to_return = self.symbol
+        if to_return is None:
+            to_return = '?'
+        return str(to_return)
+
     def setSymbolOrName(self, symbol_or_name):
         if isinstance(symbol_or_name, str):
             self.setSymbolName(symbol_or_name)
