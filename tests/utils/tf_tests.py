@@ -25,6 +25,7 @@ def run_tf_calculate_tests():
     # Now, bind tensor names in the graph and verify that the algorithmic
     # Flop counts reflect the new name bindings
     batch_size = sympy.Symbol('batch_size')
+    # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': (0, batch_size),
                   'b': (0, batch_size) }
