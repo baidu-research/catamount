@@ -93,7 +93,7 @@ class TensorShape(object):
         '''
         self._tensor = None
         if dims is None:
-            self._dims = []
+            self._dims = None
         elif isinstance(dims, int):
             self._dims = [Dimension(dims)]
         elif isinstance(dims, list):

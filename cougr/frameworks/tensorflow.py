@@ -96,10 +96,11 @@ TF_DTYPE_TO_COUGR = {
 
 def tf_shape_to_cougr(tf_shape):
     dims = None
-    if tf_shape and len(tf_shape.dims) > 0:
+    if tf_shape is not None:
         dims = []
-        for dim in tf_shape.dims:
-            dims.append(dim.value)
+        if tf_shape.dims is not None and len(tf_shape.dims) > 0:
+            for dim in tf_shape.dims:
+                dims.append(dim.value)
     return TensorShape(dims)
 
 def import_graph(tf_filename):
@@ -121,6 +122,8 @@ def import_graph(tf_filename):
     op_inputs = {}
     for tf_op_name in tf_graph._nodes_by_name.keys():
         tf_op = tf_graph._nodes_by_name[tf_op_name]
+        if "random_uniform/min" in tf_op_name:
+            print(tf_op)
         if tf_op.type in TF_OP_TO_COUGR.keys():
             # Map to CouGr op type
             cougr_type = TF_OP_TO_COUGR[tf_op.type]
