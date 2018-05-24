@@ -7,16 +7,23 @@ class BasePointwiseOp(Op):
         self._flops_per_element = 1
 
     def propagateShapes(self):
-        # Verify inputs have same shape
-        assert(len(self._inputs) == 2)
-        in_a_shape = self._inputs[0].shape
-        in_b_shape = self._inputs[1].shape
-        assert(in_a_shape == in_b_shape)
         assert(len(self._outputs) == 1)
+        if len(self._inputs) == 1:
+            # Unary operator!
+            final_shape = self._inputs[0].shape
+        else:
+            # Must be binary operator!
+            assert(len(self._inputs) == 2)
+            # Verify inputs have compatible shape
+            in_a_shape = self._inputs[0].shape
+            in_b_shape = self._inputs[1].shape
+            assert in_a_shape.canBroadcastTogether(in_b_shape), \
+                'Op: {}: input shapes cannot broadcast ({}, {})!'.format(
+                self._name, in_a_shape, in_b_shape)
+            final_shape = in_a_shape.getBroadcastShape(in_b_shape)
+
         # Set the output dimensions
-        out_shape = self._outputs[0].shape
-        for idx, value in enumerate(out_shape.dims):
-            out_shape.setDimension(idx, in_a_shape.getDim(idx))
+        self._outputs[0].shape.mergeShape(final_shape)
 
     def flopsPointwise(self):
         assert(len(self._outputs) == 1)
@@ -116,7 +123,16 @@ class MatMulOp(Op):
         tensor_b = self._inputs[1]
         inner_dim = tensor_a.shape.getDim(1)
         # [_] TODO (Joel): This assert will be too strict at some point
-        assert(inner_dim == tensor_b.shape.getDim(0))
+        import sympy
+        assert (type(inner_dim) == sympy.Symbol or \
+                type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
+                inner_dim == self._inputs[1].shape.getDim(0)), \
+               'Dimension check failed in op {} with inputs {} and {}, '\
+               'and output {}'.format(self._name, self._inputs[0].shape,
+                                      self._inputs[1].shape,
+                                      self._outputs[0].shape)
+        if inner_dim != tensor_b.shape.getDim(0):
+            print('WARN: MatMulOp: Enough info to resolve dimensions!')
         # Resolve shapes
         tensor_c = self._outputs[0]
         first_dim = tensor_a.shape.getDim(0)
@@ -154,12 +170,19 @@ class ReduceOp(Op):
         # TODO (Joel): Extend to handle multiple axis dims (like TF)
         assert isinstance(axis, int)
         self._axis = axis
+        self._flops_per_element = 1
+
+    def propagateShapes(self):
+        assert(len(self._inputs) == 1)
+        out_dim = self._inputs[0].shape.getDim(1 - self._axis)
+        assert(len(self._outputs) == 1)
+        self._outputs[0].shape.setDimension(0, out_dim)
 
     def calcAlgFlops(self):
         assert(len(self._inputs) == 1)
         in_dim = self._inputs[0].shape.getDim(self._axis)
         assert(len(self._outputs) == 1)
         out_dim = self._outputs[0].shape.getDim(1 - self._axis)
-        return (in_dim * out_dim)
+        return (self._flops_per_element * in_dim * out_dim)
 
 

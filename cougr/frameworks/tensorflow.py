@@ -96,7 +96,7 @@ TF_DTYPE_TO_COUGR = {
 
 def tf_shape_to_cougr(tf_shape):
     dims = None
-    if tf_shape is not None:
+    if tf_shape is not None and tf_shape.ndims is not None:
         dims = []
         if tf_shape.dims is not None and len(tf_shape.dims) > 0:
             for dim in tf_shape.dims:

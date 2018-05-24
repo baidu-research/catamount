@@ -250,11 +250,11 @@ def run_manual_graph_test():
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
 
-# TODO (Joel): Add binding tests
-#    batch_size = 'batch_size'
-#    feed_dict = { 'lstm_out': (0, batch_size) }
-#    graph.bind__(feed_dict)
-#    print(graph.calcAlgFlops())
+    batch_size = 'batch_size'
+    hidden_dim = 'hidden_dim'
+    feed_dict = { 'input': (1, hidden_dim) }
+    graph.bindTensorShapeDimensions(feed_dict)
+    print(graph.calcAlgFlops())
 
 
 if __name__ == "__main__":

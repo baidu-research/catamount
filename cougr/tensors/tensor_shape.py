@@ -22,15 +22,21 @@ class Dimension(object):
     def __init__(self, value=None):
         if value is None or isinstance(value, int):
             self._value = value
+            self._symbol = None
+        elif isinstance(value, Dimension):
+            self._value = value._value
+            self._symbol = value._symbol
         else:
             raise TypeError('Unknown Dimension type {}'.format(type(value)))
-        self._symbol = None
 
     def __str__(self):
-        to_return = self.symbol
-        if to_return is None:
+        if self._value is None:
             to_return = '?'
-        return str(to_return)
+        else:
+            to_return = str(self._value)
+        if self._symbol is not None:
+            to_return = '{} "{}"'.format(to_return, self._symbol)
+        return 'Dimension({})'.format(to_return)
 
     def setSymbolOrName(self, symbol_or_name):
         if isinstance(symbol_or_name, str):
@@ -39,6 +45,10 @@ class Dimension(object):
             self._value = symbol_or_name         
         elif isinstance(symbol_or_name, sympy.Symbol):
             self._symbol = symbol_or_name
+        elif isinstance(symbol_or_name, Dimension):
+            # Need to copy self._value and self._symbol if they are not None
+            self._value = symbol_or_name.value
+            self._symbol = symbol_or_name._symbol
         else:
             raise TypeError('Unknown symbol type {}'
                             .format(type(symbol_or_name)))
@@ -53,6 +63,8 @@ class Dimension(object):
 
     @property
     def symbol(self):
+        # Always select the value to which the dimension is bound before
+        # deciding to return the symbol
         if self._value is not None:
             return self._value
         return self._symbol
@@ -76,6 +88,49 @@ class Dimension(object):
         if self.symbol is not None and other.symbol is not None:
             to_return._symbol = self.symbol * other.symbol
         return to_return
+
+    def canBroadcastTogether(self, other):
+        # CouGr implements broadcasting rules according to Numpy here:
+        # https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+        # Two dimensions can broadcast together if their values are the
+        # same or if either is 1 or None
+        return (self == other or \
+                self.value == None or self.value == 1 or \
+                other.value == None or other.value == 1)
+
+    def getBroadcastDimension(self, other):
+        assert isinstance(other, Dimension)
+        # CouGr implements broadcasting rules according to Numpy here:
+        # https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+        # Two dimensions can broadcast together if their values are the
+        # same or if either is 1 or None
+        if self._value is None or other._value is None:
+            new_value = None
+        elif self._value == 1:
+            new_value = other._value
+        elif other._value == 1:
+            new_value = self._value
+        else:
+            assert self._value == other._value
+            new_value = self._value
+
+        # Symbols should propagate with a warning if they do not match
+        if self._symbol is None and other._symbol is None:
+            new_symbol = None
+        elif self._symbol is None:
+            new_symbol = other._symbol
+        elif other._symbol is None:
+            new_symbol = self._symbol
+        else:
+            if self._symbol != other._symbol:
+                print('WARN: Dimension symbols do not match ({}, {})!'.format(
+                      self._symbol, other._symbol))
+            new_symbol = self._symbol
+        new_dim = Dimension(new_value)
+        if new_symbol is not None:
+            new_dim.setSymbolOrName(new_symbol)
+        return new_dim
+
 
 class TensorShape(object):
     '''Represents the shape of a `Tensor`.
@@ -112,10 +167,12 @@ class TensorShape(object):
         return 'TensorShape({})'.format(self._dims)
 
     def __str__(self):
+        if self._dims is None:
+            return '?'
         return '({})'.format(', '.join(str(d) for d in self._dims))
 
     def __eq__(self, other):
-        if self.rank == 0 or other.rank == 0:
+        if self.rank == 0 and other.rank == 0:
             return True
         if self.rank != other.rank:
             return False
@@ -129,6 +186,8 @@ class TensorShape(object):
         return True
 
     def isValid(self):
+        if self._dims is None:
+            return True
         if not isinstance(self._dims, list):
             print('WARN: TensorShape dims must be a list (got {})!'
                   .format(type(self._dims)))
@@ -146,7 +205,71 @@ class TensorShape(object):
 
     @property
     def rank(self):
+        if self._dims is None:
+            # TODO (Joel): This might also work with -1? Finalize choice later
+            return None
         return len(self._dims)
+
+    def canBroadcastTogether(self, other):
+        ''' Returns whether this TensorShape can be broadcast to other
+        TensorShape or vice-versa. This check is reflexive and symmetric,
+        but not transitive.
+        '''
+        assert isinstance(other, TensorShape)
+        # CouGr implements broadcasting rules according to Numpy here:
+        # https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+        # Get first and second shape, longest first
+        if self.rank < other.rank:
+            first_shape = list(other.dims)
+            second_shape = list(self._dims)
+        else:
+            first_shape = list(self._dims)
+            second_shape = list(other.dims)
+        # TODO (Joel): These checks will have problems when a TensorShape
+        # is None! Fix later
+        assert (first_shape is not None and second_shape is not None)
+        # Iterate from trailing dimensions to early dimensions
+        for idx in range(len(second_shape) - 1, -1, -1):
+            if not first_shape[idx].canBroadcastTogether(second_shape[idx]):
+                return False
+        return True
+
+    def getBroadcastShape(self, other):
+        assert self.canBroadcastTogether(other)
+        if self.rank < other.rank:
+            first_shape = list(other.dims)
+            second_shape = list(self._dims)
+        else:
+            first_shape = list(self._dims)
+            second_shape = list(other.dims)
+        # TODO (Joel): These checks will have problems when a TensorShape
+        # is None! Fix later
+        assert (first_shape is not None and second_shape is not None)
+        # Extend second shape to first shape length
+        while len(second_shape) < len(first_shape):
+            second_shape.insert(0, Dimension(None))
+        # Now perform broadcast
+        bcast_shape_list = []
+        for idx in range(len(first_shape) - 1, -1, -1):
+            assert first_shape[idx].canBroadcastTogether(second_shape[idx])
+            bcast_shape_list.insert(0,
+                first_shape[idx].getBroadcastDimension(second_shape[idx]))
+        bcast_shape = TensorShape(bcast_shape_list)
+        # print('Bcast: {} x {} => {}'.format(self, other, bcast_shape))
+        return bcast_shape
+
+    def mergeShape(self, other):
+        # TODO (Joel): These checks will not work when a TensorShape
+        # is None! Fix later
+        assert self.rank == other.rank
+        assert self._dims is not None
+        assert other.dims is not None
+        # Now perform merging
+        for idx, dim in enumerate(other.dims):
+            if self._dims[idx].value is None:
+               self.setDimension(idx, dim)
+            else:
+               assert self._dims[idx] == dim
 
     def associateTensor(self, tensor):
         self._tensor = tensor

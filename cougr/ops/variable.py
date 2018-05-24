@@ -7,8 +7,9 @@ class VariableOp(Op):
 
     def propagateShapes(self):
         # Variables have no inputs to propagate
+        # [_] TODO (Joel): We should be able to bind variable dimensions
+        # to symbols also
         assert len(self._inputs) == 0
-        pass
 
     def calcAlgFlops(self):
         # Variables have no Flops
@@ -22,7 +23,9 @@ class AssignOp(Op):
         # Assign must propagate input size to output size
         assert len(self._inputs) == 2
         assert len(self._outputs) == 1
-        assert(self._inputs[0].shape == self._inputs[1].shape)
+        assert(self._inputs[0].shape.dims is None or \
+               self._inputs[1].shape.dims is None or \
+               self._inputs[0].shape == self._inputs[1].shape)
         assert(self._inputs[0].shape == self._outputs[0].shape)
 
     def calcAlgFlops(self):

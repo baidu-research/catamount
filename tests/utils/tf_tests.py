@@ -44,5 +44,5 @@ def run_tf_calculate_tests():
 
 
 if __name__ == "__main__":
-    run_tf_import_test()
+    run_tf_calculate_tests()
 
