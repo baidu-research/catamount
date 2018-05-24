@@ -122,8 +122,6 @@ def import_graph(tf_filename):
     op_inputs = {}
     for tf_op_name in tf_graph._nodes_by_name.keys():
         tf_op = tf_graph._nodes_by_name[tf_op_name]
-        if "random_uniform/min" in tf_op_name:
-            print(tf_op)
         if tf_op.type in TF_OP_TO_COUGR.keys():
             # Map to CouGr op type
             cougr_type = TF_OP_TO_COUGR[tf_op.type]
