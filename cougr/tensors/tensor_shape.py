@@ -123,7 +123,7 @@ class TensorShape(object):
             if self.dims[idx] is not None and other.dims[idx] is not None:
                 if self.dims[idx] != other.dims[idx]:
                     return False
-            elif self.dims[idx] is None or self.dims[idx] is None:
+            elif self.dims[idx] is None or other.dims[idx] is None:
                 print('WARN: May need to check if dimension '
                       'symbols are the same')
         return True
