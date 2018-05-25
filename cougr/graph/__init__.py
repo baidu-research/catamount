@@ -85,19 +85,8 @@ class Graph:
         downstream shapes.
         '''
         # Topologically traverse from sources to sinks
-        # [_] TODO (Joel): Current traversal (bfs) won't work if there are
-        #                  nodes at varying levels. Must visit all parents
-        #                  before visiting a node
-        frontier_ops = list(self._sources.values())
-        visited_ops = set(frontier_ops)
-        while len(frontier_ops) > 0:
-            next_op = frontier_ops.pop(0)
+        for next_op in self.getTopologicalOpOrder():
             next_op.propagateShapes()
-            for out_tensor in next_op.outputs:
-                for out_op in out_tensor.consumers.values():
-                    if out_op not in visited_ops:
-                        visited_ops.add(out_op)
-                        frontier_ops.append(out_op)
 
     def bindTensorShapeDimensions(self, bind_dict):
         for name in bind_dict.keys():
@@ -107,6 +96,34 @@ class Graph:
             shape_dim_idx, shape_name_or_symbol = bind_dict[name]
             op.bindTensorShapeDimension(shape_dim_idx, shape_name_or_symbol)
         self.propagateTensorShapeNames()
+
+    def getTopologicalOpOrder(self):
+        topo_ordered_ops = list(self._sources.values())
+        visited_ops = set(topo_ordered_ops)
+        frontier_ops = []
+        for op in topo_ordered_ops:
+            for out_tensor in op.outputs:
+                frontier_ops.extend(out_tensor.consumers.values())
+        while len(frontier_ops) > 0:
+            next_op = frontier_ops.pop(0)
+            if next_op in visited_ops:
+                # Skip ops that have been visited... make this smarter?
+                continue
+            # Check if input producers have been visited
+            can_visit = True
+            for in_tensor in next_op.inputs:
+                if in_tensor.producer not in visited_ops:
+                    can_visit = False
+                    break
+            if can_visit:
+                visited_ops.add(next_op)
+                for out_tensor in next_op.outputs:
+                    frontier_ops.extend(out_tensor.consumers.values())
+                topo_ordered_ops.append(next_op)
+            else:
+                # Put the op back on the end of the frontier to check later
+                frontier_ops.append(next_op)
+        return topo_ordered_ops
 
     # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
     def getOpsToExecute(self, feed_dict=None, fetches_dict=None):
