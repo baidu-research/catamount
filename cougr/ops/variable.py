@@ -5,10 +5,12 @@ class VariableOp(Op):
     def __init__(self, name):
         super(VariableOp, self).__init__(name)
 
+    def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol):
+        assert len(self._outputs) == 1
+        self._outputs[0].shape.setDimension(dim_index, dim_name_or_symbol)
+
     def propagateShapes(self):
         # Variables have no inputs to propagate
-        # [_] TODO (Joel): We should be able to bind variable dimensions
-        # to symbols also
         assert len(self._inputs) == 0
 
     def calcAlgFlops(self):

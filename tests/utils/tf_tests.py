@@ -27,8 +27,8 @@ def run_tf_calculate_tests():
     batch_size = sympy.Symbol('batch_size')
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
-    bind_dict = { 'a': (0, batch_size),
-                  'b': (0, batch_size) }
+    bind_dict = { 'a': [batch_size, None],
+                  'b': [batch_size, None] }
     graph.bindTensorShapeDimensions(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()

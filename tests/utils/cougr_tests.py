@@ -188,7 +188,7 @@ def run_manual_graph_test():
     graph = Graph()
 
     # 1) Embedding layer
-    input_seq = placeholder(graph, 'input', [batch_size, hidden_dim])
+    input_seq = placeholder(graph, 'input', [batch_size, vocab_size])
     lstm_seq = input_seq
 
     # 2) Recurrent layers
@@ -207,8 +207,8 @@ def run_manual_graph_test():
         # [_] TODO (Joel): Wrap this as an LSTM cell. Then, make it recurrent!
         recur_state = variable(graph, '{}_init_state'.format(layer_name), [batch_size, in_dim])
         c, h = split(graph, '{}_recur_split'.format(layer_name), [batch_size, hidden_dim], recur_state, num_splits=2, axis=1)
-        lstm_seq = concat(graph, '{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
-        recur_linear = linear(graph, layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_seq)
+        lstm_concat_seq = concat(graph, '{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
+        recur_linear = linear(graph, layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
         i, j, f, o = split(graph, '{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
         forget_bias = variable(graph, '{}_f_bias'.format(layer_name), [hidden_dim])
         f = pointwise(graph, '{}_f_add'.format(layer_name), AddOp, [batch_size, hidden_dim], f, forget_bias)
@@ -250,9 +250,22 @@ def run_manual_graph_test():
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
 
-    batch_size = 'batch_size'
-    hidden_dim = 'hidden_dim'
-    feed_dict = { 'input': (1, hidden_dim) }
+    batch_size_str = 'batch_size'
+    seq_length_str = 'seq_length'
+    hidden_dim_str = 'hidden_dim'
+    vocab_size_str = 'vocab_size'
+    num_layers_str = 'num_layers' # TODO: Can we make this show up in output?
+    projection_dim_str = 'projection_dim'
+    feed_dict = { 'input': [batch_size_str, vocab_size_str],
+                  'projection_weights': [hidden_dim_str, projection_dim_str],
+                  'output_weights': [hidden_dim_str, vocab_size_str],
+                  'output_bias': [vocab_size_str] }
+
+    for idx in range(num_layers):
+        lstm_layer_name = 'lstm_layer_{}'.format(idx)
+        feed_dict['{}_f_bias'.format(lstm_layer_name)] = [hidden_dim_str]
+        feed_dict['{}_init_state'.format(lstm_layer_name)] = \
+            [batch_size_str, None]
     graph.bindTensorShapeDimensions(feed_dict)
     print(graph.calcAlgFlops())
 

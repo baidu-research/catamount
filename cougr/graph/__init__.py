@@ -1,5 +1,6 @@
 from cougr.ops.base_op import Op
 from cougr.ops.placeholder import PlaceholderOp
+from cougr.ops.variable import VariableOp
 
 class Graph:
     def __init__(self):
@@ -92,9 +93,11 @@ class Graph:
         for name in bind_dict.keys():
             assert name in self._ops_by_name.keys()
             op = self._ops_by_name[name]
-            assert type(op) == PlaceholderOp
-            shape_dim_idx, shape_name_or_symbol = bind_dict[name]
-            op.bindTensorShapeDimension(shape_dim_idx, shape_name_or_symbol)
+            assert type(op) == PlaceholderOp or \
+                   type(op) == VariableOp
+            for dim_idx, dim_name_or_symbol in enumerate(bind_dict[name]):
+                if dim_name_or_symbol is not None:
+                    op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol)
         self.propagateTensorShapeNames()
 
     def getTopologicalOpOrder(self):
