@@ -1,9 +1,6 @@
 import sympy
 
 import cougr
-from cougr.graph import Graph
-from cougr.ops import *
-from cougr.tensors import *
 
 
 # Build symbol table with this function (for verifying CouGr
@@ -23,11 +20,6 @@ def add_symbols(name, out_shape):
         if dim is not None:
             subs_table[symbol] = dim
 
-
-# General flow for creating CouGr graph ops:
-# a) Create op
-# b) Create op output tensor, then addOutput to op
-# c) Tell graph to connect op's inputs to prior op output tensors
 
 def placeholder(name, out_shape):
     add_symbols(name, out_shape)
@@ -56,9 +48,9 @@ def pointwise(name, op_type, out_shape, in_a, in_b=None):
     out_dim_0 = '{}::dim_0'.format(name)
     out_dim_1 = '{}::dim_1'.format(name)
     flops_per_elt = 1
-    if op_type == SigmoidOp:
+    if op_type == cougr.SigmoidOp:
         flops_per_elt = 4
-    if op_type == TanhOp:
+    if op_type == cougr.TanhOp:
         flops_per_elt = 6
     correct_alg_flops += flops_per_elt * symbol_table[out_dim_0] * \
                          symbol_table[out_dim_1]
@@ -79,11 +71,11 @@ def reduce(name, op_func, out_shape, input, axis=0):
 
 
 def softmax(name, out_shape, input, axis=1):
-    output = pointwise('{}/exp'.format(name), ExpOp, out_shape, input)
+    output = pointwise('{}/exp'.format(name), cougr.ExpOp, out_shape, input)
     reduce_shape = [out_shape[1 - axis]]
     reduced = reduce('{}/reduce'.format(name), 'Sum', reduce_shape,
                      output, axis=axis)
-    normd_out = pointwise('{}/div'.format(name), DivOp, out_shape,
+    normd_out = pointwise('{}/div'.format(name), cougr.DivOp, out_shape,
                           output, reduced)
     return normd_out
 
@@ -93,7 +85,7 @@ def linear(name, weights_shape, out_shape, input):
     output = matmul('{}_projection'.format(name), out_shape, input,
                     output_weights)
     output_bias = variable('{}_bias'.format(name), [out_shape[1]])
-    output = pointwise('{}_point'.format(name), AddOp, out_shape,
+    output = pointwise('{}_point'.format(name), cougr.AddOp, out_shape,
                        output, output_bias)
     return output
 
@@ -168,16 +160,16 @@ def run_manual_graph_test():
         recur_linear = linear(layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
         i, j, f, o = split('{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
         forget_bias = variable('{}_f_bias'.format(layer_name), [hidden_dim])
-        f = pointwise('{}_f_add'.format(layer_name), AddOp, [batch_size, hidden_dim], f, forget_bias)
-        f = pointwise('{}_f_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], f)
-        i = pointwise('{}_i_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], i)
-        j = pointwise('{}_j_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], j)
-        mul_i_j = pointwise('{}_i_j_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], i, j)
-        new_c = pointwise('{}_c_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], c, f)
-        new_c = pointwise('{}_c_add'.format(layer_name), AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
-        o = pointwise('{}_o_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], o)
-        new_c_sig = pointwise('{}_new_c_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], new_c)
-        new_h = pointwise('{}_new_h'.format(layer_name), MulOp, [batch_size, hidden_dim], new_c_sig, o)
+        f = pointwise('{}_f_add'.format(layer_name), cougr.AddOp, [batch_size, hidden_dim], f, forget_bias)
+        f = pointwise('{}_f_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], f)
+        i = pointwise('{}_i_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], i)
+        j = pointwise('{}_j_tanh'.format(layer_name), cougr.TanhOp, [batch_size, hidden_dim], j)
+        mul_i_j = pointwise('{}_i_j_mul'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], i, j)
+        new_c = pointwise('{}_c_mul'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], c, f)
+        new_c = pointwise('{}_c_add'.format(layer_name), cougr.AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
+        o = pointwise('{}_o_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], o)
+        new_c_sig = pointwise('{}_new_c_tanh'.format(layer_name), cougr.TanhOp, [batch_size, hidden_dim], new_c)
+        new_h = pointwise('{}_new_h'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], new_c_sig, o)
         lstm_seq = new_h
 
     # 3) Projection layer
