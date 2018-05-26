@@ -57,24 +57,27 @@ def pointwise(name, op_type, out_shape, in_a, in_b=None):
     return cougr.pointwise(name, op_type, out_shape, in_a, in_b)
 
 
-def reduce(name, op_func, out_shape, input, axis=0):
-    assert len(input.shape.dims) == 2, \
+def reduce(name, op_func, out_shape, input, axes=0):
+    assert input.shape.rank == 2, \
            'Reduce only supports 2 dimensional input for now'
     assert len(out_shape) == 1, \
            'Reduce only supports 2->1 dimensions for now'
     add_symbols(name, out_shape)
+
     global correct_alg_flops
-    in_dim = '{}::dim_{}'.format(input.name, axis)
-    out_dim = '{}::dim_{}'.format(name, 1 - axis)
-    correct_alg_flops += symbol_table[in_dim] * symbol_table[out_dim]
-    return cougr.reduce(name, op_func, out_shape, input, axis)
+    to_add_flops = 1
+    for idx in range(input.shape.rank):
+        in_dim = '{}::dim_{}'.format(input.name, idx)
+        to_add_flops *= symbol_table[in_dim]
+    correct_alg_flops += to_add_flops
+    return cougr.reduce(name, op_func, out_shape, input, axes)
 
 
 def softmax(name, out_shape, input, axis=1):
     output = pointwise('{}/exp'.format(name), cougr.ExpOp, out_shape, input)
     reduce_shape = [out_shape[1 - axis]]
     reduced = reduce('{}/reduce'.format(name), 'Sum', reduce_shape,
-                     output, axis=axis)
+                     output, axes=axis)
     normd_out = pointwise('{}/div'.format(name), cougr.DivOp, out_shape,
                           output, reduced)
     return normd_out

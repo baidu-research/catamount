@@ -52,11 +52,11 @@ def pointwise(name, op_type, out_shape, in_a, in_b=None, graph=None):
         graph.addInputToOp(op, in_b)
     return out_tensor
 
-def reduce(name, op_func, out_shape, input, axis=0, graph=None):
+def reduce(name, op_func, out_shape, input, axes=0, graph=None):
     if graph is None:
         graph = get_default_graph()
 
-    op = ReduceOp(name, axis=axis)
+    op = ReduceOp(name, axes=axes)
     out_tensor = Tensor(name, TensorShape(out_shape))
     op.addOutput(out_tensor)
     graph.addOp(op)

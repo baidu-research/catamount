@@ -165,24 +165,26 @@ class MatMulOp(Op):
 
 
 class ReduceOp(Op):
-    def __init__(self, name, reduction_op='sum', axis=0):
+    def __init__(self, name, reduction_op='sum', axes=0):
         super(ReduceOp, self).__init__(name)
-        # TODO (Joel): Extend to handle multiple axis dims (like TF)
-        assert isinstance(axis, int)
-        self._axis = axis
+        if isinstance(axes, int):
+            axes = [axes]
+        self._axes = axes
         self._flops_per_element = 1
 
     def propagateShapes(self):
         assert(len(self._inputs) == 1)
-        out_dim = self._inputs[0].shape.getDim(1 - self._axis)
         assert(len(self._outputs) == 1)
-        self._outputs[0].shape.setDimension(0, out_dim)
+        for dim_index in range(self._inputs[0].shape.rank):
+            if dim_index not in self._axes:
+                dim = self._inputs[0].shape.getDim(dim_index)
+                self._outputs[0].shape.setDimension(0, dim_index)
 
     def calcAlgFlops(self):
         assert(len(self._inputs) == 1)
-        in_dim = self._inputs[0].shape.getDim(self._axis)
-        assert(len(self._outputs) == 1)
-        out_dim = self._outputs[0].shape.getDim(1 - self._axis)
-        return (self._flops_per_element * in_dim * out_dim)
+        flops_to_return = self._flops_per_element
+        for dim_index in range(self._inputs[0].shape.rank):
+            flops_to_return *= self._inputs[0].shape.getDim(dim_index)
+        return flops_to_return
 
 

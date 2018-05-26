@@ -3,6 +3,20 @@ from cougr.ops.placeholder import PlaceholderOp
 from cougr.ops.variable import VariableOp
 
 
+class GraphContextManagerHelper:
+    def __init__(self):
+        global _cougr_default_graph
+        self._graph_stack_top = _cougr_default_graph
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type_arg, value_arg, traceback_arg):
+        assert self._graph_stack_top is not None
+        global _cougr_default_graph
+        _cougr_default_graph  = self._graph_stack_top
+
+
 class Graph:
     def __init__(self):
         self._next_op_id = 0
@@ -14,6 +28,12 @@ class Graph:
         # Maintain a list of the ops that are sinks from the graph
         # (in particular, ops whose outputs have no consumers)
         self._sinks = {}
+
+    def asDefault(self):
+        global _cougr_default_graph
+        ctx_mgr = GraphContextManagerHelper()
+        _cougr_default_graph = self
+        return ctx_mgr
 
     def addOp(self, op):
         assert isinstance(op, Op)
@@ -176,9 +196,9 @@ class Graph:
 # The CouGr default graph is used throughout the API
 # [_] TODO (Joel): Make this managed! User should be able to
 # set the default graph (without losing access to the default)
-cougr_default_graph = Graph()
+_cougr_default_graph = Graph()
 
 def get_default_graph():
-    global cougr_default_graph
-    return cougr_default_graph
+    global _cougr_default_graph
+    return _cougr_default_graph
 
