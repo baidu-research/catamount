@@ -29,27 +29,17 @@ def add_symbols(name, out_shape):
 # b) Create op output tensor, then addOutput to op
 # c) Tell graph to connect op's inputs to prior op output tensors
 
-def placeholder(graph, name, out_shape):
+def placeholder(name, out_shape):
     add_symbols(name, out_shape)
-
-    ph_op = PlaceholderOp(name)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    ph_op.addOutput(out_tensor)
-    graph.addOp(ph_op)
-    return out_tensor
+    return cougr.placeholder(name, out_shape)
 
 
-def variable(graph, name, out_shape):
+def variable(name, out_shape):
     add_symbols(name, out_shape)
-
-    var_op = VariableOp(name)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    var_op.addOutput(out_tensor)
-    graph.addOp(var_op)
-    return out_tensor
+    return cougr.variable(name, out_shape)
 
 
-def matmul(graph, name, out_shape, in_a, in_b):
+def matmul(name, out_shape, in_a, in_b):
     add_symbols(name, out_shape)
     global correct_alg_flops
     in_a_dim_1 = '{}::dim_1'.format(in_a.name)
@@ -57,17 +47,10 @@ def matmul(graph, name, out_shape, in_a, in_b):
     out_dim_1 = '{}::dim_1'.format(name)
     correct_alg_flops += 2 * symbol_table[in_a_dim_1] * \
         symbol_table[out_dim_0] * symbol_table[out_dim_1]
-
-    mm_op = MatMulOp(name)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    mm_op.addOutput(out_tensor)
-    graph.addOp(mm_op)
-    graph.addInputToOp(mm_op, in_a)
-    graph.addInputToOp(mm_op, in_b)
-    return out_tensor
+    return cougr.matmul(name, out_shape, in_a, in_b)
 
 
-def pointwise(graph, name, op_type, out_shape, in_a, in_b=None):
+def pointwise(name, op_type, out_shape, in_a, in_b=None):
     add_symbols(name, out_shape)
     global correct_alg_flops
     out_dim_0 = '{}::dim_0'.format(name)
@@ -79,18 +62,10 @@ def pointwise(graph, name, op_type, out_shape, in_a, in_b=None):
         flops_per_elt = 6
     correct_alg_flops += flops_per_elt * symbol_table[out_dim_0] * \
                          symbol_table[out_dim_1]
-
-    op = op_type(name)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    op.addOutput(out_tensor)
-    graph.addOp(op)
-    graph.addInputToOp(op, in_a)
-    if in_b is not None:
-        graph.addInputToOp(op, in_b)
-    return out_tensor
+    return cougr.pointwise(name, op_type, out_shape, in_a, in_b)
 
 
-def reduce(graph, name, op_func, out_shape, input, axis=0):
+def reduce(name, op_func, out_shape, input, axis=0):
     assert len(input.shape.dims) == 2, \
            'Reduce only supports 2 dimensional input for now'
     assert len(out_shape) == 1, \
@@ -100,57 +75,39 @@ def reduce(graph, name, op_func, out_shape, input, axis=0):
     in_dim = '{}::dim_{}'.format(input.name, axis)
     out_dim = '{}::dim_{}'.format(name, 1 - axis)
     correct_alg_flops += symbol_table[in_dim] * symbol_table[out_dim]
-
-    op = ReduceOp(name, axis=axis)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    op.addOutput(out_tensor)
-    graph.addOp(op)
-    graph.addInputToOp(op, input)
-    return out_tensor
+    return cougr.reduce(name, op_func, out_shape, input, axis)
 
 
-def softmax(graph, name, out_shape, input, axis=1):
-    output = pointwise(graph, '{}/exp'.format(name), ExpOp, out_shape, input)
+def softmax(name, out_shape, input, axis=1):
+    output = pointwise('{}/exp'.format(name), ExpOp, out_shape, input)
     reduce_shape = [out_shape[1 - axis]]
-    reduced = reduce(graph, '{}/reduce'.format(name), 'Sum', reduce_shape,
+    reduced = reduce('{}/reduce'.format(name), 'Sum', reduce_shape,
                      output, axis=axis)
-    normd_out = pointwise(graph, '{}/div'.format(name), DivOp, out_shape,
+    normd_out = pointwise('{}/div'.format(name), DivOp, out_shape,
                           output, reduced)
     return normd_out
 
 
-def linear(graph, name, weights_shape, out_shape, input):
-    output_weights = variable(graph, '{}_weights'.format(name), weights_shape)
-    output = matmul(graph, '{}_projection'.format(name), out_shape, input,
+def linear(name, weights_shape, out_shape, input):
+    output_weights = variable('{}_weights'.format(name), weights_shape)
+    output = matmul('{}_projection'.format(name), out_shape, input,
                     output_weights)
-    output_bias = variable(graph, '{}_bias'.format(name), [out_shape[1]])
-    output = pointwise(graph, '{}_point'.format(name), AddOp, out_shape,
+    output_bias = variable('{}_bias'.format(name), [out_shape[1]])
+    output = pointwise('{}_point'.format(name), AddOp, out_shape,
                        output, output_bias)
     return output
 
 
-def split(graph, name, out_shape, input, num_splits=2, axis=0):
-    split_op = SplitOp(name, num_splits=num_splits, axis=axis)
-    out_tensors = []
+def split(name, out_shape, input, num_splits=2, axis=0):
     for i in range(num_splits):
         out_name = '{}_out{}'.format(name, i)
         add_symbols(out_name, out_shape)
-
-        out_tensors.append(Tensor(out_name, TensorShape(out_shape)))
-        split_op.addOutput(out_tensors[i])
-    graph.addInputToOp(split_op, input)
-    return out_tensors
+    return cougr.split(name, out_shape, input, num_splits, axis)
 
 
-def concat(graph, name, out_shape, input_list, axis=0):
+def concat(name, out_shape, input_list, axis=0):
     add_symbols(name, out_shape)
-
-    concat_op = ConcatOp(name, axis=axis)
-    out_tensor = Tensor(name, TensorShape(out_shape))
-    concat_op.addOutput(out_tensor)
-    for input in input_list:
-        graph.addInputToOp(concat_op, input)
-    return out_tensor
+    return cougr.concat(name, out_shape, input_list, axis)
 
 
 def run_manual_graph_test():
@@ -185,10 +142,10 @@ def run_manual_graph_test():
 
     # Model definition parts:
     # 0) Create graph
-    graph = Graph()
+    graph = cougr.get_default_graph()
 
     # 1) Embedding layer
-    input_seq = placeholder(graph, 'input', [batch_size, vocab_size])
+    input_seq = placeholder('input', [batch_size, vocab_size])
     lstm_seq = input_seq
 
     # 2) Recurrent layers
@@ -205,34 +162,34 @@ def run_manual_graph_test():
             out_dim = None
 
         # [_] TODO (Joel): Wrap this as an LSTM cell. Then, make it recurrent!
-        recur_state = variable(graph, '{}_init_state'.format(layer_name), [batch_size, in_dim])
-        c, h = split(graph, '{}_recur_split'.format(layer_name), [batch_size, hidden_dim], recur_state, num_splits=2, axis=1)
-        lstm_concat_seq = concat(graph, '{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
-        recur_linear = linear(graph, layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
-        i, j, f, o = split(graph, '{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
-        forget_bias = variable(graph, '{}_f_bias'.format(layer_name), [hidden_dim])
-        f = pointwise(graph, '{}_f_add'.format(layer_name), AddOp, [batch_size, hidden_dim], f, forget_bias)
-        f = pointwise(graph, '{}_f_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], f)
-        i = pointwise(graph, '{}_i_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], i)
-        j = pointwise(graph, '{}_j_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], j)
-        mul_i_j = pointwise(graph, '{}_i_j_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], i, j)
-        new_c = pointwise(graph, '{}_c_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], c, f)
-        new_c = pointwise(graph, '{}_c_add'.format(layer_name), AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
-        o = pointwise(graph, '{}_o_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], o)
-        new_c_sig = pointwise(graph, '{}_new_c_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], new_c)
-        new_h = pointwise(graph, '{}_new_h'.format(layer_name), MulOp, [batch_size, hidden_dim], new_c_sig, o)
+        recur_state = variable('{}_init_state'.format(layer_name), [batch_size, in_dim])
+        c, h = split('{}_recur_split'.format(layer_name), [batch_size, hidden_dim], recur_state, num_splits=2, axis=1)
+        lstm_concat_seq = concat('{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
+        recur_linear = linear(layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
+        i, j, f, o = split('{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
+        forget_bias = variable('{}_f_bias'.format(layer_name), [hidden_dim])
+        f = pointwise('{}_f_add'.format(layer_name), AddOp, [batch_size, hidden_dim], f, forget_bias)
+        f = pointwise('{}_f_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], f)
+        i = pointwise('{}_i_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], i)
+        j = pointwise('{}_j_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], j)
+        mul_i_j = pointwise('{}_i_j_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], i, j)
+        new_c = pointwise('{}_c_mul'.format(layer_name), MulOp, [batch_size, hidden_dim], c, f)
+        new_c = pointwise('{}_c_add'.format(layer_name), AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
+        o = pointwise('{}_o_sig'.format(layer_name), SigmoidOp, [batch_size, hidden_dim], o)
+        new_c_sig = pointwise('{}_new_c_tanh'.format(layer_name), TanhOp, [batch_size, hidden_dim], new_c)
+        new_h = pointwise('{}_new_h'.format(layer_name), MulOp, [batch_size, hidden_dim], new_c_sig, o)
         lstm_seq = new_h
 
     # 3) Projection layer
-    proj_weights = variable(graph, 'projection_weights',
+    proj_weights = variable('projection_weights',
                             [hidden_dim, projection_dim])
-    proj_seq = matmul(graph, 'projection', [batch_size, projection_dim],
+    proj_seq = matmul('projection', [batch_size, projection_dim],
                       lstm_seq, proj_weights)
 
     # 4) Output layer
-    output = linear(graph, 'output', [projection_dim, vocab_size],
+    output = linear('output', [projection_dim, vocab_size],
                     [batch_size, vocab_size], proj_seq)
-    normd_out = softmax(graph, 'output_softmax', [batch_size, vocab_size],
+    normd_out = softmax('output_softmax', [batch_size, vocab_size],
                         output)
 
     assert graph.isValid()
