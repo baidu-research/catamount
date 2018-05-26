@@ -18,6 +18,9 @@ def run_tf_calculate_tests():
                         256 * mul_dim_0 + \
                         98307
 
+    print('Loaded Flops test:')
+    print('    CouGr:   {}'.format(algorithmic_flops))
+    print('    Correct: {}'.format(correct_alg_flops))
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Initial alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
@@ -37,7 +40,9 @@ def run_tf_calculate_tests():
     correct_alg_flops = correct_alg_flops.subs({ add_dim_0: batch_size,
                                                  matmul_dim_0: batch_size,
                                                  mul_dim_0: batch_size, })
-
+    print('Bound Flops test:')
+    print('    CouGr:   {}'.format(algorithmic_flops))
+    print('    Correct: {}'.format(correct_alg_flops))
     assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0, \
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
