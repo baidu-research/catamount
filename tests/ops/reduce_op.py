@@ -38,10 +38,6 @@ def placeholder(name, out_shape):
 
 
 def reduce(name, op_func, out_shape, input, axes=0):
-    assert input.shape.rank == 2, \
-           'Reduce only supports 2 dimensional input for now'
-    assert len(out_shape) == 1, \
-           'Reduce only supports 2->1 dimensions for now'
     add_symbols(name, out_shape)
 
     global correct_alg_flops
@@ -65,7 +61,12 @@ def test_reduce_op():
               ([None, None], 1),
               ([32, None], 1),
               ([None, 64], 1),
-              ([32, 64], 1)]
+              ([32, 64], 1),
+              ([None, None, None, None], [1, 2]),
+              ([None, 3, 7, None], [0, 3]),
+              ([None, 3, 7, None], [0, 2]),
+              ([None, 3, 7, None], [1, 3]),
+              ([None, 3, 7, None], [1, 2])]
 
     for combo in combos:
         graph = Graph()

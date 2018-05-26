@@ -58,10 +58,6 @@ def pointwise(name, op_type, out_shape, in_a, in_b=None):
 
 
 def reduce(name, op_func, out_shape, input, axes=0):
-    assert input.shape.rank == 2, \
-           'Reduce only supports 2 dimensional input for now'
-    assert len(out_shape) == 1, \
-           'Reduce only supports 2->1 dimensions for now'
     add_symbols(name, out_shape)
 
     global correct_alg_flops
