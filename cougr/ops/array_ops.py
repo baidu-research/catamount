@@ -6,10 +6,13 @@ class ConcatOp(Op):
         super(ConcatOp, self).__init__(name)
 
     def propagateShapes(self):
-        # [_] TODO: propagate shapes
-        print('ConcatOp: {}, in_a: {}, in_b: {}'
-              .format(self._name, self._inputs[0], self._inputs[1]))
-        raise NotImplementedError('Must implement ConcatOp propagateShapes')
+        # [_] TODO: Implement propagateShapes
+        # Verify that non-concat-axis can be merged (i.e., are same)
+        # Concurrently, get the sum of axis dimensions if fully specified
+        # for in_tensor in self._inputs:
+            # [_] TODO: Loosen for many-dimensional tensors
+            # assert in_tensor.shape.rank == 2
+        pass
 
     def calcAlgFlops(self):
         # ConcatOps have no Flops
