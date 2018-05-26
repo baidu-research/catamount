@@ -128,7 +128,7 @@ def run_manual_graph_test():
     seq_length = None
     vocab_size = None
     hidden_dim = None
-    num_layers = 2
+    num_layers = 1
     projection_dim = None
 
     # Model definition parts:
@@ -153,9 +153,9 @@ def run_manual_graph_test():
             out_dim = None
 
         # [_] TODO (Joel): Wrap this as an LSTM cell. Then, make it recurrent!
-        recur_state = variable('{}_init_state'.format(layer_name), [batch_size, in_dim])
-        c, h = split('{}_recur_split'.format(layer_name), [batch_size, hidden_dim], recur_state, num_splits=2, axis=1)
-        lstm_concat_seq = concat('{}_concat'.format(layer_name), [batch_size, in_dim], [recur_state, lstm_seq], axis=1)
+        init_state = variable('{}_init_state'.format(layer_name), [batch_size, in_dim])
+        c, h = split('{}_recur_split'.format(layer_name), [batch_size, hidden_dim], init_state, num_splits=2, axis=1)
+        lstm_concat_seq = concat('{}_concat'.format(layer_name), [batch_size, in_dim], [init_state, lstm_seq], axis=1)
         recur_linear = linear(layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
         i, j, f, o = split('{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
         forget_bias = variable('{}_f_bias'.format(layer_name), [hidden_dim])
