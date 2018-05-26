@@ -123,7 +123,7 @@ class Dimension(object):
             new_symbol = self._symbol
         else:
             if self._symbol != other._symbol:
-                print('WARN: Dimension symbols do not match ({}, {})!'.format(
+                print('WARN: Dimension symbols do not match: {} != {}'.format(
                       self._symbol, other._symbol))
             new_symbol = self._symbol
         new_dim = Dimension(new_value)
@@ -235,7 +235,6 @@ class TensorShape(object):
         return True
 
     def getBroadcastShape(self, other):
-        assert self.canBroadcastTogether(other)
         if self.rank < other.rank:
             first_shape = list(other.dims)
             second_shape = list(self._dims)
@@ -252,6 +251,10 @@ class TensorShape(object):
         bcast_shape_list = []
         for idx in range(len(first_shape) - 1, -1, -1):
             assert first_shape[idx].canBroadcastTogether(second_shape[idx])
+            if first_shape[idx]._symbol is not None and \
+               second_shape[idx]._symbol is not None and \
+               first_shape[idx]._symbol != second_shape[idx]._symbol:
+                print('In tensor {} for op {} dim_idx {}...'.format(self._tensor, self._tensor.producer, idx))
             bcast_shape_list.insert(0,
                 first_shape[idx].getBroadcastDimension(second_shape[idx]))
         bcast_shape = TensorShape(bcast_shape_list)

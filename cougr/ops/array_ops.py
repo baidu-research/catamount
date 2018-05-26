@@ -6,8 +6,10 @@ class ConcatOp(Op):
         super(ConcatOp, self).__init__(name)
 
     def propagateShapes(self):
-        # Assume ConcatOps have fully specified shapes
-        pass
+        # [_] TODO: propagate shapes
+        print('ConcatOp: {}, in_a: {}, in_b: {}'
+              .format(self._name, self._inputs[0], self._inputs[1]))
+        raise NotImplementedError('Must implement ConcatOp propagateShapes')
 
     def calcAlgFlops(self):
         # ConcatOps have no Flops

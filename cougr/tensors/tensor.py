@@ -54,6 +54,9 @@ class Tensor:
     def consumers(self):
         return self._consumers
 
+    def __str__(self):
+        return 'Tensor(name: {}, shape: {})'.format(self._name, self._shape)
+
     def isValid(self):
         # Valid tensors have a valid TensorShape
         if type(self._shape) is not TensorShape or not self._shape.isValid():

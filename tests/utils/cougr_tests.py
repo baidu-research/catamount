@@ -252,8 +252,8 @@ def run_manual_graph_test():
 
     batch_size_str = 'batch_size'
     seq_length_str = 'seq_length'
-    hidden_dim_str = 'hidden_dim'
     vocab_size_str = 'vocab_size'
+    hidden_dim_str = 'hidden_dim'
     num_layers_str = 'num_layers' # TODO: Can we make this show up in output?
     projection_dim_str = 'projection_dim'
     feed_dict = { 'input': [batch_size_str, vocab_size_str],
