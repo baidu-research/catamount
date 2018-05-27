@@ -1,39 +1,49 @@
 import os
 import tensorflow as tf
 
+# To import graphs that use TF contrib libraries...
+import tensorflow.contrib.mpi_collectives as mpi
+
 from cougr.graph import *
 from cougr.ops.array_ops import *
 from cougr.ops.constant import *
 from cougr.ops.init_ops import *
 from cougr.ops.math_ops import *
 from cougr.ops.placeholder import *
+from cougr.ops.unknown_op import *
 from cougr.ops.variable import *
 from cougr.tensors.tensor import *
 
 # Tools to import Tensorflow MetaGraphs into CouGr format
 
 TF_OP_TO_COUGR = {
-    'SaveV2': NoOp, # Ignore Saver ops
-    'RestoreV2': NoOp, # Ignore Restore ops
-    'NoOp': NoOp, # Ignore no-ops
     'Add': AddOp,
     'Assign': AssignOp,
     'AssignAdd': AddOp, # Here, TF reuses the input tensor for output
     'AssignSub': SubOp, # Here, TF reuses the input tensor for output
     'BiasAdd': AddOp, # Here, TF special-case for 1D bias input
     'Cast': CastOp,
+    'ConcatV2': ConcatOp,
     'Const': ConstOp,
     'Conv2D': Conv2DOp,
+    'Exp': ExpOp,
     'FloorDiv': BasePointwiseOp,
     'FloorMod': BasePointwiseOp,
     'Identity': IdentityOp,
+    'Less': LessOp,
     'LogicalNot': LogicalNotOp,
     'MatMul': MatMulOp,
     'Maximum': MaximumOp,
     'Mean': ReduceOp,
+    'Minimum': MinimumOp,
+    # tf.contrib.mpi_collectives.MPIInit has no compute graph function
+    'MPIInit': NoOp,
     # tf.contrib.mpi_collectives.MPISize behaves like a placeholder
     'MPISize': PlaceholderOp,
     'Mul': MulOp,
+    'Neg': NegOp,
+    'NoOp': NoOp, # Ignore no-ops
+    'NotEqual': NotEqualOp,
     'Pack': StackOp,
     'Placeholder': PlaceholderOp,
     'Prod': ReduceOp,
@@ -43,12 +53,17 @@ TF_OP_TO_COUGR = {
     'Relu': ReluOp,
     'Reduce': ReduceOp,
     'Reshape': ReshapeOp,
+    'RestoreV2': NoOp, # Ignore Restore ops
     'Rsqrt': RsqrtOp,
+    'SaveV2': NoOp, # Ignore Saver ops
     'Shape': ShapeOp,
+    'Sigmoid': SigmoidOp,
     'SplitV': SplitOp,
+    'Sqrt': SqrtOp,
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
     'Sum': ReduceOp,
+    'Tanh': TanhOp,
     'VariableV2': VariableOp,
 }
 
@@ -125,31 +140,36 @@ def import_graph(tf_filename):
         if tf_op.type in TF_OP_TO_COUGR.keys():
             # Map to CouGr op type
             cougr_type = TF_OP_TO_COUGR[tf_op.type]
-            if cougr_type is None:
-                # print('WARN: Skipping unnecessary op {} type {}'
-                #       .format(tf_op, tf_op.type))
-                continue
-
-            # Create the CouGr internal op
-            op = cougr_type(tf_op_name)
-
-            # Create the output tensors for this op
-            for i in range(len(tf_op.outputs)):
-                tf_tensor = tf_op.outputs[i]
-                out_tens = Tensor(tf_tensor.name,
-                    tf_shape_to_cougr(tf_tensor.shape),
-                    TF_DTYPE_TO_COUGR[tf_tensor.dtype.base_dtype])
-                tensors[out_tens.name] = out_tens
-                op.addOutput(out_tens)
-
-            # Track the input tensor names to connect them in next phase
-            op_inputs[op.name] = []
-            for i in range(len(tf_op.inputs)):
-                op_inputs[op.name].append(tf_op.inputs[i].name)
-
-            graph.addOp(op)
         else:
             print('WARN: Unknown op type: {}'.format(tf_op.type))
+            cougr_type = UnknownOp
+
+        # Create the CouGr internal op
+        op = cougr_type(tf_op_name)
+
+        # Create the output tensors for this op
+        for i in range(len(tf_op.outputs)):
+            tf_tensor = tf_op.outputs[i]
+
+            tf_dtype = tf_tensor.dtype.base_dtype
+            if tf_dtype in TF_DTYPE_TO_COUGR.keys():
+                cougr_dtype = TF_DTYPE_TO_COUGR[tf_dtype]
+            else:
+                print('WARN: Unknown dtype {} for tensor {}'
+                      .format(tf_tensor.dtype, tf_tensor))
+                cougr_dtype = None
+
+            out_tens = Tensor(tf_tensor.name,
+                tf_shape_to_cougr(tf_tensor.shape), cougr_dtype)
+            tensors[out_tens.name] = out_tens
+            op.addOutput(out_tens)
+
+        # Track the input tensor names to connect them in next phase
+        op_inputs[op.name] = []
+        for i in range(len(tf_op.inputs)):
+            op_inputs[op.name].append(tf_op.inputs[i].name)
+
+        graph.addOp(op)
 
 #    print('Ops: {}'.format(graph.opsByName))
 #    print('Tensors: {}'.format(tensors))

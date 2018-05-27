@@ -44,9 +44,29 @@ class DivOp(BasePointwiseOp):
         super(DivOp, self).__init__(name)
 
 
+class LessOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(LessOp, self).__init__(name)
+
+
 class LogicalNotOp(BasePointwiseOp):
     def __init__(self, name):
         super(LogicalNotOp, self).__init__(name)
+
+
+class NegOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(NegOp, self).__init__(name)
+
+
+class NotEqualOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(NotEqualOp, self).__init__(name)
+
+
+class MinimumOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(MinimumOp, self).__init__(name)
 
 
 class MaximumOp(BasePointwiseOp):
@@ -87,6 +107,11 @@ class SigmoidOp(BasePointwiseOp):
         # For now, assume sigmoid consists of input negation, exponentiation,
         # addition, and then inversion (i.e., 4 Flops per element)
         self._flops_per_element = 4
+
+
+class SqrtOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(SqrtOp, self).__init__(name)
 
 
 class SubOp(BasePointwiseOp):
