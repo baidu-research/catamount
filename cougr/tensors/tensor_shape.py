@@ -78,6 +78,16 @@ class Dimension(object):
             return True
         return True
 
+    def __iadd__(self, other):
+        assert isinstance(other, Dimension)
+        if self.symbol is not None and other.symbol is not None:
+            self._symbol = self.symbol + other.symbol
+        if self._value is None or other._value is None:
+            self._value = None
+        else:
+            self._value += other._value
+        return self
+
     def __mul__(self, other):
         assert isinstance(other, Dimension)
         to_return = Dimension()
