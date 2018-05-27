@@ -206,7 +206,11 @@ class ReduceOp(Op):
                 self._outputs[0].shape.setDimension(0, dim_index)
 
     def calcAlgFlops(self):
-        assert(len(self._inputs) == 1)
+        # [_] TODO (Joel): This is too restrictive if the axis dimension
+        #     comes from a second input tensor to the op...
+        assert(len(self._inputs) == 1), \
+            'Reduce {} has too many inputs: {}' \
+            .format(self.name, [input for input in self._inputs])
         flops_to_return = self._flops_per_element
         for dim_index in range(self._inputs[0].shape.rank):
             flops_to_return *= self._inputs[0].shape.getDim(dim_index)
