@@ -24,12 +24,43 @@ class ConcatOp(Op):
         return 0
 
 
+class GatherOp(Op):
+    def __init__(self, name):
+        super(GatherOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # GatherOps have no Flops
+        return 0
+
+
+class NumLikeOp(Op):
+    ''' Returns a tensor of the same shape as input with a set value
+    in each location of the output tensor. Similar to TF ZerosLike and
+    OnesLike.
+    '''
+    def __init__(self, name):
+        super(NumLikeOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # NumLikeOps have no Flops
+        return 0
+
+
 class ReshapeOp(Op):
     def __init__(self, name):
         super(ReshapeOp, self).__init__(name)
 
     def calcAlgFlops(self):
         # ReshapeOps have no Flops
+        return 0
+
+
+class ScatterOp(Op):
+    def __init__(self, name):
+        super(ScatterOp, self).__init__(name)
+
+    def calcAlgFlops(self):
+        # ScatterOps have no Flops
         return 0
 
 
@@ -96,4 +127,5 @@ class TransposeOp(Op):
     def calcAlgFlops(self):
         # TransposeOps have no Flops
         return 0
+
 

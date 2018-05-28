@@ -27,8 +27,10 @@ TF_OP_TO_COUGR = {
     'Const': ConstOp,
     'Conv2D': Conv2DOp,
     'Exp': ExpOp,
+    'Fill': NumLikeOp,
     'FloorDiv': BasePointwiseOp,
     'FloorMod': BasePointwiseOp,
+    'Gather': GatherOp,
     'Identity': IdentityOp,
     'Less': LessOp,
     'LogicalNot': LogicalNotOp,
@@ -44,6 +46,7 @@ TF_OP_TO_COUGR = {
     'Neg': NegOp,
     'NoOp': NoOp, # Ignore no-ops
     'NotEqual': NotEqualOp,
+    'OnesLike': NumLikeOp,
     'Pack': StackOp,
     'Placeholder': PlaceholderOp,
     'Prod': ReduceOp,
@@ -56,6 +59,7 @@ TF_OP_TO_COUGR = {
     'RestoreV2': NoOp, # Ignore Restore ops
     'Rsqrt': RsqrtOp,
     'SaveV2': NoOp, # Ignore Saver ops
+    'Scatter': ScatterOp,
     'Shape': ShapeOp,
     'Sigmoid': SigmoidOp,
     'SplitV': SplitOp,
@@ -64,7 +68,9 @@ TF_OP_TO_COUGR = {
     'Sub': SubOp,
     'Sum': ReduceOp,
     'Tanh': TanhOp,
+    'Transpose': TransposeOp,
     'VariableV2': VariableOp,
+    'ZerosLike': NumLikeOp,
 }
 
 # [_] TODO (Joel): Add these for ResNets!
