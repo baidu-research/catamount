@@ -4,7 +4,7 @@ import cougr.frameworks.tensorflow
 
 tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow/tf_example_graph.meta'
 
-def run_tf_calculate_tests():
+def test_tf_load_and_calculate():
     graph = cougr.frameworks.tensorflow.import_graph(tf_example_filename)
     assert graph.isValid()
 
@@ -49,5 +49,5 @@ def run_tf_calculate_tests():
 
 
 if __name__ == "__main__":
-    run_tf_calculate_tests()
+    test_tf_load_and_calculate()
 

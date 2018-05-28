@@ -2,71 +2,7 @@ import sympy
 
 import cougr
 
-
-# Build symbol table with this function (for verifying CouGr
-# Flops calculations)
-symbol_table = {}
-subs_table = {}
-correct_alg_flops = 0
-
-def add_symbols(name, out_shape):
-    global symbol_table
-    global subs_table
-    for idx, dim in enumerate(out_shape):
-        sym_name = '{}::dim_{}'.format(name, idx)
-        symbol = sympy.Symbol(sym_name)
-        assert sym_name not in symbol_table.keys()
-        symbol_table[sym_name] = symbol
-        if dim is not None:
-            subs_table[symbol] = dim
-
-
-def placeholder(name, out_shape):
-    add_symbols(name, out_shape)
-    return cougr.placeholder(name, out_shape)
-
-
-def variable(name, out_shape):
-    add_symbols(name, out_shape)
-    return cougr.variable(name, out_shape)
-
-
-def matmul(name, out_shape, in_a, in_b):
-    add_symbols(name, out_shape)
-    global correct_alg_flops
-    in_a_dim_1 = '{}::dim_1'.format(in_a.name)
-    out_dim_0 = '{}::dim_0'.format(name)
-    out_dim_1 = '{}::dim_1'.format(name)
-    correct_alg_flops += 2 * symbol_table[in_a_dim_1] * \
-        symbol_table[out_dim_0] * symbol_table[out_dim_1]
-    return cougr.matmul(name, out_shape, in_a, in_b)
-
-
-def pointwise(name, op_type, out_shape, in_a, in_b=None):
-    add_symbols(name, out_shape)
-    global correct_alg_flops
-    out_dim_0 = '{}::dim_0'.format(name)
-    out_dim_1 = '{}::dim_1'.format(name)
-    flops_per_elt = 1
-    if op_type == cougr.SigmoidOp:
-        flops_per_elt = 4
-    if op_type == cougr.TanhOp:
-        flops_per_elt = 6
-    correct_alg_flops += flops_per_elt * symbol_table[out_dim_0] * \
-                         symbol_table[out_dim_1]
-    return cougr.pointwise(name, op_type, out_shape, in_a, in_b)
-
-
-def reduce(name, op_func, out_shape, input, axes=0):
-    add_symbols(name, out_shape)
-
-    global correct_alg_flops
-    to_add_flops = 1
-    for idx in range(input.shape.rank):
-        in_dim = '{}::dim_{}'.format(input.name, idx)
-        to_add_flops *= symbol_table[in_dim]
-    correct_alg_flops += to_add_flops
-    return cougr.reduce(name, op_func, out_shape, input, axes)
+from cougr.tests.utils.helpers import *
 
 
 def softmax(name, out_shape, input, axis=1):
@@ -87,18 +23,6 @@ def linear(name, weights_shape, out_shape, input):
     output = pointwise('{}_point'.format(name), cougr.AddOp, out_shape,
                        output, output_bias)
     return output
-
-
-def split(name, out_shape, input, num_splits=2, axis=0):
-    for i in range(num_splits):
-        out_name = '{}_out{}'.format(name, i)
-        add_symbols(out_name, out_shape)
-    return cougr.split(name, out_shape, input, num_splits, axis)
-
-
-def concat(name, out_shape, input_list, axis=0):
-    add_symbols(name, out_shape)
-    return cougr.concat(name, out_shape, input_list, axis)
 
 
 def lstm_cell(name, input, state):
@@ -135,7 +59,7 @@ def lstm_cell(name, input, state):
     return new_h, state
 
 
-def run_manual_graph_test():
+def test_manual_graph_build():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
     Modeling (here: https://arxiv.org/pdf/1602.02410.pdf).
@@ -203,8 +127,8 @@ def run_manual_graph_test():
     algorithmic_flops = graph.calcAlgFlops()
 
     # Expected algorithmic Flops
-    global correct_alg_flops
-    global subs_table
+    correct_alg_flops = get_correct_alg_flops()
+    subs_table = get_subs_table()
     correct_alg_flops = correct_alg_flops.subs(subs_table)
 
     print('CouGr:   {}'.format(algorithmic_flops))
@@ -236,6 +160,6 @@ def run_manual_graph_test():
 
 
 if __name__ == "__main__":
-    run_manual_graph_test()
+    test_manual_graph_build()
 
 

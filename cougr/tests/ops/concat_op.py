@@ -4,48 +4,12 @@ import cougr
 from cougr.graph import Graph
 from cougr.tensors.tensor_shape import Dimension, TensorShape
 
-
-# Build symbol table with this function (for verifying CouGr
-# Flops calculations)
-symbol_table = {}
-subs_table = {}
-correct_alg_flops = 0
-
-def add_symbols(name, out_shape):
-    global symbol_table
-    global subs_table
-    for idx, dim in enumerate(out_shape):
-        sym_name = '{}::dim_{}'.format(name, idx)
-        symbol = sympy.Symbol(sym_name)
-        assert sym_name not in symbol_table.keys()
-        symbol_table[sym_name] = symbol
-        # print('Added symbol name {} with sym {}'.format(sym_name, symbol))
-        if dim is not None:
-            subs_table[symbol] = dim
-
-
-def reset_symbols():
-    global symbol_table
-    global subs_table
-    global correct_alg_flops
-    symbol_table = {}
-    subs_table = {}
-    correct_alg_flops = 0
-
-
-def placeholder(name, out_shape):
-    add_symbols(name, out_shape)
-    return cougr.placeholder(name, out_shape)
-
-
-def concat(name, out_shape, input_list, axis=0):
-    add_symbols(name, out_shape)
-    return cougr.concat(name, out_shape, input_list, axis)
+from cougr.tests.utils.helpers import *
 
 
 def test_concat_op():
     ''' Specify graphs with concat operations and make sure dimensions behave
-    as desired. 
+    as desired.
     '''
 
     combos = [([[None, None], [None, None]], 0),

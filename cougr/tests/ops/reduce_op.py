@@ -3,55 +3,12 @@ import sympy
 import cougr
 from cougr.graph import Graph
 
-
-# Build symbol table with this function (for verifying CouGr
-# Flops calculations)
-symbol_table = {}
-subs_table = {}
-correct_alg_flops = 0
-
-def add_symbols(name, out_shape):
-    global symbol_table
-    global subs_table
-    for idx, dim in enumerate(out_shape):
-        sym_name = '{}::dim_{}'.format(name, idx)
-        symbol = sympy.Symbol(sym_name)
-        assert sym_name not in symbol_table.keys()
-        symbol_table[sym_name] = symbol
-        # print('Added symbol name {} with sym {}'.format(sym_name, symbol))
-        if dim is not None:
-            subs_table[symbol] = dim
-
-
-def reset_symbols():
-    global symbol_table
-    global subs_table
-    global correct_alg_flops
-    symbol_table = {}
-    subs_table = {}
-    correct_alg_flops = 0
-
-
-def placeholder(name, out_shape):
-    add_symbols(name, out_shape)
-    return cougr.placeholder(name, out_shape)
-
-
-def reduce(name, op_func, out_shape, input, axes=0):
-    add_symbols(name, out_shape)
-
-    global correct_alg_flops
-    to_add_flops = 1
-    for idx in range(input.shape.rank):
-        in_dim = '{}::dim_{}'.format(input.name, idx)
-        to_add_flops *= symbol_table[in_dim]
-    correct_alg_flops += to_add_flops
-    return cougr.reduce(name, op_func, out_shape, input, axes)
+from cougr.tests.utils.helpers import *
 
 
 def test_reduce_op():
     ''' Specify graphs with reduce operations and make sure they behave as
-    desired. 
+    desired.
     '''
 
     combos = [([None, None], 0),
@@ -85,8 +42,8 @@ def test_reduce_op():
 
             algorithmic_flops = graph.calcAlgFlops()
 
-            global correct_alg_flops
-            global subs_table
+            correct_alg_flops = get_correct_alg_flops()
+            subs_table = get_subs_table()
             correct_alg_flops = correct_alg_flops.subs(subs_table)
             print('    CouGr:   {}'.format(algorithmic_flops))
             print('    Correct: {}'.format(correct_alg_flops))
