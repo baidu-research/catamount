@@ -101,6 +101,40 @@ def concat(name, out_shape, input_list, axis=0):
     return cougr.concat(name, out_shape, input_list, axis)
 
 
+def lstm_cell(name, input, state):
+
+    batch_size = input.shape.dims[0]
+    hidden_dim = input.shape.dims[1]
+    if hidden_dim.value is None:
+        hidden_dim = None
+
+    if hidden_dim is not None:
+        in_dim = 2 * hidden_dim
+        out_dim = 4 * hidden_dim
+    else:
+        in_dim = None
+        out_dim = None
+
+    assert len(state) == 2
+    c, h = state
+    lstm_concat_seq = concat('{}_concat'.format(name), [batch_size, in_dim], [h, input], axis=1)
+    recur_linear = linear('{}_proj'.format(name), [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
+    i, j, f, o = split('{}_split'.format(name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
+    forget_bias = variable('{}_f_bias'.format(name), [hidden_dim])
+    i = pointwise('{}_i_sig'.format(name), cougr.SigmoidOp, [batch_size, hidden_dim], i)
+    j = pointwise('{}_j_tanh'.format(name), cougr.TanhOp, [batch_size, hidden_dim], j)
+    f = pointwise('{}_f_add'.format(name), cougr.AddOp, [batch_size, hidden_dim], f, forget_bias)
+    f = pointwise('{}_f_sig'.format(name), cougr.SigmoidOp, [batch_size, hidden_dim], f)
+    o = pointwise('{}_o_sig'.format(name), cougr.SigmoidOp, [batch_size, hidden_dim], o)
+    mul_i_j = pointwise('{}_i_j_mul'.format(name), cougr.MulOp, [batch_size, hidden_dim], i, j)
+    new_c = pointwise('{}_c_mul'.format(name), cougr.MulOp, [batch_size, hidden_dim], c, f)
+    new_c = pointwise('{}_c_add'.format(name), cougr.AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
+    new_c_sig = pointwise('{}_new_c_tanh'.format(name), cougr.TanhOp, [batch_size, hidden_dim], new_c)
+    new_h = pointwise('{}_new_h'.format(name), cougr.MulOp, [batch_size, hidden_dim], new_c_sig, o)
+    state = [new_c, new_h]
+    return new_h, state
+
+
 def run_manual_graph_test():
     ''' Manually constructs a CouGr graph for a simplified word-level LSTM
     as described in Jozefowicz et al., Exploring the Limits of Language
@@ -145,31 +179,12 @@ def run_manual_graph_test():
         # print('Instantiating recurrent layer {}: {}'
         #       .format(layer_id, layer_name))
 
-        if hidden_dim is not None:
-            in_dim = 2 * hidden_dim
-            out_dim = 4 * hidden_dim
-        else:
-            in_dim = None
-            out_dim = None
-
-        # [_] TODO (Joel): Wrap this as an LSTM cell. Then, make it recurrent!
-        init_state = variable('{}_init_state'.format(layer_name), [batch_size, in_dim])
-        c, h = split('{}_recur_split'.format(layer_name), [batch_size, hidden_dim], init_state, num_splits=2, axis=1)
-        lstm_concat_seq = concat('{}_concat'.format(layer_name), [batch_size, in_dim], [init_state, lstm_seq], axis=1)
-        recur_linear = linear(layer_name, [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
-        i, j, f, o = split('{}_split'.format(layer_name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
-        forget_bias = variable('{}_f_bias'.format(layer_name), [hidden_dim])
-        f = pointwise('{}_f_add'.format(layer_name), cougr.AddOp, [batch_size, hidden_dim], f, forget_bias)
-        f = pointwise('{}_f_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], f)
-        i = pointwise('{}_i_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], i)
-        j = pointwise('{}_j_tanh'.format(layer_name), cougr.TanhOp, [batch_size, hidden_dim], j)
-        mul_i_j = pointwise('{}_i_j_mul'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], i, j)
-        new_c = pointwise('{}_c_mul'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], c, f)
-        new_c = pointwise('{}_c_add'.format(layer_name), cougr.AddOp, [batch_size, hidden_dim], new_c, mul_i_j)
-        o = pointwise('{}_o_sig'.format(layer_name), cougr.SigmoidOp, [batch_size, hidden_dim], o)
-        new_c_sig = pointwise('{}_new_c_tanh'.format(layer_name), cougr.TanhOp, [batch_size, hidden_dim], new_c)
-        new_h = pointwise('{}_new_h'.format(layer_name), cougr.MulOp, [batch_size, hidden_dim], new_c_sig, o)
-        lstm_seq = new_h
+        # [_] TODO (Joel): Make this recurrent!
+        c_state = variable('{}_c_state'.format(layer_name), [batch_size, hidden_dim])
+        h_state = variable('{}_h_state'.format(layer_name), [batch_size, hidden_dim])
+        lstm_seq, new_state = lstm_cell(layer_name, lstm_seq, [c_state, h_state])
+        print(lstm_seq)
+        print(new_state)
 
     # 3) Projection layer
     proj_weights = variable('projection_weights',
@@ -212,8 +227,10 @@ def run_manual_graph_test():
     for idx in range(num_layers):
         lstm_layer_name = 'lstm_layer_{}'.format(idx)
         feed_dict['{}_f_bias'.format(lstm_layer_name)] = [hidden_dim_str]
-        feed_dict['{}_init_state'.format(lstm_layer_name)] = \
-            [batch_size_str, None]
+        feed_dict['{}_c_state'.format(lstm_layer_name)] = \
+            [batch_size_str, hidden_dim_str]
+        feed_dict['{}_h_state'.format(lstm_layer_name)] = \
+            [batch_size_str, hidden_dim_str]
     graph.bindTensorShapeDimensions(feed_dict)
     print(graph.calcAlgFlops())
 
