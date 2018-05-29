@@ -147,7 +147,8 @@ def import_graph(tf_filename):
             # Map to CouGr op type
             cougr_type = TF_OP_TO_COUGR[tf_op.type]
         else:
-            print('WARN: Unknown op type: {}'.format(tf_op.type))
+            print('WARN: Unknown op type: {} (op: {})'
+                  .format(tf_op.type, tf_op.name))
             cougr_type = UnknownOp
 
         # Create the CouGr internal op
