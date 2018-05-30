@@ -28,6 +28,7 @@ TF_OP_TO_COUGR = {
     'Const': ConstOp,
     'Conv2D': Conv2DOp,
     'Enter': EnterOp,
+    'Exit': ExitOp,
     'Exp': ExpOp,
     'Fill': NumLikeOp,
     'FloorDiv': BasePointwiseOp,
@@ -36,9 +37,11 @@ TF_OP_TO_COUGR = {
     'Identity': IdentityOp,
     'Less': LessOp,
     'LogicalNot': LogicalNotOp,
+    'LoopCond': LoopConditionOp,
     'MatMul': MatMulOp,
     'Maximum': MaximumOp,
     'Mean': ReduceOp,
+    'Merge': MergeOp,
     'Minimum': MinimumOp,
     # tf.contrib.mpi_collectives.MPIInit has no compute graph function
     'MPIInit': NoOp,
@@ -46,6 +49,7 @@ TF_OP_TO_COUGR = {
     'MPISize': PlaceholderOp,
     'Mul': MulOp,
     'Neg': NegOp,
+    'NextIteration': NextIterationOp,
     'NoOp': NoOp, # Ignore no-ops
     'NotEqual': NotEqualOp,
     'OnesLike': NumLikeOp,
@@ -69,6 +73,7 @@ TF_OP_TO_COUGR = {
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
     'Sum': ReduceOp,
+    'Switch': SwitchOp,
     'Tanh': TanhOp,
     'Transpose': TransposeOp,
     'VariableV2': VariableOp,
@@ -85,7 +90,6 @@ TF_OP_TO_COUGR = {
 # DynamicStitch
 # ExpandDims
 # FIFOQueueV2
-# Fill
 # FusedBatchNorm
 # FusedBatchNormGrad
 # InTopK
