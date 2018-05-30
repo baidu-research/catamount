@@ -305,6 +305,8 @@ class TensorShape(object):
         return to_return.symbol
 
     def numElements(self):
+        # [_] TODO (Joel): This assert will be to restrictive...
+        assert self._dims is not None
         num_elts = Dimension(1)
         for idx, dim in enumerate(self._dims):
             if dim.symbol is None:
