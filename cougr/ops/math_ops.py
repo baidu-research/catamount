@@ -49,6 +49,16 @@ class LessOp(BasePointwiseOp):
         super(LessOp, self).__init__(name)
 
 
+class LogicalAndOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(LogicalAndOp, self).__init__(name)
+
+
+class LogicalOrOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(LogicalOrOp, self).__init__(name)
+
+
 class LogicalNotOp(BasePointwiseOp):
     def __init__(self, name):
         super(LogicalNotOp, self).__init__(name)
