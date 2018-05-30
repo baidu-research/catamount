@@ -14,8 +14,9 @@ def main():
     bound = tf.placeholder(tf.int32, name='bound')
     total_inc = tf.get_variable('total_inc', shape=(), dtype=tf.int32)
     def body(time, input, state):
-        total_inc = time
-        return (time + 1, input, state + input)
+        with tf.variable_scope('body'):
+            total_inc = time
+            return (time + 1, input, state + input)
     state = tf.fill(tf.shape(a), 0.0, name='start_val')
     _, _, state = tf.while_loop(cond=lambda timer, *_: timer < bound,
                                 body=body,

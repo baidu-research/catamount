@@ -7,6 +7,7 @@ import tensorflow.contrib.mpi_collectives as mpi
 from cougr.graph import *
 from cougr.ops.array_ops import *
 from cougr.ops.constant import *
+from cougr.ops.ctrl_ops import *
 from cougr.ops.init_ops import *
 from cougr.ops.math_ops import *
 from cougr.ops.placeholder import *
@@ -26,6 +27,7 @@ TF_OP_TO_COUGR = {
     'ConcatV2': ConcatOp,
     'Const': ConstOp,
     'Conv2D': Conv2DOp,
+    'Enter': EnterOp,
     'Exp': ExpOp,
     'Fill': NumLikeOp,
     'FloorDiv': BasePointwiseOp,

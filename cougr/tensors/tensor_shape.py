@@ -288,12 +288,16 @@ class TensorShape(object):
         self._tensor = tensor
 
     def setDimension(self, dim_index, dim_symbol_or_name):
+        if self._dims is None:
+            # Assume that the caller has right to extend dimensions
+            print('WARN: Adding dimensions to None TensorShape')
+            self._dims = [Dimension(None)] * (dim_index + 1)
         assert len(self._dims) > dim_index
         self._dims[dim_index].setSymbolOrName(dim_symbol_or_name)
 
     def getSymbolName(self, dim_index):
         assert self._tensor is not None
-        assert dim_index < len(self._dims)
+        assert self._dims is None or dim_index < len(self._dims)
         return '{}::dim_{}'.format(self._tensor.name, dim_index)
 
     def getDim(self, idx):
@@ -305,8 +309,9 @@ class TensorShape(object):
         return to_return.symbol
 
     def numElements(self):
-        # [_] TODO (Joel): This assert will be to restrictive...
-        assert self._dims is not None
+        if self._dims is None:
+            # Unknown dimensionality... return '?'
+            return sympy.Symbol(self.getSymbolName('?'))
         num_elts = Dimension(1)
         for idx, dim in enumerate(self._dims):
             if dim.symbol is None:
