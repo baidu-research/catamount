@@ -158,6 +158,8 @@ def test_manual_graph_build():
     graph.bindTensorShapeDimensions(feed_dict)
     print(graph.calcAlgFlops())
 
+    print(graph)
+
 
 if __name__ == "__main__":
     test_manual_graph_build()
