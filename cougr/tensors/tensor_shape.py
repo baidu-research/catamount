@@ -243,9 +243,6 @@ class TensorShape(object):
         else:
             first_shape = list(self._dims)
             second_shape = list(other.dims)
-        # TODO (Joel): These checks will have problems when a TensorShape
-        # is None! Fix later
-        assert (first_shape is not None and second_shape is not None)
         # Iterate from trailing dimensions to early dimensions
         for idx in range(len(second_shape) - 1, -1, -1):
             if not first_shape[idx].canBroadcastTogether(second_shape[idx]):
@@ -253,15 +250,13 @@ class TensorShape(object):
         return True
 
     def getBroadcastShape(self, other):
+        assert isinstance(other, TensorShape)
         if self.rank < other.rank:
             first_shape = list(other.dims)
             second_shape = list(self._dims)
         else:
             first_shape = list(self._dims)
             second_shape = list(other.dims)
-        # TODO (Joel): These checks will have problems when a TensorShape
-        # is None! Fix later
-        assert (first_shape is not None and second_shape is not None)
         # Extend second shape to first shape length
         while len(second_shape) < len(first_shape):
             second_shape.insert(0, Dimension(None))
@@ -269,10 +264,6 @@ class TensorShape(object):
         bcast_shape_list = []
         for idx in range(len(first_shape) - 1, -1, -1):
             assert first_shape[idx].canBroadcastTogether(second_shape[idx])
-            if first_shape[idx]._symbol is not None and \
-               second_shape[idx]._symbol is not None and \
-               first_shape[idx]._symbol != second_shape[idx]._symbol:
-                print('In tensor {} for op {} dim_idx {}...'.format(self._tensor, self._tensor.producer, idx))
             bcast_shape_list.insert(0,
                 first_shape[idx].getBroadcastDimension(second_shape[idx]))
         bcast_shape = TensorShape(bcast_shape_list)

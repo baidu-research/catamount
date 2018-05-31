@@ -10,6 +10,7 @@ class IdentityOp(Op):
         assert len(self._inputs) == 1
         assert len(self._outputs) == 1
         assert(self._inputs[0].shape == self._outputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
 
     def calcAlgFlops(self):
         # IdentityOps have no Flops

@@ -29,6 +29,17 @@ class Graph:
         # (in particular, ops whose outputs have no consumers)
         self._sinks = {}
 
+    def __str__(self):
+        # Dump the full graph definition in a topologically sorted order
+        out_str = ''
+        for op in self.getTopologicalOpOrder():
+            out_str += '{} {}\n'.format(op.name, op)
+            for in_tensor in op._inputs:
+                out_str += '  In tensor: {}\n'.format(in_tensor)
+            for out_tensor in op._outputs:
+                out_str += '  Out tensor: {}\n'.format(out_tensor)
+        return out_str
+
     def asDefault(self):
         global _cougr_default_graph
         ctx_mgr = GraphContextManagerHelper()

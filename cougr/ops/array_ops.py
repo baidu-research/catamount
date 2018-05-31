@@ -78,6 +78,7 @@ class NumLikeOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('NumLikeOp propagateShapes {}'
                                           .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
 
     def calcAlgFlops(self):
         # NumLikeOps have no Flops

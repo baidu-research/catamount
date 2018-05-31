@@ -20,6 +20,7 @@ class EnterOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('EnterOp propagateShapes {}'
                                           .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
         else:
             fail_str = 'EnterOp {} propagateShapes unknown input shape' \
                        .format(self._name)
@@ -47,6 +48,7 @@ class ExitOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('ExitOp propagateShapes {}'
                                           .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
         else:
             fail_str = 'ExitOp {} propagateShapes unknown input shape' \
                        .format(self._name)
@@ -110,6 +112,25 @@ class MergeOp(Op):
         # next iteration of a loop
         assert len(self._inputs) >= 1
         assert len(self._outputs) == 2
+        # NOTE: Any of the input shapes can be unknown, so find one that is
+        # known (if one does not exist, cannot propagate)
+        in_shape = None
+        for in_tensor in self._inputs:
+            if not in_tensor.shape.isUnknown():
+                if in_shape is not None:
+                    # Verify that all input tensor can be merged
+                    assert in_tensor.shape.canBroadcastTogether(in_shape)
+                else:
+                    in_shape = in_tensor.shape
+        if not in_shape.isUnknown():
+            if in_shape != self._outputs[0].shape:
+                raise NotImplementedError('MergeOp propagateShapes {}'
+                                          .format(self._name))
+            self._outputs[0].shape.mergeShape(in_shape)
+        else:
+            fail_str = 'MergeOp {} propagateShapes unknown input shape' \
+                       .format(self._name)
+            raise NotImplementedError(fail_str)
 
     def calcAlgFlops(self):
         # MergeOps perform no calculations
@@ -127,6 +148,15 @@ class NextIterationOp(Op):
         # next iteration of a loop
         assert len(self._inputs) == 1
         assert len(self._outputs) == 1
+        if not self._inputs[0].shape.isUnknown():
+            if self._inputs[0].shape != self._outputs[0].shape:
+                raise NotImplementedError('NextIterationOp propagateShapes {}'
+                                          .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        else:
+            fail_str = 'NextIterationOp {} propagateShapes unknown input '\
+                       ' shape'.format(self._name)
+            raise NotImplementedError(fail_str)
 
     def calcAlgFlops(self):
         # NextIterationOps perform no calculations
@@ -158,9 +188,11 @@ class SwitchOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('SwitchOp propagateShapes {}'
                                           .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
             if self._inputs[0].shape != self._outputs[1].shape:
                 raise NotImplementedError('SwitchOp propagateShapes {}'
                                           .format(self._name))
+            self._outputs[1].shape.mergeShape(self._inputs[0].shape)
 
     def calcAlgFlops(self):
         # SwitchOps perform no calculations
