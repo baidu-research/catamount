@@ -30,7 +30,7 @@ TF_OP_TO_COUGR = {
     'Enter': EnterOp,
     'Exit': ExitOp,
     'Exp': ExpOp,
-    'Fill': NumLikeOp,
+    'Fill': FillOp,
     'FloorDiv': BasePointwiseOp,
     'FloorMod': BasePointwiseOp,
     'Gather': GatherOp,
@@ -130,7 +130,7 @@ def tf_shape_to_cougr(tf_shape):
                 dims.append(dim.value)
     return TensorShape(dims)
 
-def import_graph(tf_filename):
+def load_tf_session(tf_filename):
     if '.meta' not in tf_filename or not os.path.exists(tf_filename):
         raise FileNotFoundError('ERROR: Invalid file {}. Must be .meta file'
             .format(tf_filename))
@@ -142,8 +142,14 @@ def import_graph(tf_filename):
     except Exception:
         print('WARN: Cannot find checkpoint data {}, trying to proceed'
               .format('{}.data-?-of-?'.format(tf_filename)))
+    return sess
 
-    tf_graph = sess.graph
+def import_graph(tf_filename):
+    sess = load_tf_session(tf_filename)
+    cougr_graph = construct_cougr_graph(sess.graph)
+    return cougr_graph
+
+def construct_cougr_graph(tf_graph):
     graph = Graph()
     tensors = {}
     op_inputs = {}

@@ -24,6 +24,31 @@ class ConcatOp(Op):
         return 0
 
 
+class FillOp(Op):
+    ''' Returns a tensor of the shape specified in first input tensor (and
+        fills that tenros with a set value passed in second input).
+        in each location of the output tensor. Similar to Numpy and TF
+        Fill.
+    '''
+    def __init__(self, name):
+        super(FillOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # FillOps should create an output tensor with the shape passed
+        # as the first input tensor
+        assert len(self._inputs) == 2, 'FillOp {} has {} inputs' \
+            .format(self._name, len(self._inputs))
+        assert len(self._outputs) == 1, 'FillOp {} has {} outputs' \
+            .format(self._name, len(self._outputs))
+        # The first input tensor contains the shape of output tensor
+        raise NotImplementedError('FillOp propagateShapes {}'
+                                  .format(self._name))
+
+    def calcAlgFlops(self):
+        # FillOps have no Flops
+        return 0
+
+
 class GatherOp(Op):
     def __init__(self, name):
         super(GatherOp, self).__init__(name)
@@ -35,11 +60,24 @@ class GatherOp(Op):
 
 class NumLikeOp(Op):
     ''' Returns a tensor of the same shape as input with a set value
-    in each location of the output tensor. Similar to TF ZerosLike and
-    OnesLike.
+        in each location of the output tensor. Similar to Numpy and TF
+        ZerosLike and OnesLike.
     '''
     def __init__(self, name):
         super(NumLikeOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # NumLikeOps should create an output tensor with the shape passed
+        # as the first input tensor
+        assert len(self._inputs) == 1, 'NumLikeOp {} has {} inputs' \
+            .format(self._name, len(self._inputs))
+        assert len(self._outputs) == 1, 'NumLikeOp {} has {} outputs' \
+            .format(self._name, len(self._outputs))
+        # The output tensor should be the same shape as the input
+        if not self._inputs[0].shape.isUnknown():
+            if self._inputs[0].shape != self._outputs[0].shape:
+                raise NotImplementedError('NumLikeOp propagateShapes {}'
+                                          .format(self._name))
 
     def calcAlgFlops(self):
         # NumLikeOps have no Flops

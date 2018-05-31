@@ -16,7 +16,14 @@ class EnterOp(Op):
         # EnterOps should forward their inputs to their outputs
         assert len(self._inputs) == 1
         assert len(self._outputs) == 1
-        assert self._inputs[0].shape == self._outputs[0].shape
+        if not self._inputs[0].shape.isUnknown():
+            if self._inputs[0].shape != self._outputs[0].shape:
+                raise NotImplementedError('EnterOp propagateShapes {}'
+                                          .format(self._name))
+        else:
+            fail_str = 'EnterOp {} propagateShapes unknown input shape' \
+                       .format(self._name)
+            raise NotImplementedError(fail_str)
 
     def calcAlgFlops(self):
         # EnterOps perform no calculations
@@ -25,15 +32,25 @@ class EnterOp(Op):
 
 class ExitOp(Op):
     ''' ExitOp designates the end of a control flow operation that acts
-        on the input tensor to the op. ExitOps have no output tensors.
+        on the input tensor to the op. ExitOps make the input tensor
+        available to downstream ops (i.e., outside of the context formed
+        by the EnterOp-ExitOp pair).
     '''
     def __init__(self, name):
         super(ExitOp, self).__init__(name)
 
     def propagateShapes(self):
         # ExitOps have no outputs to propagate to
-        assert len(self._inputs) == 1
-        assert len(self._outputs) == 0
+        assert len(self._inputs) == 1, 'Op: {}'.format(self._name)
+        assert len(self._outputs) == 1, 'Op: {}'.format(self._name)
+        if not self._inputs[0].shape.isUnknown():
+            if self._inputs[0].shape != self._outputs[0].shape:
+                raise NotImplementedError('ExitOp propagateShapes {}'
+                                          .format(self._name))
+        else:
+            fail_str = 'ExitOp {} propagateShapes unknown input shape' \
+                       .format(self._name)
+            raise NotImplementedError(fail_str)
 
     def calcAlgFlops(self):
         # ExitOps perform no calculations
@@ -67,6 +84,26 @@ class MergeOp(Op):
     '''
     def __init__(self, name):
         super(MergeOp, self).__init__(name)
+
+    def canVisit(self, visited_ops):
+        ''' Whether this op can be visited given the previous ops that
+            have been visited according to the input set visited_ops.
+            By default, most ops require that all producer tensors are
+            ready before they can be performed. Other ops must override
+            this function to get different functionality.
+            Args:
+                visited_ops: A set of ops that have been previously
+                             visited in the graph
+        '''
+        # Check if any inputs are ready
+        ready_in_tensors = set()
+        for in_tensor in self._inputs:
+            if in_tensor.producer in visited_ops:
+                ready_in_tensors.add(in_tensor)
+        # If (at least?) one input tensor is ready, then can visit
+        # [_] TODO (Joel): May need to loosen this restriction
+        assert len(ready_in_tensors) <= 1
+        return len(ready_in_tensors) == 1
 
     def propagateShapes(self):
         # MergeOps forward their input to their output for the
@@ -111,8 +148,19 @@ class SwitchOp(Op):
         # propagate the first input either to the first or second output
         # depending on whether the second input is true or false, resp.
         assert len(self._inputs) == 2
+        assert self._inputs[1].shape.isScalar()
         assert len(self._outputs) == 2
-        raise NotImplentedError('Must implement SwitchOp propagateShapes')
+        if self._inputs[0].shape.isUnknown():
+            fail_str = 'SwitchOp {} propagateShapes unknown input shape' \
+                       .format(self._name)
+            raise NotImplementedError(fail_str)
+        else:
+            if self._inputs[0].shape != self._outputs[0].shape:
+                raise NotImplementedError('SwitchOp propagateShapes {}'
+                                          .format(self._name))
+            if self._inputs[0].shape != self._outputs[1].shape:
+                raise NotImplementedError('SwitchOp propagateShapes {}'
+                                          .format(self._name))
 
     def calcAlgFlops(self):
         # SwitchOps perform no calculations

@@ -17,6 +17,8 @@ class BasePointwiseOp(Op):
             # Verify inputs have compatible shape
             in_a_shape = self._inputs[0].shape
             in_b_shape = self._inputs[1].shape
+            assert not in_a_shape.isUnknown(), 'Op: {}'.format(self._name)
+            assert not in_b_shape.isUnknown(), 'Op: {}'.format(self._name)
             assert in_a_shape.canBroadcastTogether(in_b_shape), \
                 'Op: {}: input shapes cannot broadcast ({}, {})!'.format(
                 self._name, in_a_shape, in_b_shape)

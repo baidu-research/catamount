@@ -11,13 +11,13 @@ def main():
     a_dims = [batch_size, hidden_dim]
     a = tf.placeholder(tf.float32, shape=a_dims, name='a')
     timer = tf.constant(0, name='timer')
-    bound = tf.placeholder(tf.int32, name='bound')
+    bound = tf.placeholder(tf.int32, shape=(), name='bound')
     total_inc = tf.get_variable('total_inc', shape=(), dtype=tf.int32)
     def body(time, input, state):
         with tf.variable_scope('body'):
             total_inc = time
             return (time + 1, input, state + input)
-    state = tf.fill(tf.shape(a), 0.0, name='start_val')
+    state = tf.zeros_like(a, name='start_val')
     _, _, state = tf.while_loop(cond=lambda timer, *_: timer < bound,
                                 body=body,
                                 loop_vars=(timer, a, state))

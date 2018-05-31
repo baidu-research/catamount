@@ -207,6 +207,14 @@ class TensorShape(object):
                 print('WARN: Shape dim {} is not valid type'.format(dim))
         return True
 
+    def isUnknown(self):
+        return self._dims is None
+
+    def isScalar(self):
+        if self._dims is None:
+            return False
+        return len(self._dims) == 0
+
     @property
     def dims(self):
         '''Returns a list of dimensions.

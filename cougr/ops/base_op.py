@@ -17,6 +17,21 @@ class Op:
         self._outputs.append(tensor)
         tensor.setProducer(self)
 
+    def canVisit(self, visited_ops):
+        ''' Whether this op can be visited given the previous ops that
+            have been visited according to the input set visited_ops.
+            By default, most ops require that all producer tensors are
+            ready before they can be performed. Other ops must override
+            this function to get different functionality.
+            Args:
+                visited_ops: A set of ops that have been previously
+                             visited in the graph
+        '''
+        for in_tensor in self._inputs:
+            if in_tensor.producer not in visited_ops:
+                return False
+        return True
+
     def propagateShapes(self):
         print('Crashing in op {} propagateShapes...'.format(self._name))
         for idx, input in enumerate(self._inputs):

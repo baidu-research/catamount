@@ -134,12 +134,7 @@ class Graph:
                 # Skip ops that have been visited... make this smarter?
                 continue
             # Check if input producers have been visited
-            can_visit = True
-            for in_tensor in next_op.inputs:
-                if in_tensor.producer not in visited_ops:
-                    can_visit = False
-                    break
-            if can_visit:
+            if next_op.canVisit(visited_ops):
                 visited_ops.add(next_op)
                 for out_tensor in next_op.outputs:
                     frontier_ops.extend(out_tensor.consumers.values())
