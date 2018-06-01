@@ -259,7 +259,6 @@ def construct_cougr_graph(tf_graph):
             for out_tensor in switch_op.outputs:
                 fwd_frontier_ops.extend(out_tensor.consumers.values())
         while len(fwd_frontier_ops) > 0:
-            print(fwd_frontier_ops)
             next_op = fwd_frontier_ops.pop(0)
             if next_op in visited_ops:
                 continue
