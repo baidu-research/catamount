@@ -13,6 +13,7 @@ def concat(name, out_shape, input_list, axis=0, graph=None):
     concat_op = ConcatOp(name, axis=axis)
     out_tensor = Tensor(name, TensorShape(out_shape))
     concat_op.addOutput(out_tensor)
+    graph.addOp(concat_op)
     for input in input_list:
         graph.addInputToOp(concat_op, input)
     return out_tensor
@@ -73,6 +74,7 @@ def split(name, out_shape, input, num_splits=2, axis=0, graph=None):
         out_name = '{}_out{}'.format(name, i)
         out_tensors.append(Tensor(out_name, TensorShape(out_shape)))
         split_op.addOutput(out_tensors[i])
+    graph.addOp(split_op)
     graph.addInputToOp(split_op, input)
     return out_tensors
 

@@ -190,9 +190,6 @@ def construct_cougr_graph(tf_graph):
 
         graph.addOp(op)
 
-#    print('Ops: {}'.format(graph.opsByName))
-#    print('Tensors: {}'.format(tensors))
-
     # Hook up all the op inputs to the ops that generate them
     for op_name in op_inputs.keys():
         op = graph.getOpByName(op_name)
@@ -200,5 +197,90 @@ def construct_cougr_graph(tf_graph):
             assert in_tensor in tensors.keys(), \
                    'Unknown input tensor {}'.format(in_tensor)
             graph.addInputToOp(op, tensors[in_tensor])
+
+    # Traverse the graph to find subgraph ops, such as loops
+    # NOTES:
+    #  1) TF while loops are controlled by a LoopConditionOp, which gates
+    #     all the SwitchOps that allow a loop iteration to proceed. The
+    #     inputs to a LoopConditionOp can be part of the condition function
+    #     passed to tf.while_loop. However, the condition function cannot
+    #     create side-effects (which is an important observation for
+    #     identifying the condition subgraph).
+    #  2) The condition subgraph is defined as all inputs to the while loop
+    #     that are not updated during the loop body and outputs of MergeOps
+    #     that are used to evaluate the loop condition function.
+    #  3) Loops create a loop-iteration versioning context for each variable
+    #     that is explicitly input into the while condition or body
+    #     functions (but NOT variables/tensors that are accessed locally or
+    #     globally for evaluating the condition).
+    #  4) The body of the loop is all ops that occur between any IdentityOp
+    #     and any NextIterationOp from the variable contexts for the loop.
+    #  Final) Note that TF while loops can have nested while loops or other
+    #     control flow blocks, so we need to design this recursively.
+    control_ops = []
+    # Find the ops that will require subgraph designations (i.e., control)
+    for op_name, op in graph.opsByName.items():
+        if op.isControlOp():
+            control_ops.append(op)
+    for ctrl_op in control_ops:
+        # Get all ops for the loop condition value calculation (1 and 2),
+        # the variable contexts (3), and the loop body (4). Extract these
+        # into a subgraph.
+        subgraph_ops = [ctrl_op]
+        visited_ops = set(subgraph_ops)
+        frontier_ops = []
+        for out_tensor in ctrl_op.outputs:
+            for consumer in out_tensor.consumers.values():
+                assert isinstance(consumer, SwitchOp)
+            frontier_ops.extend(out_tensor.consumers.values())
+
+        # A) Traverse backward from SwitchOps to MergeOps and EnterOps,
+        #    and NextIterationOps. Stop at the LoopConditionOp, and any
+        #    NextIterationOps and EnterOps.
+        bwd_frontier_ops = list(frontier_ops)
+        while len(bwd_frontier_ops) > 0:
+            next_op = bwd_frontier_ops.pop(0)
+            if next_op in visited_ops:
+                continue
+            assert not next_op.isControlOp(), \
+                'CouGr Framework(TF): Should be no up-stream control blocks!'
+            visited_ops.add(next_op)
+            if isinstance(next_op, EnterOp) or \
+               isinstance(next_op, NextIterationOp):
+                # Do not traverse past EnterOps, NextIterationOps
+                continue
+            for in_tensor in next_op.inputs:
+                bwd_frontier_ops.append(in_tensor.producer)
+
+        # B) Traverse forward to get the SwitchOps, ExitOps, IdentityOps,
+        #    body, NextIterationOps.
+        fwd_frontier_ops = []
+        for switch_op in frontier_ops:
+            for out_tensor in switch_op.outputs:
+                fwd_frontier_ops.extend(out_tensor.consumers.values())
+        while len(fwd_frontier_ops) > 0:
+            print(fwd_frontier_ops)
+            next_op = fwd_frontier_ops.pop(0)
+            if next_op in visited_ops:
+                continue
+            if next_op.isControlOp():
+                raise NotImplementedError(
+                    'CouGr Framework(TF): Need nested control blocks')
+            visited_ops.add(next_op)
+            if isinstance(next_op, ExitOp):
+                # Do not traverse past ExitOps
+                continue
+            for out_tensor in next_op.outputs:
+                fwd_frontier_ops.extend(out_tensor.consumers.values())
+
+        # [_] TODO (Joel): May need to go backward again to other EnterOps or to
+        # identify the loop condition that gets executed...
+
+        # Finally, create a ControlBlockOp (subgraph) with the main control
+        # node as the ctrl_op, and add the ControlBlockOp to the CouGr graph
+        # (which will move the graph ops into the subgraph)
+        ctrl_block_op = ControlBlockOp('{}_block'.format(ctrl_op.name),
+                                       ctrl_op, visited_ops)
+        graph.addOp(ctrl_block_op)
 
     return graph

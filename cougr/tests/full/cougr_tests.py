@@ -106,6 +106,12 @@ def test_manual_graph_build():
         # [_] TODO (Joel): Make this recurrent!
         c_state = variable('{}_c_state'.format(layer_name), [batch_size, hidden_dim])
         h_state = variable('{}_h_state'.format(layer_name), [batch_size, hidden_dim])
+        # [_] TODO: Would like it to look like this...
+        # counter = 0 (constant)
+        # new_state = [c_state, h_state]
+        # while counter < seq_length: # The condition
+        #     # The body
+        #     lstm_seq, new_state = lstm_cell(layer_name, lstm_seq, new_state)
         lstm_seq, new_state = lstm_cell(layer_name, lstm_seq, [c_state, h_state])
         print(lstm_seq)
         print(new_state)

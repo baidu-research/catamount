@@ -60,11 +60,14 @@ class Graph:
                 is_sink = False
         if is_sink:
             self._sinks[op.name] = op
+        op.setParent(self)
 
     def getOpByName(self, op_name):
         return self._ops_by_name[op_name]
 
     def addInputToOp(self, op, tensor):
+        assert op.name in self._ops_by_name.keys(), \
+            'Op not in graph: {}'.format(op.name)
         op.addInput(tensor)
         tensor.addConsumer(op)
         if op.name in self._sources.keys():
@@ -87,6 +90,7 @@ class Graph:
         '''
         # Check op tensor producers and consumers
         for id, op in self._ops_by_id.items():
+            assert op.parent is not None
             for in_tensor in op.inputs:
                 if op.name not in in_tensor.consumers.keys():
                     print('WARN: tensor {} not consumed by op {}'
@@ -117,7 +121,8 @@ class Graph:
         ''' Propagate bound tensor shape names through the network to bind
         downstream shapes.
         '''
-        # Topologically traverse from sources to sinks
+        # Topologically traverse from sources to sinks. This can be a
+        # flattened topological traversal from all sources to all sinks
         for next_op in self.getTopologicalOpOrder():
             next_op.propagateShapes()
 
@@ -132,7 +137,21 @@ class Graph:
                     op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol)
         self.propagateTensorShapeNames()
 
-    def getTopologicalOpOrder(self):
+    # [_] TODO (Joel): Only traverse feeds to fetches and count along path
+    def getTopologicalOpOrder(self, feed_dict=None, fetches_dict=None,
+                              hierarchical=False):
+        if hierarchical:
+            raise NotImplementedError(
+                'Implement hierarchical topogical traversal')
+
+        if feed_dict is not None:
+            raise NotImplementedError(
+                'Implement getTopologicalOpOrder to take feeds')
+
+        if fetches_dict is not None:
+            raise NotImplementedError(
+                'Implement getTopologicalOpOrder to take fetches')
+
         topo_ordered_ops = list(self._sources.values())
         visited_ops = set(topo_ordered_ops)
         frontier_ops = []
@@ -155,44 +174,19 @@ class Graph:
                 frontier_ops.append(next_op)
         return topo_ordered_ops
 
-    # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
-    def getOpsToExecute(self, feed_dict=None, fetches_dict=None):
-        if feed_dict is None and fetches_dict is None:
-            # Must execute all ops
-            return self._ops_by_name
-
-        if fetches_dict is not None:
-            raise NotImplementedError(
-                'getOpsToExecute does not yet take fetches')
-
-        ops_to_execute = {}
-        # [_] TODO (Joel): Can we abstract this traversal to reuse it
-        # in other parts of the code that want traversals?
-        for feed_name, feed_op in feed_dict.items():
-            assert type(feed_op) == PlaceholderOp
-            ops_to_execute[feed_name] = feed_op
-            # Traverse graph to find all downstream ops from feed_op
-            # [_] TODO: NOTE: This fails for recurrent connections!
-            frontier_ops = []
-            for out_tensor in feed_op.outputs:
-                frontier_ops.extend(out_tensor.consumers.values())
-            while len(frontier_ops) > 0:
-                next_op = frontier_ops.pop(0)
-                if next_op is None:
-                    continue
-                ops_to_execute[next_op.name] = next_op
-                for out_tensor in next_op.outputs:
-                    frontier_ops.extend(out_tensor.consumers.values())
-        return ops_to_execute
-
-    # [_] TODO (Joel): Add fetches_dict. Only traverse feeds to fetches
+    # [_] TODO (Joel): Only traverse feeds to fetches and count along path
     def calcAlgFlops(self, feed_dict=None, fetches_dict=None):
         ''' Calculate the algorithmic Flops for the compute graph based on
         the ops that depend on ops in the feed_dict.
         '''
-        ops_to_execute = self.getOpsToExecute(feed_dict, fetches_dict)
+        # Use a hierarchical traversal and allow parents to count for their
+        # children.
+        ops_to_execute = self.getTopologicalOpOrder(feed_dict=feed_dict,
+                                                    fetches_dict=fetches_dict)
         total_alg_flops = 0
-        for op in ops_to_execute.values():
+        for op in ops_to_execute:
+            assert op.parent == self, \
+                'Incorrect parent for op {}: {}'.format(op.name, op.parent)
             op_alg_flops = op.calcAlgFlops()
             # print('Op: {}, alg_flops: {}'.format(op.name, op_alg_flops))
             total_alg_flops += op_alg_flops

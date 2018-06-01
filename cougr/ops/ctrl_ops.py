@@ -1,6 +1,34 @@
 from .base_op import Op
 
 
+class ControlBlockOp(Op):
+    ''' A ControlBlockOp designates a subgraph that manages some form of
+        dynamic control flow for a compute graph (e.g., if-conditionals or
+        while loops). Such ops are actually a collection of ops that perform
+        the dynamic control operations. NOTE: ControlBlockOps can contain
+        other ControlBlockOps (nesting).
+    '''
+    def __init__(self, name, root_op, ops_list):
+        super(ControlBlockOp, self).__init__(name)
+        assert isinstance(root_op, Op)
+        self._root_op = root_op
+        self._next_op_id = 0
+        self._ops_by_name = {}
+        self._ops_by_id = {}
+        for op in ops_list:
+            self.addOp(op)
+
+    def addOp(self, op):
+        assert isinstance(op, Op)
+        assert op.name not in self._ops_by_name.keys()
+        self._ops_by_id[self._next_op_id] = op
+        self._next_op_id += 1
+        self._ops_by_name[op.name] = op
+
+        # Set the op's parent to be this op for traversal configuration
+        op.setParent(self)
+
+
 class EnterOp(Op):
     ''' EnterOp designates the start of a control flow operation that acts
         on the input tensor to the op. The output tensor is just the input
@@ -61,10 +89,14 @@ class ExitOp(Op):
 
 class LoopConditionOp(Op):
     ''' LoopConditionOp takes a boolean input and passes it out to SwitchOps
-        as part of dynamic loops.
+        as part of dynamic loops. It is a unique identifier op for loops, so
+        it is considered to be a control op.
     '''
     def __init__(self, name):
         super(LoopConditionOp, self).__init__(name)
+
+    def isControlOp(self):
+        return True
 
     def propagateShapes(self):
         # LoopConditionOps forward their input to their output

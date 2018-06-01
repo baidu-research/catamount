@@ -7,6 +7,13 @@ class Op:
         self._name = name
         self._inputs = []
         self._outputs = []
+        self._parent = None
+
+    def isControlOp(self):
+        return False
+
+    def setParent(self, parent):
+        self._parent = parent
 
     def addInput(self, tensor):
         assert(isinstance(tensor, Tensor))
@@ -66,3 +73,13 @@ class Op:
     @property
     def outputs(self):
         return self._outputs
+
+    @property
+    def parent(self):
+        ''' For scoping and hierarchical graph traversals, keep track
+            of the parent for this op. Hierarchical traversals will
+            traverse all ops regardless of parents, while flat traversals
+            will traverse all ops including those who are not direct
+            children of an op.
+        '''
+        return self._parent
