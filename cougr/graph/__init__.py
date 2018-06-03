@@ -17,20 +17,27 @@ class GraphContextManagerHelper:
         _cougr_default_graph  = self._graph_stack_top
 
 
+# [_] TODO (Joel): Introduce an intermediate class Subgraph that inherits
+# from Op and from which Graph inherits. Migrate most of Graph to Subgraph
+# Consider this distinction: A graph fully-contains all ops to perform an
+# end-to-end computation (i.e., it cannot have sources or sinks with inputs
+# or outputs, respectively, that come from outside the Graph)
 class Graph:
     def __init__(self):
-        self._next_op_id = 0
         self._ops_by_name = {}
-        self._ops_by_id = {}
-        # Maintain a list of the ops that are sources to the graph
-        # (in particular, ops with no inputs must be sources)
+        # Maintain a list of the ops that are sources to the graph. In
+        # particular, if an op has no inputs or any of its inputs are
+        # produced by ops outside the graph, then it is a source op.
         self._sources = {}
-        # Maintain a list of the ops that are sinks from the graph
-        # (in particular, ops whose outputs have no consumers)
+        # Maintain a list of the ops that are sinks from the graph. In
+        # particular, if none of the op's outputs are consumed by any op
+        # (i.e., terminal node) or they are consumed by other ops outside
+        # the graph, then it is a sink op.
         self._sinks = {}
 
     def __str__(self):
         # Dump the full graph definition in a topologically sorted order
+        # Note: This can be performed as a flattened operation
         out_str = ''
         for op in self.getTopologicalOpOrder():
             out_str += '{} {}\n'.format(op.name, op)
@@ -49,9 +56,12 @@ class Graph:
     def addOp(self, op):
         assert isinstance(op, Op)
         assert op.name not in self._ops_by_name.keys()
-        self._ops_by_id[self._next_op_id] = op
-        self._next_op_id += 1
+
+        # Add the op
         self._ops_by_name[op.name] = op
+        op.setParent(self)
+
+        # Detect whether it is a true source or sink
         if len(op.inputs) == 0:
             self._sources[op.name] = op
         is_sink = True
@@ -60,10 +70,6 @@ class Graph:
                 is_sink = False
         if is_sink:
             self._sinks[op.name] = op
-        op.setParent(self)
-
-    def getOpByName(self, op_name):
-        return self._ops_by_name[op_name]
 
     def addInputToOp(self, op, tensor):
         assert op.name in self._ops_by_name.keys(), \
@@ -89,7 +95,7 @@ class Graph:
         specified. Then, check that sources and sinks are set up correctly.
         '''
         # Check op tensor producers and consumers
-        for id, op in self._ops_by_id.items():
+        for id, op in self._ops_by_name.items():
             assert op.parent is not None
             for in_tensor in op.inputs:
                 if op.name not in in_tensor.consumers.keys():
@@ -140,10 +146,6 @@ class Graph:
     # [_] TODO (Joel): Only traverse feeds to fetches and count along path
     def getTopologicalOpOrder(self, feed_dict=None, fetches_dict=None,
                               hierarchical=False):
-        if hierarchical:
-            raise NotImplementedError(
-                'Implement hierarchical topogical traversal')
-
         if feed_dict is not None:
             raise NotImplementedError(
                 'Implement getTopologicalOpOrder to take feeds')
@@ -152,7 +154,10 @@ class Graph:
             raise NotImplementedError(
                 'Implement getTopologicalOpOrder to take fetches')
 
-        topo_ordered_ops = list(self._sources.values())
+        topo_ordered_ops = []
+        for source_op in self._sources.values():
+            assert source_op.parent == self
+            topo_ordered_ops.append(source_op)
         visited_ops = set(topo_ordered_ops)
         frontier_ops = []
         for op in topo_ordered_ops:
@@ -168,7 +173,8 @@ class Graph:
                 visited_ops.add(next_op)
                 for out_tensor in next_op.outputs:
                     frontier_ops.extend(out_tensor.consumers.values())
-                topo_ordered_ops.append(next_op)
+                if not hierarchical or next_op.parent == self:
+                    topo_ordered_ops.append(next_op)
             else:
                 # Put the op back on the end of the frontier to check later
                 frontier_ops.append(next_op)
@@ -182,7 +188,7 @@ class Graph:
         # Use a hierarchical traversal and allow parents to count for their
         # children.
         ops_to_execute = self.getTopologicalOpOrder(feed_dict=feed_dict,
-                                                    fetches_dict=fetches_dict)
+                             fetches_dict=fetches_dict, hierarchical=True)
         total_alg_flops = 0
         for op in ops_to_execute:
             assert op.parent == self, \

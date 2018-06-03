@@ -1,7 +1,12 @@
+import sympy
+
 from .base_op import Op
+from ..graph import Graph
 
 
-class ControlBlockOp(Op):
+# TODO (Joel): Refactor this into a Subgraph object that inherits just from
+# and migrates most of the graph functionality here
+class ControlBlockOp(Op, Graph):
     ''' A ControlBlockOp designates a subgraph that manages some form of
         dynamic control flow for a compute graph (e.g., if-conditionals or
         while loops). Such ops are actually a collection of ops that perform
@@ -12,21 +17,57 @@ class ControlBlockOp(Op):
         super(ControlBlockOp, self).__init__(name)
         assert isinstance(root_op, Op)
         self._root_op = root_op
-        self._next_op_id = 0
         self._ops_by_name = {}
-        self._ops_by_id = {}
+        # Maintain a list of the ops that are sources to the graph. In
+        # particular, if an op has no inputs or any of its inputs are
+        # produced by ops outside the graph, then it is a source op.
+        self._sources = {}
+        # Maintain a list of the ops that are sinks from the graph. In
+        # particular, if none of the op's outputs are consumed by any op
+        # (i.e., terminal node) or they are consumed by other ops outside
+        # the graph, then it is a sink op.
+        self._sinks = {}
+
         for op in ops_list:
             self.addOp(op)
+        self.findAllSourcesSinks()
 
-    def addOp(self, op):
-        assert isinstance(op, Op)
-        assert op.name not in self._ops_by_name.keys()
-        self._ops_by_id[self._next_op_id] = op
-        self._next_op_id += 1
-        self._ops_by_name[op.name] = op
+    def findAllSourcesSinks(self):
+        for op in self._ops_by_name.values():
+            # Check if op is a source to the subgraph
+            if op.name not in self._sources.keys():
+                is_source = False
+                for in_tensor in op.inputs:
+                    if in_tensor.producer.name not in self._ops_by_name.keys():
+                        is_source = True
+                        break
+                if is_source:
+                    self._sources[op.name] = op
+            # Check if the op is a sink of the subgraph
+            if op.name not in self._sinks.keys():
+                is_sink = False
+                for out_tensor in op.outputs:
+                    for consumer in out_tensor.consumers.keys():
+                        if consumer not in self._ops_by_name.keys():
+                            is_sink = True
+                            break
+                if is_sink:
+                    self._sinks[op.name] = op
 
-        # Set the op's parent to be this op for traversal configuration
-        op.setParent(self)
+    def propagateShapes(self):
+        # Propagating shapes is a flattened operation, so control blocks
+        # do not need to do any work for them
+        pass
+
+    def calcAlgFlops(self):
+        if not isinstance(self._root_op, LoopConditionOp):
+            raise NotImplementedError(
+                'ControlBlockOp {} has unknown _root_op type {}'
+                .format(self.name, type(self._root_op)))
+
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = sympy.Symbol(loop_iter_name)
+        return loop_iters * Graph.calcAlgFlops(self)
 
 
 class EnterOp(Op):
@@ -134,9 +175,10 @@ class MergeOp(Op):
         for in_tensor in self._inputs:
             if in_tensor.producer in visited_ops:
                 ready_in_tensors.add(in_tensor)
-        # If (at least?) one input tensor is ready, then can visit
-        # [_] TODO (Joel): May need to loosen this restriction
-        assert len(ready_in_tensors) <= 1
+        # If at least one input tensor is ready, then can visit
+        assert len(ready_in_tensors) <= 1, \
+            'Multiple inputs to MergeOp {} already visited {}!' \
+            .format(self.name, ready_in_tensors)
         return len(ready_in_tensors) == 1
 
     def propagateShapes(self):

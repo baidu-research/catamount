@@ -153,8 +153,7 @@ def construct_cougr_graph(tf_graph):
     graph = Graph()
     tensors = {}
     op_inputs = {}
-    for tf_op_name in tf_graph._nodes_by_name.keys():
-        tf_op = tf_graph._nodes_by_name[tf_op_name]
+    for tf_op in tf_graph._nodes_by_name.values():
         if tf_op.type in TF_OP_TO_COUGR.keys():
             # Map to CouGr op type
             cougr_type = TF_OP_TO_COUGR[tf_op.type]
@@ -164,7 +163,7 @@ def construct_cougr_graph(tf_graph):
             cougr_type = UnknownOp
 
         # Create the CouGr internal op
-        op = cougr_type(tf_op_name)
+        op = cougr_type(tf_op.name)
 
         # Create the output tensors for this op
         for i in range(len(tf_op.outputs)):
@@ -192,7 +191,7 @@ def construct_cougr_graph(tf_graph):
 
     # Hook up all the op inputs to the ops that generate them
     for op_name in op_inputs.keys():
-        op = graph.getOpByName(op_name)
+        op = graph.opsByName[op_name]
         for in_tensor in op_inputs[op_name]:
             assert in_tensor in tensors.keys(), \
                    'Unknown input tensor {}'.format(in_tensor)
@@ -236,7 +235,8 @@ def construct_cougr_graph(tf_graph):
 
         # A) Traverse backward from SwitchOps to MergeOps and EnterOps,
         #    and NextIterationOps. Stop at the LoopConditionOp, and any
-        #    NextIterationOps and EnterOps.
+        #    NextIterationOps and EnterOps. Add MergeOps to the frontier
+        #    to traverse forward from them.
         bwd_frontier_ops = list(frontier_ops)
         while len(bwd_frontier_ops) > 0:
             next_op = bwd_frontier_ops.pop(0)
@@ -249,6 +249,8 @@ def construct_cougr_graph(tf_graph):
                isinstance(next_op, NextIterationOp):
                 # Do not traverse past EnterOps, NextIterationOps
                 continue
+            if isinstance(next_op, MergeOp):
+                frontier_ops.append(next_op)
             for in_tensor in next_op.inputs:
                 bwd_frontier_ops.append(in_tensor.producer)
 
