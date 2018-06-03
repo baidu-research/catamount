@@ -1,21 +1,41 @@
 from ..graph import get_default_graph
 from ..tensors import *
 from ..ops.array_ops import *
+from ..ops.constant import *
 from ..ops.math_ops import *
 from ..ops.placeholder import *
 from ..ops.variable import *
 
 
+def constant(name, out_shape, value, graph=None):
+    if graph is None:
+        graph = get_default_graph()
+
+    const_op = ConstOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    const_op.addOutput(out_tensor)
+    graph.addOp(const_op)
+    if value is not None:
+        out_tensor.setValue(value)
+    return out_tensor
+
 def concat(name, out_shape, input_list, axis=0, graph=None):
     if graph is None:
         graph = get_default_graph()
 
-    concat_op = ConcatOp(name, axis=axis)
+    if not isinstance(axis, int):
+        raise NotImplementedError(
+            'cougr.concat axis yet unsupported type: {}'.format(type(axis)))
+
+    concat_op = ConcatOp(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     concat_op.addOutput(out_tensor)
     graph.addOp(concat_op)
     for input in input_list:
         graph.addInputToOp(concat_op, input)
+    # Finally, add the axis input tensor last (rank 0)
+    axis_tensor = constant('{}:axis'.format(name), [], axis)
+    graph.addInputToOp(concat_op, axis_tensor)
     return out_tensor
 
 def matmul(name, out_shape, in_a, in_b, graph=None):

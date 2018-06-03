@@ -2,22 +2,25 @@ from .base_op import Op
 from ..tensors.tensor_shape import Dimension, TensorShape
 
 class ConcatOp(Op):
-    def __init__(self, name, axis=0):
+    def __init__(self, name):
         super(ConcatOp, self).__init__(name)
-        self._axis = axis
 
     def propagateShapes(self):
         # Verify input shapes can be merged when concat axis is masked
-        assert len(self._inputs) >= 1
+        assert len(self._inputs) >= 2
+        assert self._inputs[-1].shape.rank == 0
+        axis = self._inputs[-1].value
+        assert axis is not None
         assert len(self._outputs) == 1
         out_shape_c_dim = Dimension(0)
-        for in_tensor in self._inputs:
+        for idx in range(len(self._inputs) - 1):
+            in_tensor = self._inputs[idx]
             in_shape = TensorShape(in_tensor.shape.dims)
-            in_c_dim = in_shape.dims[self._axis]
+            in_c_dim = in_shape.dims[axis]
             out_shape_c_dim += in_c_dim
-            in_shape.dims[self._axis] = Dimension(None)
+            in_shape.dims[axis] = Dimension(None)
             self._outputs[0].shape.mergeShape(in_shape)
-        self._outputs[0].shape.setDimension(self._axis, out_shape_c_dim)
+        self._outputs[0].shape.setDimension(axis, out_shape_c_dim)
 
     def calcAlgFlops(self):
         # ConcatOps have no Flops

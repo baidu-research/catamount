@@ -33,6 +33,7 @@ class Tensor:
         self._dtype = dtype
         self._producer = None
         self._consumers = {}
+        self._value = None
 
     @property
     def name(self):
@@ -53,6 +54,10 @@ class Tensor:
     @property
     def consumers(self):
         return self._consumers
+
+    @property
+    def value(self):
+        return self._value
 
     def __str__(self):
         return 'Tensor(name: {}, shape: {})'.format(self._name, self._shape)
@@ -76,3 +81,10 @@ class Tensor:
 
     def hasConsumers(self):
         return len(self._consumers.keys()) > 0
+
+    def setValue(self, value):
+        if self._shape.rank == 0:
+            assert isinstance(value, int) or isinstance(value, float)
+            self._value = value
+        else:
+            raise NotImplementedError('Tensor setValue to 1+ rank value')
