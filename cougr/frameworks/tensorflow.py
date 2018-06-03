@@ -36,6 +36,7 @@ TF_OP_TO_COUGR = {
     'Gather': GatherOp,
     'Identity': IdentityOp,
     'Less': LessOp,
+    'LogicalAnd': LogicalAndOp,
     'LogicalNot': LogicalNotOp,
     'LoopCond': LoopConditionOp,
     'MatMul': MatMulOp,

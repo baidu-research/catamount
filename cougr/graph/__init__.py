@@ -88,6 +88,16 @@ class Graph:
     def opsByName(self):
         return self._ops_by_name
 
+    # [_] TODO (Joel): parent and name should be removed when the subgraph op
+    # is introduced (because it will inherit from Op)
+    @property
+    def parent(self):
+        return None
+
+    @property
+    def name(self):
+        return 'graph'
+
     def isValid(self):
         ''' Return whether the graph is fully specified. Check whether all ops
         have output tensors, whether those tensors have valid shapes, and
@@ -159,25 +169,34 @@ class Graph:
             assert source_op.parent == self
             topo_ordered_ops.append(source_op)
         visited_ops = set(topo_ordered_ops)
-        frontier_ops = []
+        frontier_ops = set()
         for op in topo_ordered_ops:
             for out_tensor in op.outputs:
-                frontier_ops.extend(out_tensor.consumers.values())
+                for op in out_tensor.consumers.values():
+                    if op not in visited_ops:
+                        frontier_ops.add(op)
         while len(frontier_ops) > 0:
-            next_op = frontier_ops.pop(0)
-            if next_op in visited_ops:
-                # Skip ops that have been visited... make this smarter?
-                continue
+            next_op = frontier_ops.pop()
+            assert next_op.name in self._ops_by_name.keys()
+            assert next_op not in visited_ops, \
+                'Already visited {}!'.format(next_op.name)
             # Check if input producers have been visited
             if next_op.canVisit(visited_ops):
                 visited_ops.add(next_op)
                 for out_tensor in next_op.outputs:
-                    frontier_ops.extend(out_tensor.consumers.values())
+                    for op in out_tensor.consumers.values():
+                        if op.name in self._ops_by_name.keys():
+                            if op not in visited_ops:
+                                frontier_ops.add(op)
+                            # Also get any first-level subgraphs
+                            if op.parent != self and op.parent.parent == self:
+                                if op.parent not in visited_ops:
+                                    frontier_ops.add(op.parent)
                 if not hierarchical or next_op.parent == self:
                     topo_ordered_ops.append(next_op)
             else:
                 # Put the op back on the end of the frontier to check later
-                frontier_ops.append(next_op)
+                frontier_ops.add(next_op)
         return topo_ordered_ops
 
     # [_] TODO (Joel): Only traverse feeds to fetches and count along path

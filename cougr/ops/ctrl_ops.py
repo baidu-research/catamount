@@ -4,7 +4,7 @@ from .base_op import Op
 from ..graph import Graph
 
 
-# TODO (Joel): Refactor this into a Subgraph object that inherits just from
+# TODO (Joel): Refactor this into a Subgraph object that inherits just from Op
 # and migrates most of the graph functionality here
 class ControlBlockOp(Op, Graph):
     ''' A ControlBlockOp designates a subgraph that manages some form of
@@ -31,6 +31,25 @@ class ControlBlockOp(Op, Graph):
         for op in ops_list:
             self.addOp(op)
         self.findAllSourcesSinks()
+
+    @property
+    def inputs(self):
+        # Collect the inputs to all sources and return
+        to_return = set()
+        for source_op in self._sources.values():
+            for in_tensor in source_op.inputs:
+                to_return.add(in_tensor)
+        return list(to_return)
+
+    @property
+    def outputs(self):
+        # Collect the outputs of all sinks and return
+        to_return = set()
+        for sink_op in self._sinks.values():
+            for out_tensor in sink_op.outputs:
+                for consumer in out_tensor.consumers.values():
+                    to_return.add(out_tensor)
+        return list(to_return)
 
     def findAllSourcesSinks(self):
         for op in self._ops_by_name.values():
@@ -176,10 +195,10 @@ class MergeOp(Op):
             if in_tensor.producer in visited_ops:
                 ready_in_tensors.add(in_tensor)
         # If at least one input tensor is ready, then can visit
-        assert len(ready_in_tensors) <= 1, \
-            'Multiple inputs to MergeOp {} already visited {}!' \
-            .format(self.name, ready_in_tensors)
-        return len(ready_in_tensors) == 1
+        if len(ready_in_tensors) > 1:
+            print('WARN: Multiple inputs to MergeOp {} already visited {}!'
+                  .format(self.name, ready_in_tensors))
+        return len(ready_in_tensors) > 0
 
     def propagateShapes(self):
         # MergeOps forward their input to their output for the
