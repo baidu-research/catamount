@@ -7,9 +7,25 @@ def as_dimension(value):
         return value
     elif isinstance(value, int):
         return Dimension(value)
+    elif isinstance(value, sympy.Symbol):
+        to_return = Dimension(None)
+        to_return.setSymbolOrName(value)
+        return to_return
     else:
         raise TypeError('Cannot convert value of type {} to Dimension'
                         .format(type(value)))
+
+def as_tensor_shape(value):
+    if isinstance(value, TensorShape):
+        return value
+    elif isinstance(value, list):
+        list_dims = [as_dimension(dim) for dim in value]
+        return TensorShape(list_dims)
+    else:
+        raise TypeError(
+            'Cannot convert value of type {} to TensorShape'
+            .format(type(value)))
+
 
 class Dimension(object):
     ''' Represents a dimension of a `TensorShape`.
@@ -289,6 +305,7 @@ class TensorShape(object):
         return bcast_shape
 
     def mergeShape(self, other):
+        other = as_tensor_shape(other)
         # TODO (Joel): These checks will not work when a TensorShape
         # is None! Fix later
         assert self.rank == other.rank

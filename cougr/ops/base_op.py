@@ -59,6 +59,8 @@ class Op:
                                   type(self))
 
     def calcAlgFootprint(self):
+        # NOTE: Maybe take argument for training vs. inference (to decide
+        # whether or not to save activations, respectively)
         raise NotImplementedError('Op calcAlgFootprint not implemented!',
                                   type(self))
 

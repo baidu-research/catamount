@@ -89,8 +89,13 @@ class FillOp(Op):
         assert len(self._outputs) == 1, 'FillOp {} has {} outputs' \
             .format(self._name, len(self._outputs))
         # The first input tensor contains the shape of output tensor
-        raise NotImplementedError('FillOp propagateShapes {}: {} -> {}'
-                                  .format(self._name, [str(in_t) for in_t in self._inputs], self._outputs[0]))
+        out_shape = self._inputs[0].value
+        if out_shape is None:
+            print('WARN: FillOp {} shape undetermined'.format(self._name))
+            return
+        self._outputs[0].shape.mergeShape(out_shape)
+        if self._outputs[0].shape.isFullyDefined():
+            raise NotImplementedError('FillOp may specify output value')
 
     def calcAlgFlops(self):
         # FillOps have no Flops
@@ -260,7 +265,7 @@ class TransposeOp(Op):
         out_dims = []
         for idx in permutation:
             out_dims.append(in_dims[idx])
-        self._outputs[0].shape.mergeShape(TensorShape(out_dims))
+        self._outputs[0].shape.mergeShape(out_dims)
 
     def calcAlgFlops(self):
         # TransposeOps have no Flops
