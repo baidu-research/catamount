@@ -80,6 +80,7 @@ TF_OP_TO_COUGR = {
     'Sum': ReduceOp,
     'Switch': SwitchOp,
     'Tanh': TanhOp,
+    'TensorArrayV3': TensorArrayOp,
     'Transpose': TransposeOp,
     'VariableV2': VariableOp,
     'ZerosLike': NumLikeOp,

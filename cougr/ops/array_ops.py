@@ -222,9 +222,8 @@ class StridedSliceOp(Op):
         begin = self._inputs[1].value
         end = self._inputs[2].value
         stride = self._inputs[3].value
-        if tensor_vals is None or begin is None or \
-           end is None or stride is None:
-            print('WARN: StridedSliceOp {} unable to resolve outputs'
+        if begin is None or end is None or stride is None:
+            print('WARN: StridedSliceOp {} unable to resolve output shape'
                   .format(self._name))
             return
         if not (isinstance(begin, list) and len(begin) == 1) or \
@@ -233,17 +232,42 @@ class StridedSliceOp(Op):
             raise NotImplementedError(
                 'StridedSliceOp {} needs to slice ranks >1'
                 .format(self._name))
+
         # TODO (Joel): This only supports rank 1 inputs!
         begin = begin[0]
         end = end[0]
         stride = stride[0]
-        out_value = []
-        for idx in range(begin, end, stride):
-            out_value.append(tensor_vals[idx])
+
+        # Check input to output tensor shape propagation
+        if not self._outputs[0].shape.isFullyDefined():
+            raise NotImplementedError(
+                'Resolve output dims for StridedSliceOp {}'
+                .format(self._name))
+
+        # Check if values can be resolved
+        if not self._outputs[0].shape.isFullyDefined() or tensor_vals is None:
+            # Can only set up output values if the output shape is fully
+            # resolved and the input tensor is available
+            return
+
+        out_value = tensor_vals[begin:end:stride]
         self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
         # StridedSliceOps have no Flops
+        return 0
+
+
+class TensorArrayOp(Op):
+    def __init__(self, name):
+        super(TensorArrayOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # TODO (Joel): Propagate shapes for TensorArrayOp
+        pass
+
+    def calcAlgFlops(self):
+        # TensorArrayOps only allow creation of tensor arrays
         return 0
 
 
