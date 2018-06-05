@@ -241,8 +241,6 @@ class RangeOp(Op):
         delta = self._inputs[2].value
         if not isinstance(start, int) or not isinstance(limit, int) or \
            not isinstance(delta, int):
-            print('WARN: Cannot propagate RangeOp {} shape with params ' \
-                  '[{}, {}, {}]'.format(self._name, start, limit, delta))
             return
         value = [val for val in range(start, limit, delta)]
         # Note: Setting output value will verify that the shapes are

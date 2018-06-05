@@ -195,9 +195,6 @@ class MergeOp(Op):
             if in_tensor.producer in visited_ops:
                 ready_in_tensors.add(in_tensor)
         # If at least one input tensor is ready, then can visit
-        if len(ready_in_tensors) > 1:
-            print('WARN: Multiple inputs to MergeOp {} already visited {}!'
-                  .format(self.name, ready_in_tensors))
         return len(ready_in_tensors) > 0
 
     def propagateShapes(self):
