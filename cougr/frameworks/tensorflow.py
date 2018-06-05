@@ -61,6 +61,7 @@ TF_OP_TO_COUGR = {
     'Prod': ReduceOp,
     'Pow': PowOp,
     'RandomUniform': RandomInitializerOp,
+    'Range': RangeOp,
     'RealDiv': BasePointwiseOp,
     'Relu': ReluOp,
     'Reduce': ReduceOp,

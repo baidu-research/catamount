@@ -13,14 +13,33 @@ class ConcatOp(Op):
         assert axis is not None, 'Op {} axis is None'.format(self._name)
         assert len(self._outputs) == 1
         out_shape_c_dim = Dimension(0)
+        propagate_values = True
         for idx in range(len(self._inputs) - 1):
             in_tensor = self._inputs[idx]
+            if in_tensor.value is None:
+                propagate_values = False
             in_shape = TensorShape(in_tensor.shape.dims)
             in_c_dim = in_shape.dims[axis]
             out_shape_c_dim += in_c_dim
             in_shape.dims[axis] = Dimension(None)
             self._outputs[0].shape.mergeShape(in_shape)
         self._outputs[0].shape.setDimension(axis, out_shape_c_dim)
+
+        if not propagate_values:
+            return
+
+        # If the input values are fully specified, then also propagate
+        # those values to the outputs
+        out_value = None
+        for idx in range(len(self._inputs) - 1):
+            if self._inputs[idx].shape.rank != 1 or axis != 0:
+                raise NotImplementedError('ConcatOp {} values non-1 rank'
+                                          .format(self._name))
+            if out_value is None:
+                out_value = self._inputs[idx].value
+            else:
+                out_value.extend(self._inputs[idx].value)
+        self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
         # ConcatOps have no Flops

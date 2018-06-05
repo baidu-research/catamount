@@ -101,16 +101,18 @@ class Tensor:
         return len(self._consumers.keys()) > 0
 
     def setValue(self, value):
+        # TODO (Joel): Re-write conditions to simplify these checks
         if DataType.isNumber(self._dtype):
             if self._shape.rank == 0:
                 assert isinstance(value, int) or isinstance(value, float), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
             elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
-                assert isinstance(value, int) or isinstance(value, float), \
+                if isinstance(value, int) or isinstance(value, float):
+                    value = [value]
+                assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
-                value = [value]
             else:
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
@@ -123,10 +125,11 @@ class Tensor:
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
             elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
-                assert isinstance(value, str), \
+                if isinstance(value, str):
+                    value = [value]
+                assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
-                value = [value]
             else:
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \

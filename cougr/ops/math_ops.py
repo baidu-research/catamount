@@ -7,13 +7,13 @@ class BasePointwiseOp(Op):
         self._flops_per_element = 1
 
     def propagateShapes(self):
-        assert(len(self._outputs) == 1)
+        assert len(self._outputs) == 1
         if len(self._inputs) == 1:
             # Unary operator!
             final_shape = self._inputs[0].shape
         else:
             # Must be binary operator!
-            assert(len(self._inputs) == 2)
+            assert len(self._inputs) == 2
             # Verify inputs have compatible shape
             in_a_shape = self._inputs[0].shape
             in_b_shape = self._inputs[1].shape
@@ -28,7 +28,7 @@ class BasePointwiseOp(Op):
         self._outputs[0].shape.mergeShape(final_shape)
 
     def flopsPointwise(self):
-        assert(len(self._outputs) == 1)
+        assert len(self._outputs) == 1
         out_shape = self._outputs[0].shape
         return out_shape.numElements() * self._flops_per_element
 
@@ -155,7 +155,7 @@ class MatMulOp(Op):
     def propagateShapes(self):
         # [_] TODO (Joel): Will need to handle transposes here...
         # Verify that shapes can be correctly resolved
-        assert(len(self._inputs) == 2)
+        assert len(self._inputs) == 2
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
         inner_dim = tensor_a.shape.getDim(1)
@@ -180,7 +180,7 @@ class MatMulOp(Op):
     def calcAlgFlops(self):
         # [_] TODO (Joel): Will need to handle transposes here...
         # Get matrix inner dimension
-        assert(len(self._inputs) == 2)
+        assert len(self._inputs) == 2
         tensor_a = self._inputs[0]
         inner_dim = tensor_a.shape.getDim(1)
         # [_] TODO (Joel): HACK!!!!: FIX ME!!! (Create tensor dimension in
@@ -195,7 +195,7 @@ class MatMulOp(Op):
                                       self._inputs[1].shape,
                                       self._outputs[0].shape)
         # Get output number of elements
-        assert(len(self._outputs) == 1)
+        assert len(self._outputs) == 1
         out_shape = self._outputs[0].shape
         out_elts = out_shape.numElements()
         return (2 * inner_dim * out_elts)
@@ -210,8 +210,8 @@ class ReduceOp(Op):
         self._flops_per_element = 1
 
     def propagateShapes(self):
-        assert(len(self._inputs) == 1)
-        assert(len(self._outputs) == 1)
+        assert len(self._inputs) == 1
+        assert len(self._outputs) == 1
         for dim_index in range(self._inputs[0].shape.rank):
             if dim_index not in self._axes:
                 dim = self._inputs[0].shape.getDim(dim_index)
@@ -220,7 +220,7 @@ class ReduceOp(Op):
     def calcAlgFlops(self):
         # [_] TODO (Joel): This is too restrictive if the axis dimension
         #     comes from a second input tensor to the op...
-        assert(len(self._inputs) == 1), \
+        assert len(self._inputs) == 1, \
             'Reduce {} has too many inputs: {}' \
             .format(self.name, [input for input in self._inputs])
         flops_to_return = self._flops_per_element
@@ -229,3 +229,21 @@ class ReduceOp(Op):
         return flops_to_return
 
 
+class RangeOp(Op):
+    def __init__(self, name):
+        super(RangeOp, self).__init__(name)
+
+    def propagateShapes(self):
+        assert len(self._inputs) == 3
+        assert len(self._outputs) == 1
+        start = self._inputs[0].value
+        limit = self._inputs[1].value
+        delta = self._inputs[2].value
+        value = [val for val in range(start, limit, delta)]
+        # Note: Setting output value will verify that the shapes are
+        # fully specified and match
+        self._outputs[0].setValue(value)
+
+    def calcAlgFlops(self):
+        # Range op has no algorithmic Flops
+        return 0

@@ -42,11 +42,11 @@ class Op:
     def propagateShapes(self):
         print('Crashing in op {} propagateShapes...'.format(self._name))
         for idx, input in enumerate(self._inputs):
-            print('In tensor[{}] name {}, shape {}'.format(idx,
-                  input.name, input.shape)) 
+            print('In tensor[{}] name {}, shape {}, value {}'.format(idx,
+                  input.name, input.shape, input.value))
         for idx, output in enumerate(self._outputs):
-            print('Out tensor[{}] name {}, shape {}'.format(idx,
-                  output.name, output.shape)) 
+            print('Out tensor[{}] name {}, shape {}, value {}'.format(idx,
+                  output.name, output.shape, output.value))
         raise NotImplementedError('Op propagateShapes not implemented!',
                                   type(self))
 
