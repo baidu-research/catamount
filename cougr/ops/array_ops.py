@@ -10,7 +10,7 @@ class ConcatOp(Op):
         assert len(self._inputs) >= 2
         assert self._inputs[-1].shape.rank == 0
         axis = self._inputs[-1].value
-        assert axis is not None
+        assert axis is not None, 'Op {} axis is None'.format(self._name)
         assert len(self._outputs) == 1
         out_shape_c_dim = Dimension(0)
         for idx in range(len(self._inputs) - 1):

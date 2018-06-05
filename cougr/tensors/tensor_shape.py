@@ -76,7 +76,7 @@ class Dimension(object):
         if self._value is None or other._value is None or \
             self._value == other._value:
             return True
-        return True
+        return False
 
     def __iadd__(self, other):
         assert isinstance(other, Dimension)
