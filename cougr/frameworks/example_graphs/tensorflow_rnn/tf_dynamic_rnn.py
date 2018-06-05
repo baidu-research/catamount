@@ -7,7 +7,7 @@ def main():
     # Graph:
     batch_size = None
     hidden_dim = 24
-    seq_length = 5
+    seq_length = None
     a_dims = [batch_size, seq_length, hidden_dim]
     a = tf.placeholder(tf.float32, shape=a_dims, name='a')
     rnn = tf.contrib.rnn.BasicRNNCell(hidden_dim)
@@ -20,6 +20,7 @@ def main():
 
     # Session run to get example graph
     batch_size = 8
+    seq_length = 5
     init_state_shape = [batch_size, rnn.state_size]
     outdir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                           'output_dynamic_rnn')
