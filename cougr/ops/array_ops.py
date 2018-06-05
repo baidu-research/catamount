@@ -137,6 +137,14 @@ class ShapeOp(Op):
         assert len(self._outputs) == 1
         self._outputs[0].shape.setDimension(0, out_rank)
 
+        # Can set some output values if the input shape is known
+        if not self._inputs[0].shape.isUnknown():
+            out_value = []
+            for dim in self._inputs[0].shape.dims:
+                # Can propagate symbols and values, so request symbols
+                out_value.append(dim.symbol)
+            self._outputs[0].setValue(out_value)
+
     def calcAlgFlops(self):
         # ShapeOps have no Flops
         return 0
@@ -173,8 +181,9 @@ class StridedSliceOp(Op):
         super(StridedSliceOp, self).__init__(name)
 
     def propagateShapes(self):
-        # Assume StridedSliceOps have fully specified shapes
-        pass
+        for in_tensor in self._inputs:
+            print('{}'.format(in_tensor))
+        raise NotImplementedError('StridedSliceOp {} propagateShapes'.format(self._name))
 
     def calcAlgFlops(self):
         # StridedSliceOps have no Flops

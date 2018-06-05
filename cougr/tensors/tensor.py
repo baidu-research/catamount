@@ -78,7 +78,8 @@ class Tensor:
         return self._value
 
     def __str__(self):
-        return 'Tensor(name: {}, shape: {})'.format(self._name, self._shape)
+        return 'Tensor(name: {}, shape: {}, value: {})' \
+               .format(self._name, self._shape, self._value)
 
     def isValid(self):
         # Valid tensors have a valid TensorShape
