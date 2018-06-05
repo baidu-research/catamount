@@ -20,9 +20,9 @@ class NoOp(Op):
         return 0
 
 
-class ConstOp(Op):
+class ConstantOp(Op):
     def __init__(self, name):
-        super(ConstOp, self).__init__(name)
+        super(ConstantOp, self).__init__(name)
 
     def propagateShapes(self):
         # Constants must have outputs fully specified. Nothing to propagate

@@ -11,7 +11,7 @@ def constant(name, out_shape, value, graph=None):
     if graph is None:
         graph = get_default_graph()
 
-    const_op = ConstOp(name)
+    const_op = ConstantOp(name)
     out_tensor = Tensor(name, TensorShape(out_shape))
     const_op.addOutput(out_tensor)
     graph.addOp(const_op)

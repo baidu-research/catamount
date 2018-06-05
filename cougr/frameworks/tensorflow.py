@@ -1,8 +1,10 @@
 import os
+import struct
 import tensorflow as tf
 
 # To import graphs that use TF contrib libraries...
 import tensorflow.contrib.mpi_collectives as mpi
+from tensorflow.core.framework import types_pb2
 
 from cougr.graph import *
 from cougr.ops.array_ops import *
@@ -25,7 +27,7 @@ TF_OP_TO_COUGR = {
     'BiasAdd': AddOp, # Here, TF special-case for 1D bias input
     'Cast': CastOp,
     'ConcatV2': ConcatOp,
-    'Const': ConstOp,
+    'Const': ConstantOp,
     'Conv2D': Conv2DOp,
     'Enter': EnterOp,
     'Exit': ExitOp,
@@ -147,10 +149,81 @@ def load_tf_session(tf_filename):
 
 def import_graph(tf_filename):
     sess = load_tf_session(tf_filename)
-    cougr_graph = construct_cougr_graph(sess.graph)
+    cougr_graph = construct_cougr_graph(sess, sess.graph)
     return cougr_graph
 
-def construct_cougr_graph(tf_graph):
+def try_to_read_value_from_tensor(tf_sess, tf_op):
+    # Simple function to try to read tensors out of a session. For
+    # testing purposes only.
+    try:
+        with tf_sess.as_default():
+            value = tf_op.outputs[0].eval()
+    except:
+        raise NotImplementedError('Exception')
+    return value
+
+def get_const_value_from_op(tf_sess, tf_op):
+    assert tf_op.type == 'Const'
+    assert len(tf_op.outputs) == 1
+    tf_op.outputs[0].shape.assert_is_fully_defined()
+
+    value_proto = tf_op.get_attr('value')
+    # Sure wish there was a better way to recover these through TF...
+    if value_proto.dtype == types_pb2.DT_INT32:
+        if tf_op.outputs[0].shape.ndims == 0 or \
+           tf_op.outputs[0].shape.num_elements() == 1:
+            value = value_proto.int_val
+            assert len(value) == 1
+            value = value[0]
+        else:
+            s = struct.Struct('i')
+            it = s.iter_unpack(value_proto.tensor_content)
+            value = [x[0] for x in it]
+            assert len(value) == tf_op.outputs[0].shape.num_elements()
+    elif value_proto.dtype == types_pb2.DT_FLOAT:
+        if tf_op.outputs[0].shape.ndims == 0 or \
+           tf_op.outputs[0].shape.num_elements() == 1:
+            value = value_proto.float_val
+            assert len(value) == 1
+            value = value[0]
+        else:
+            s = struct.Struct('f')
+            it = s.iter_unpack(value_proto.tensor_content)
+            value = [x[0] for x in it]
+            if len(value) == 0:
+                value = value_proto.float_val
+                assert len(value) == 1
+                value = [value[0]] * tf_op.outputs[0].shape.num_elements()
+            assert len(value) == tf_op.outputs[0].shape.num_elements()
+    elif value_proto.dtype == types_pb2.DT_STRING:
+        if tf_op.outputs[0].shape.ndims == 0 or \
+           tf_op.outputs[0].shape.num_elements() == 1:
+            value = value_proto.string_val
+            assert len(value) == 1
+            value = value[0].decode('utf-8')
+        else:
+            value = []
+            for i in range(tf_op.outputs[0].shape.num_elements()):
+                value.append(value_proto.string_val[i].decode('utf-8'))
+            assert len(value) == tf_op.outputs[0].shape.num_elements()
+    else:
+        raise NotImplementedError('Other TF dtype to handle {}'
+                                  .format(value_proto.dtype))
+    return value
+
+def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
+    # tf_op.op_def is the parameterization for protobuf
+    # tf_op.node_def contains the arguments from protobuf to apply to op
+    # instance
+    if isinstance(op, ConstantOp):
+        # For ConstantOps, we may need their value to resolve tensor shapes
+        # for downstream ops. Collect and set in the op
+        op.outputs[0].setValue(get_const_value_from_op(tf_sess, tf_op))
+
+    # print(tf_op.op_def)
+    # print(tf_op.node_def)
+
+def construct_cougr_graph(tf_sess, tf_graph):
     graph = Graph()
     tensors = {}
     op_inputs = {}
@@ -187,6 +260,9 @@ def construct_cougr_graph(tf_graph):
         op_inputs[op.name] = []
         for i in range(len(tf_op.inputs)):
             op_inputs[op.name].append(tf_op.inputs[i].name)
+
+        # Get the tf_op's attributes and set them as necessary
+        parse_tf_op_attributes_into_op(tf_sess, tf_op, op)
 
         graph.addOp(op)
 

@@ -1,6 +1,10 @@
-from enum import Enum
-from .tensor_shape import TensorShape
+import numpy as np
 
+from enum import Enum, unique
+from .tensor_shape import TensorShape, Dimension
+
+
+@unique
 class DataType(Enum):
     bool = 0
     int8 = 1
@@ -24,6 +28,20 @@ class DataType(Enum):
     float32_ref = 26
     float64_ref = 27
 
+    def isNumber(type):
+        return (type == DataType.int8) or \
+               (type == DataType.int16) or \
+               (type == DataType.int32) or \
+               (type == DataType.int64) or \
+               (type == DataType.uint16) or \
+               (type == DataType.uint32) or \
+               (type == DataType.uint64) or \
+               (type == DataType.float16) or \
+               (type == DataType.float32) or \
+               (type == DataType.float64)
+
+    def isString(type):
+        return (type == DataType.string)
 
 class Tensor:
     def __init__(self, name, shape, dtype=DataType.float32):
@@ -83,8 +101,39 @@ class Tensor:
         return len(self._consumers.keys()) > 0
 
     def setValue(self, value):
-        if self._shape.rank == 0:
-            assert isinstance(value, int) or isinstance(value, float)
-            self._value = value
+        if DataType.isNumber(self._dtype):
+            if self._shape.rank == 0:
+                assert isinstance(value, int) or isinstance(value, float), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+            elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
+                assert isinstance(value, int) or isinstance(value, float), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+                value = [value]
+            else:
+                assert isinstance(value, list), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+                # TODO (Joel): Make this check smarter
+                assert len(value) == self._shape.numElements()
+        elif DataType.isString(self._dtype):
+            if self._shape.rank == 0:
+                assert isinstance(value, str), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+            elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
+                assert isinstance(value, str), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+                value = [value]
+            else:
+                assert isinstance(value, list), \
+                    'Tensor {} setting value to {} with type {}' \
+                    .format(self, value, type(value))
+                # TODO (Joel): Make this check smarter
+                assert len(value) == self._shape.numElements()
         else:
-            raise NotImplementedError('Tensor setValue to 1+ rank value')
+            raise NotImplementedError('Yet unsupported dtype: {}'
+                                      .format(self._dtype))
+        self._value = value
