@@ -63,8 +63,8 @@ class FillOp(Op):
         assert len(self._outputs) == 1, 'FillOp {} has {} outputs' \
             .format(self._name, len(self._outputs))
         # The first input tensor contains the shape of output tensor
-        raise NotImplementedError('FillOp propagateShapes {}'
-                                  .format(self._name))
+        raise NotImplementedError('FillOp propagateShapes {}: {} -> {}'
+                                  .format(self._name, [str(in_t) for in_t in self._inputs], self._outputs[0]))
 
     def calcAlgFlops(self):
         # FillOps have no Flops
@@ -181,9 +181,35 @@ class StridedSliceOp(Op):
         super(StridedSliceOp, self).__init__(name)
 
     def propagateShapes(self):
-        for in_tensor in self._inputs:
-            print('{}'.format(in_tensor))
-        raise NotImplementedError('StridedSliceOp {} propagateShapes'.format(self._name))
+        # Note: StridedSliceOp has many, many potential inputs and outputs,
+        # so this function may only handle common cases
+        # First input is the tensor to be sliced, second input is the begin
+        # index, third input is the end index, and final input is the stride
+        assert len(self._inputs) == 4
+        assert len(self._outputs) == 1
+        tensor_vals = self._inputs[0].value
+        begin = self._inputs[1].value
+        end = self._inputs[2].value
+        stride = self._inputs[3].value
+        if tensor_vals is None or begin is None or \
+           end is None or stride is None:
+            print('WARN: StridedSliceOp {} unable to resolve outputs'
+                  .format(self._name))
+            return
+        if not (isinstance(begin, list) and len(begin) == 1) or \
+           not (isinstance(end, list) and len(end) == 1) or \
+           not (isinstance(stride, list) and len(stride) == 1):
+            raise NotImplementedError(
+                'StridedSliceOp {} needs to slice ranks >1'
+                .format(self._name))
+        # TODO (Joel): This only supports rank 1 inputs!
+        begin = begin[0]
+        end = end[0]
+        stride = stride[0]
+        out_value = []
+        for idx in range(begin, end, stride):
+            out_value.append(tensor_vals[idx])
+        self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
         # StridedSliceOps have no Flops

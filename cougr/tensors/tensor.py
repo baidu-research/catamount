@@ -1,4 +1,5 @@
 import numpy as np
+import sympy
 
 from enum import Enum, unique
 from .tensor_shape import TensorShape, Dimension
@@ -102,40 +103,34 @@ class Tensor:
         return len(self._consumers.keys()) > 0
 
     def setValue(self, value):
+        supported_python_types = [ int, float, sympy.Symbol, str ]
         # TODO (Joel): Re-write conditions to simplify these checks
-        if DataType.isNumber(self._dtype):
+        if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
+
+
             if self._shape.rank == 0:
-                assert isinstance(value, int) or isinstance(value, float), \
+                if isinstance(value, list):
+                    assert len(value) == 1
+                    value = value[0]
+                assert type(value) in supported_python_types, \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
             elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
-                if isinstance(value, int) or isinstance(value, float):
+                if type(value) in supported_python_types:
                     value = [value]
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
+                for val in value:
+                    assert type(val) in supported_python_types
             else:
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
-                # TODO (Joel): Make this check smarter
-                assert len(value) == self._shape.numElements()
-        elif DataType.isString(self._dtype):
-            if self._shape.rank == 0:
-                assert isinstance(value, str), \
-                    'Tensor {} setting value to {} with type {}' \
-                    .format(self, value, type(value))
-            elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
-                if isinstance(value, str):
-                    value = [value]
-                assert isinstance(value, list), \
-                    'Tensor {} setting value to {} with type {}' \
-                    .format(self, value, type(value))
-            else:
-                assert isinstance(value, list), \
-                    'Tensor {} setting value to {} with type {}' \
-                    .format(self, value, type(value))
-                # TODO (Joel): Make this check smarter
+                # TODO (Joel): Make this check smarter. This will fail on
+                # rank 2+ tensors specified as lists of lists
+                for val in value:
+                    assert type(val) in supported_python_types
                 assert len(value) == self._shape.numElements()
         else:
             raise NotImplementedError('Yet unsupported dtype: {}'
