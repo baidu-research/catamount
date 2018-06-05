@@ -108,12 +108,18 @@ class Graph:
         for id, op in self._ops_by_name.items():
             assert op.parent is not None
             for in_tensor in op.inputs:
+                if not in_tensor.isValid():
+                    print('WARN: tensor {} not valid for op {}'
+                          .format(in_tensor.name, op.name))
+                    return False
                 if op.name not in in_tensor.consumers.keys():
                     print('WARN: tensor {} not consumed by op {}'
                           .format(in_tensor.name, op.name))
                     return False
             for out_tensor in op.outputs:
                 if not out_tensor.isValid():
+                    print('WARN: tensor {} not valid for op {}'
+                          .format(out_tensor.name, op.name))
                     return False
                 if out_tensor.producer is not op:
                     print('WARN: tensor {} not produced by op {}'

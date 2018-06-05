@@ -185,6 +185,22 @@ class TransposeOp(Op):
     def __init__(self, name):
         super(TransposeOp, self).__init__(name)
 
+    def propagateShapes(self):
+        assert len(self._inputs) == 2
+        assert len(self._outputs) == 1
+        if self._inputs[1].value is None:
+            raise NotImplementedError(
+                'TransposeOp propagateShapes: try to infer shapes')
+
+        # If second input has fully specified value, use it to propagate
+        # first input dimensions to output dimensions
+        permutation = self._inputs[1].value
+        in_dims = list(self._inputs[0].shape.dims)
+        out_dims = []
+        for idx in permutation:
+            out_dims.append(in_dims[idx])
+        self._outputs[0].shape.mergeShape(TensorShape(out_dims))
+
     def calcAlgFlops(self):
         # TransposeOps have no Flops
         return 0
