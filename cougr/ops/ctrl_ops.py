@@ -1,92 +1,32 @@
 import sympy
 
 from .base_op import Op
-from ..graph import Graph
+from .subgraph_op import SubgraphOp
 
 
-# TODO (Joel): Refactor this into a Subgraph object that inherits just from Op
-# and migrates most of the graph functionality here
-class ControlBlockOp(Op, Graph):
+class ControlBlockOp(SubgraphOp):
     ''' A ControlBlockOp designates a subgraph that manages some form of
         dynamic control flow for a compute graph (e.g., if-conditionals or
         while loops). Such ops are actually a collection of ops that perform
-        the dynamic control operations. NOTE: ControlBlockOps can contain
+        the dynamic control operations. Note: ControlBlockOps can contain
         other ControlBlockOps (nesting).
     '''
     def __init__(self, name, root_op, ops_list):
-        super(ControlBlockOp, self).__init__(name)
+        super(ControlBlockOp, self).__init__(name, ops_list)
         assert isinstance(root_op, Op)
+        # The op that controls the execution of the children ops and
+        # designation of the type of the control block
         self._root_op = root_op
-        self._ops_by_name = {}
-        # Maintain a list of the ops that are sources to the graph. In
-        # particular, if an op has no inputs or any of its inputs are
-        # produced by ops outside the graph, then it is a source op.
-        self._sources = {}
-        # Maintain a list of the ops that are sinks from the graph. In
-        # particular, if none of the op's outputs are consumed by any op
-        # (i.e., terminal node) or they are consumed by other ops outside
-        # the graph, then it is a sink op.
-        self._sinks = {}
-
-        for op in ops_list:
-            self.addOp(op)
-        self.findAllSourcesSinks()
-
-    @property
-    def inputs(self):
-        # Collect the inputs to all sources and return
-        to_return = set()
-        for source_op in self._sources.values():
-            for in_tensor in source_op.inputs:
-                to_return.add(in_tensor)
-        return list(to_return)
-
-    @property
-    def outputs(self):
-        # Collect the outputs of all sinks and return
-        to_return = set()
-        for sink_op in self._sinks.values():
-            for out_tensor in sink_op.outputs:
-                for consumer in out_tensor.consumers.values():
-                    to_return.add(out_tensor)
-        return list(to_return)
-
-    def findAllSourcesSinks(self):
-        for op in self._ops_by_name.values():
-            # Check if op is a source to the subgraph
-            if op.name not in self._sources.keys():
-                is_source = False
-                for in_tensor in op.inputs:
-                    if in_tensor.producer.name not in self._ops_by_name.keys():
-                        is_source = True
-                        break
-                if is_source:
-                    self._sources[op.name] = op
-            # Check if the op is a sink of the subgraph
-            if op.name not in self._sinks.keys():
-                is_sink = False
-                for out_tensor in op.outputs:
-                    for consumer in out_tensor.consumers.keys():
-                        if consumer not in self._ops_by_name.keys():
-                            is_sink = True
-                            break
-                if is_sink:
-                    self._sinks[op.name] = op
-
-    def propagateShapes(self):
-        # Propagating shapes is a flattened operation, so control blocks
-        # do not need to do any work for them
-        pass
 
     def calcAlgFlops(self):
         if not isinstance(self._root_op, LoopConditionOp):
             raise NotImplementedError(
-                'ControlBlockOp {} has unknown _root_op type {}'
-                .format(self.name, type(self._root_op)))
+                ' {} has unknown _root_op type {}'
+                .format(type(self), self.name, type(self._root_op)))
 
         loop_iter_name = '{}::iters'.format(self.name)
         loop_iters = sympy.Symbol(loop_iter_name)
-        return loop_iters * Graph.calcAlgFlops(self)
+        return loop_iters * super(ControlBlockOp, self).calcAlgFlops()
 
 
 class EnterOp(Op):
