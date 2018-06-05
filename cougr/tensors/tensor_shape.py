@@ -215,6 +215,24 @@ class TensorShape(object):
             return False
         return len(self._dims) == 0
 
+    def isFullyDefined(self):
+        # Return whether the shape has all dimension values set
+        if self._dims is None:
+            return False
+        for dim in self._dims:
+            if dim.value is None:
+                return False
+        return True
+
+    def isFullySymbolic(self):
+        # Return whether the shape has all dimension values or symbols set
+        if self._dims is None:
+            return False
+        for dim in self._dims:
+            if dim.symbol is None:
+                return False
+        return True
+
     @property
     def dims(self):
         '''Returns a list of dimensions.

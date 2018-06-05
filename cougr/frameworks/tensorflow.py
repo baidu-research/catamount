@@ -32,6 +32,7 @@ TF_OP_TO_COUGR = {
     'Enter': EnterOp,
     'Exit': ExitOp,
     'Exp': ExpOp,
+    'ExpandDims': ExpandDimsOp,
     'Fill': FillOp,
     'FloorDiv': BasePointwiseOp,
     'FloorMod': BasePointwiseOp,

@@ -46,6 +46,32 @@ class ConcatOp(Op):
         return 0
 
 
+class ExpandDimsOp(Op):
+    def __init__(self, name):
+        super(ExpandDimsOp, self).__init__(name)
+
+    def propagateShapes(self):
+        assert len(self._inputs) == 2
+        assert len(self._outputs) == 1
+        assert self._outputs[0].shape.isFullyDefined()
+        axis = self._inputs[1].value
+        if axis is None:
+            print('WARN: Undetermined axis for ExpandDimsOp {}'
+                  .format(self._name))
+            return
+        if self._inputs[0].shape.rank == 0:
+            assert axis == 0
+            out_value = [self._inputs[0].value]
+            self._outputs[0].setValue(out_value)
+        else:
+            raise NotImplementedError(
+                'ExpandDimsOp propagateShapes rank 1+')
+
+    def calcAlgFlops(self):
+        # ExpandDimsOp has no algorithmic Flops
+        return 0
+
+
 class FillOp(Op):
     ''' Returns a tensor of the shape specified in first input tensor (and
         fills that tenros with a set value passed in second input).
