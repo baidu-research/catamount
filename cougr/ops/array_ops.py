@@ -226,23 +226,36 @@ class StridedSliceOp(Op):
             print('WARN: StridedSliceOp {} unable to resolve output shape'
                   .format(self._name))
             return
-        if not (isinstance(begin, list) and len(begin) == 1) or \
-           not (isinstance(end, list) and len(end) == 1) or \
-           not (isinstance(stride, list) and len(stride) == 1):
-            raise NotImplementedError(
-                'StridedSliceOp {} needs to slice ranks >1'
-                .format(self._name))
-
-        # TODO (Joel): This only supports rank 1 inputs!
-        begin = begin[0]
-        end = end[0]
-        stride = stride[0]
+        if not isinstance(begin, list):
+            assert isinstance(begin, int)
+            begin = [begin]
+        if not isinstance(end, list):
+            assert isinstance(end, int)
+            end = [end]
+        if not isinstance(stride, list):
+            assert isinstance(stride, int)
+            stride = [stride]
 
         # Check input to output tensor shape propagation
         if not self._outputs[0].shape.isFullyDefined():
-            raise NotImplementedError(
-                'Resolve output dims for StridedSliceOp {}'
-                .format(self._name))
+            out_dims = []
+            for idx in range(self._inputs[0].shape.rank):
+                if idx < len(begin):
+                    # Slice this dimension
+                    if begin[idx] is not None and \
+                       end[idx] is not None and \
+                       stride[idx] is not None:
+                        dim_size = (end[idx] - begin[idx] + stride[idx] - 1)
+                        dim_size //= stride[idx]
+                        if dim_size > 1:
+                            out_dims.append(dim_size)
+                    else:
+                        raise NotImplementedError('Unspecified slice config')
+                else:
+                    # If the ranges to not specify these dimensions, then
+                    # the input dimension gets preserved to the output
+                    out_dims.append(self._inputs[0].shape.dims[idx])
+            self._outputs[0].shape.mergeShape(out_dims)
 
         # Check if values can be resolved
         if not self._outputs[0].shape.isFullyDefined() or tensor_vals is None:
@@ -250,7 +263,10 @@ class StridedSliceOp(Op):
             # resolved and the input tensor is available
             return
 
-        out_value = tensor_vals[begin:end:stride]
+        if len(begin) == 1 and len(end) == 1 and len(stride) == 1:
+            out_value = tensor_vals[begin[0]:end[0]:stride[0]]
+        else:
+            raise NotImplementedError('Unable to slice rank 2+ tensors')
         self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
