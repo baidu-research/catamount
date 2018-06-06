@@ -165,6 +165,26 @@ def try_to_read_value_from_tensor(tf_sess, tf_op):
         raise NotImplementedError('Exception')
     return value
 
+unpack_types = [ types_pb2.DT_INT32,
+                 types_pb2.DT_INT64,
+                 types_pb2.DT_FLOAT ]
+unpack_strs =  { types_pb2.DT_INT32: 'i',
+                 types_pb2.DT_INT64: 'q',
+                 types_pb2.DT_FLOAT: 'f' }
+
+def get_value_from_proto(value_proto):
+    if value_proto.dtype == types_pb2.DT_INT32:
+        return value_proto.int_val
+    elif value_proto.dtype == types_pb2.DT_INT64:
+        return value_proto.int64_val
+    elif value_proto.dtype == types_pb2.DT_FLOAT:
+        return value_proto.float_val
+    elif value_proto.dtype == types_pb2.DT_STRING:
+        return value_proto.string_val
+    else:
+        raise NotImplementedError('Unknown dtype: {}'
+                                  .format(value_proto.dtype))
+
 def get_const_value_from_op(tf_sess, tf_op):
     assert tf_op.type == 'Const'
     assert len(tf_op.outputs) == 1
@@ -172,46 +192,56 @@ def get_const_value_from_op(tf_sess, tf_op):
 
     value_proto = tf_op.get_attr('value')
     # Sure wish there was a better way to recover these through TF...
-    if value_proto.dtype == types_pb2.DT_INT32:
+    if value_proto.dtype == types_pb2.DT_INT32 or \
+       value_proto.dtype == types_pb2.DT_INT64:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
-            value = value_proto.int_val
-            assert len(value) == 1
+            value = get_value_from_proto(value_proto)
+            assert len(value) == 1, \
+                'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0]
         else:
-            s = struct.Struct('i')
+            s = struct.Struct(unpack_strs[value_proto.dtype])
             it = s.iter_unpack(value_proto.tensor_content)
             value = [x[0] for x in it]
-            assert len(value) == tf_op.outputs[0].shape.num_elements()
+            assert len(value) == tf_op.outputs[0].shape.num_elements(), \
+                'Op: {}, value: {}'.format(tf_op.name, value)
     elif value_proto.dtype == types_pb2.DT_FLOAT:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
             value = value_proto.float_val
-            assert len(value) == 1
+            assert len(value) == 1, \
+                'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0]
         else:
-            s = struct.Struct('f')
+            s = struct.Struct(unpack_strs[value_proto.dtype])
             it = s.iter_unpack(value_proto.tensor_content)
             value = [x[0] for x in it]
             if len(value) == 0:
-                value = value_proto.float_val
-                assert len(value) == 1
+                value = get_value_from_proto(value_proto)
+                if len(value) == 0:
+                    print('WARN: Unable to read op {} value from proto'
+                          .format(tf_op.name))
+                    value = [None]
                 value = [value[0]] * tf_op.outputs[0].shape.num_elements()
-            assert len(value) == tf_op.outputs[0].shape.num_elements()
+            assert len(value) == tf_op.outputs[0].shape.num_elements(), \
+                'Op: {}, value: {}'.format(tf_op.name, value)
     elif value_proto.dtype == types_pb2.DT_STRING:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
-            value = value_proto.string_val
-            assert len(value) == 1
+            value = get_value_from_proto(value_proto)
+            assert len(value) == 1, \
+                'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0].decode('utf-8')
         else:
             value = []
             for i in range(tf_op.outputs[0].shape.num_elements()):
                 value.append(value_proto.string_val[i].decode('utf-8'))
-            assert len(value) == tf_op.outputs[0].shape.num_elements()
+            assert len(value) == tf_op.outputs[0].shape.num_elements(), \
+                'Op: {}, value: {}'.format(tf_op.name, value)
     else:
-        raise NotImplementedError('Other TF dtype to handle {}'
-                                  .format(value_proto.dtype))
+        raise NotImplementedError('Other TF op {} dtype to handle {}'
+                                  .format(tf_op.name, value_proto.dtype))
     return value
 
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
