@@ -12,14 +12,15 @@ class DataType(Enum):
     int16 = 2
     int32 = 3
     int64 = 4
-    uint16 = 5
-    uint32 = 6
-    uint64 = 7
-    float16 = 8
-    float32 = 9
-    float64 = 10
+    uint8 = 5
+    uint16 = 6
+    uint32 = 7
+    uint64 = 8
+    float16 = 9
+    float32 = 10
+    float64 = 11
 
-    string = 11
+    string = 12
 
     int8_ref = 21
     int16_ref = 22
@@ -30,10 +31,12 @@ class DataType(Enum):
     float64_ref = 27
 
     def isNumber(type):
-        return (type == DataType.int8) or \
+        return (type == DataType.bool) or \
+               (type == DataType.int8) or \
                (type == DataType.int16) or \
                (type == DataType.int32) or \
                (type == DataType.int64) or \
+               (type == DataType.uint8) or \
                (type == DataType.uint16) or \
                (type == DataType.uint32) or \
                (type == DataType.uint64) or \
@@ -103,11 +106,8 @@ class Tensor:
         return len(self._consumers.keys()) > 0
 
     def setValue(self, value):
-        supported_python_types = [ int, float, sympy.Symbol, str ]
-        # TODO (Joel): Re-write conditions to simplify these checks
+        supported_python_types = [ bool, int, float, sympy.Symbol, str ]
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
-
-
             if self._shape.rank == 0:
                 if isinstance(value, list):
                     assert len(value) == 1

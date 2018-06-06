@@ -122,7 +122,7 @@ TF_DTYPE_TO_COUGR = {
     tf.bool: DataType.bool,
     tf.int32: DataType.int32,
     tf.int64: DataType.int64,
-    tf.uint8: DataType.uint32,
+    tf.uint8: DataType.uint8,
     tf.float32: DataType.float32,
     tf.string: DataType.string,
 }
@@ -172,8 +172,10 @@ unpack_strs =  { types_pb2.DT_INT32: 'i',
                  types_pb2.DT_INT64: 'q',
                  types_pb2.DT_FLOAT: 'f' }
 
-def get_value_from_proto(value_proto):
-    if value_proto.dtype == types_pb2.DT_INT32:
+def get_value_from_proto(tf_op, value_proto):
+    if value_proto.dtype == types_pb2.DT_BOOL:
+        return value_proto.bool_val
+    elif value_proto.dtype == types_pb2.DT_INT32:
         return value_proto.int_val
     elif value_proto.dtype == types_pb2.DT_INT64:
         return value_proto.int64_val
@@ -182,8 +184,8 @@ def get_value_from_proto(value_proto):
     elif value_proto.dtype == types_pb2.DT_STRING:
         return value_proto.string_val
     else:
-        raise NotImplementedError('Unknown dtype: {}'
-                                  .format(value_proto.dtype))
+        raise NotImplementedError('Op {}: Unhandled dtype: {}'
+                                  .format(tf_op.name, value_proto.dtype))
 
 def get_const_value_from_op(tf_sess, tf_op):
     assert tf_op.type == 'Const'
@@ -192,11 +194,12 @@ def get_const_value_from_op(tf_sess, tf_op):
 
     value_proto = tf_op.get_attr('value')
     # Sure wish there was a better way to recover these through TF...
-    if value_proto.dtype == types_pb2.DT_INT32 or \
+    if value_proto.dtype == types_pb2.DT_BOOL or \
+       value_proto.dtype == types_pb2.DT_INT32 or \
        value_proto.dtype == types_pb2.DT_INT64:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
-            value = get_value_from_proto(value_proto)
+            value = get_value_from_proto(tf_op, value_proto)
             assert len(value) == 1, \
                 'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0]
@@ -218,7 +221,7 @@ def get_const_value_from_op(tf_sess, tf_op):
             it = s.iter_unpack(value_proto.tensor_content)
             value = [x[0] for x in it]
             if len(value) == 0:
-                value = get_value_from_proto(value_proto)
+                value = get_value_from_proto(tf_op, value_proto)
                 if len(value) == 0:
                     print('WARN: Unable to read op {} value from proto'
                           .format(tf_op.name))
@@ -229,7 +232,7 @@ def get_const_value_from_op(tf_sess, tf_op):
     elif value_proto.dtype == types_pb2.DT_STRING:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
-            value = get_value_from_proto(value_proto)
+            value = get_value_from_proto(tf_op, value_proto)
             assert len(value) == 1, \
                 'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0].decode('utf-8')
