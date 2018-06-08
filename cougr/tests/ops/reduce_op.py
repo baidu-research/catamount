@@ -25,33 +25,42 @@ def test_reduce_op():
               ([None, 3, 7, None], [1, 3]),
               ([None, 3, 7, None], [1, 2])]
 
-    for combo in combos:
-        graph = Graph()
-        with graph.asDefault():
-            dims, axes = combo
-            if isinstance(axes, int):
-                axes = [axes]
-            out_dims = []
-            for idx in range(len(dims)):
-                if idx not in axes:
-                    out_dims.append(dims[idx])
-            print('Testing reduce with in dims {}, axes {}, out dims {}'
-                  .format(dims, axes, out_dims))
-            in_a_ph = placeholder('in_a', dims)
-            reduced_a = reduce('reduce', 'sum', out_dims, in_a_ph, axes=axes)
+    for second_input in [False, True]:
+        for combo in combos:
+            graph = Graph()
+            with graph.asDefault():
+                dims, axes = combo
+                if isinstance(axes, int):
+                    axes = [axes]
+                out_dims = []
+                for idx in range(len(dims)):
+                    if idx not in axes:
+                        out_dims.append(dims[idx])
+                print('Testing reduce with in dims {}, axes {}, out dims {}'
+                      .format(dims, axes, out_dims))
+                in_a_ph = placeholder('in_a', dims)
+                if second_input:
+                    const_dim = []
+                    if isinstance(axes, list):
+                        const_dim.append(len(axes))
+                    axes = constant('const', const_dim, axes)
+                reduced_a = reduce('reduce', 'sum', out_dims, in_a_ph,
+                                   axes=axes)
 
-            algorithmic_flops = graph.calcAlgFlops()
+                algorithmic_flops = graph.calcAlgFlops()
 
-            correct_alg_flops = get_correct_alg_flops()
-            subs_table = get_subs_table()
-            correct_alg_flops = correct_alg_flops.subs(subs_table)
-            print('    CouGr:   {}'.format(algorithmic_flops))
-            print('    Correct: {}'.format(correct_alg_flops))
-            assert sympy.simplify(algorithmic_flops - correct_alg_flops) == 0,\
-                'Alg flops incorrect!\n  Expecting:  {}\n  Calculated: {}' \
-                .format(correct_alg_flops, algorithmic_flops)
+                correct_alg_flops = get_correct_alg_flops()
+                subs_table = get_subs_table()
+                correct_alg_flops = correct_alg_flops.subs(subs_table)
+                print('    CouGr:   {}'.format(algorithmic_flops))
+                print('    Correct: {}'.format(correct_alg_flops))
+                diff_flops = algorithmic_flops - correct_alg_flops
+                assert sympy.simplify(diff_flops) == 0,\
+                    'Alg flops incorrect!\n  Expecting:  {}\n  ' \
+                    'Calculated: {}' \
+                    .format(correct_alg_flops, algorithmic_flops)
             # TODO: Bind Nones and check outputs
-        reset_symbols()
+            reset_symbols()
 
 
 if __name__ == "__main__":

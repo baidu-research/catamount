@@ -94,3 +94,7 @@ def split(name, out_shape, input, num_splits=2, axis=0):
 def concat(name, out_shape, input_list, axis=0):
     add_symbols(name, out_shape)
     return cougr.concat(name, out_shape, input_list, axis)
+
+def constant(name, out_shape, axes=None):
+    add_symbols(name, out_shape)
+    return cougr.constant(name, out_shape, axes)

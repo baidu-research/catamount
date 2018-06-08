@@ -7,7 +7,7 @@ from ..ops.placeholder import *
 from ..ops.variable import *
 
 
-def constant(name, out_shape, value, graph=None):
+def constant(name, out_shape, value=None, graph=None):
     if graph is None:
         graph = get_default_graph()
 
