@@ -106,23 +106,27 @@ class Tensor:
         return len(self._consumers.keys()) > 0
 
     def setValue(self, value):
-        supported_python_types = [ bool, int, float, sympy.Symbol, str ]
+        supported_python_types = ( bool, int, float, sympy.Symbol,
+                                   sympy.Expr, str )
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
             if self._shape.rank == 0:
                 if isinstance(value, list):
                     assert len(value) == 1
                     value = value[0]
-                assert type(value) in supported_python_types, \
+                assert isinstance(value, supported_python_types), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
             elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
-                if type(value) in supported_python_types:
+                if isinstance(value, supported_python_types):
                     value = [value]
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
                 for val in value:
-                    assert type(val) in supported_python_types
+                    assert isinstance(val, supported_python_types), \
+                        'Op {}: Trying to set tensor value of type {} to ' \
+                        'value {} of type {}'.format(self._name, self._dtype,
+                                                     val, type(val))
             else:
                 assert isinstance(value, list), \
                     'Tensor {} setting value to {} with type {}' \
@@ -130,7 +134,7 @@ class Tensor:
                 # TODO (Joel): Make this check smarter. This will fail on
                 # rank 2+ tensors specified as lists of lists
                 for val in value:
-                    assert type(val) in supported_python_types
+                    assert isinstance(val, supported_python_types)
                 assert len(value) == self._shape.numElements()
         else:
             raise NotImplementedError('Yet unsupported dtype: {}'

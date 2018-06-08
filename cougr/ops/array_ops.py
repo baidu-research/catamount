@@ -106,6 +106,14 @@ class GatherOp(Op):
     def __init__(self, name):
         super(GatherOp, self).__init__(name)
 
+    def propagateShapes(self):
+        # First input is the tensor from which to gather. Second input is
+        # the indices to gather from first tensor.
+        assert len(self._inputs) == 2
+        assert len(self._outputs) == 1
+        # TODO (Joel): Optional third tensor can specify the axis of data
+        # to index.
+
     def calcAlgFlops(self):
         # GatherOps have no Flops
         return 0
@@ -141,6 +149,15 @@ class NumLikeOp(Op):
 class ReshapeOp(Op):
     def __init__(self, name):
         super(ReshapeOp, self).__init__(name)
+
+    def propagateShapes(self):
+        # The first input is reshaped according to the second tensor
+        # 1) If the second tensor is [], try to reshape the input to a scalar
+        # 2) If the second tensor contains -1, then reshape according to the
+        #    other dimensions of second tensor and fill the -1 dimension to
+        #    maintain the same number of elements.
+        print('WARN: ReshapeOp propagateShapes not complete')
+        pass
 
     def calcAlgFlops(self):
         # ReshapeOps have no Flops
@@ -178,6 +195,24 @@ class ShapeOp(Op):
 
     def calcAlgFlops(self):
         # ShapeOps have no Flops
+        return 0
+
+
+class SizeOp(Op):
+    def __init__(self, name):
+        super(SizeOp, self).__init__(name)
+
+    def propagateShapes(self):
+        assert len(self._inputs) == 1
+        assert len(self._outputs) == 1
+        if self._outputs[0].shape.isUnknown():
+            self._outputs[0].shape.mergeShape([])
+        else:
+            assert self._outputs[0].shape.isScalar()
+        self._outputs[0].setValue(self._inputs[0].shape.numElements())
+
+    def calcAlgFlops(self):
+        # SizeOps have no Flops
         return 0
 
 

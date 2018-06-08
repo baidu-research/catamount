@@ -38,6 +38,14 @@ class CastOp(Op):
     def __init__(self, name):
         super(CastOp, self).__init__(name)
 
+    def propagateShapes(self):
+        # Output is same shape as input, propagate if necessary
+        assert len(self._inputs) == 1
+        assert len(self._outputs) == 1
+        if self._inputs[0].shape != self._outputs[0].shape:
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        # TODO (Joel): Also propagate values if necessary
+
     def calcAlgFlops(self):
         # Assignments have no Flops
         return 0

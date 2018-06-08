@@ -74,6 +74,7 @@ TF_OP_TO_COUGR = {
     'Scatter': ScatterOp,
     'Shape': ShapeOp,
     'Sigmoid': SigmoidOp,
+    'Size': SizeOp,
     'SplitV': SplitOp,
     'Sqrt': SqrtOp,
     'StridedSlice': StridedSliceOp,
