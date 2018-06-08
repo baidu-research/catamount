@@ -7,7 +7,7 @@ def as_dimension(value):
         return value
     elif isinstance(value, int):
         return Dimension(value)
-    elif isinstance(value, sympy.Symbol):
+    elif isinstance(value, (sympy.Symbol, sympy.Expr)):
         to_return = Dimension(None)
         to_return.setSymbolOrName(value)
         return to_return
@@ -59,7 +59,7 @@ class Dimension(object):
             self.setSymbolName(symbol_or_name)
         elif isinstance(symbol_or_name, int):
             self._value = symbol_or_name         
-        elif isinstance(symbol_or_name, sympy.Symbol):
+        elif isinstance(symbol_or_name, (sympy.Symbol, sympy.Expr)):
             self._symbol = symbol_or_name
         elif isinstance(symbol_or_name, Dimension):
             # Need to copy self._value and self._symbol if they are not None
