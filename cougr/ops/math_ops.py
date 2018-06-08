@@ -46,6 +46,11 @@ class DivOp(BasePointwiseOp):
         super(DivOp, self).__init__(name)
 
 
+class GreaterEqualOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(GreaterEqualOp, self).__init__(name)
+
+
 class LessOp(BasePointwiseOp):
     def __init__(self, name):
         super(LessOp, self).__init__(name)
@@ -202,7 +207,7 @@ class MatMulOp(Op):
 
 
 class ReduceOp(Op):
-    def __init__(self, name, reduction_op='sum', axes=0):
+    def __init__(self, name, reduction_op='sum', axes=None):
         super(ReduceOp, self).__init__(name)
         if isinstance(axes, int):
             axes = [axes]
@@ -210,17 +215,21 @@ class ReduceOp(Op):
         self._flops_per_element = 1
 
     def propagateShapes(self):
-        assert len(self._inputs) == 1
+        # First input is always the tensor to be reduce, and the optional
+        # second tensor describes the dimensions to be reduced.
+        assert len(self._inputs) == 1 or len(self._inputs) == 2
         assert len(self._outputs) == 1
+        if len(self._inputs) == 2:
+            assert self._axes is None
+            # TODO (Joel) Get axes from the second input
+            raise NotImplementedError('Read axes from input tensor')
         for dim_index in range(self._inputs[0].shape.rank):
             if dim_index not in self._axes:
                 dim = self._inputs[0].shape.getDim(dim_index)
                 self._outputs[0].shape.setDimension(0, dim_index)
 
     def calcAlgFlops(self):
-        # [_] TODO (Joel): This is too restrictive if the axis dimension
-        #     comes from a second input tensor to the op...
-        assert len(self._inputs) == 1, \
+        assert len(self._inputs) == 1 or len(self._inputs) == 2, \
             'Reduce {} has too many inputs: {}' \
             .format(self.name, [input for input in self._inputs])
         flops_to_return = self._flops_per_element

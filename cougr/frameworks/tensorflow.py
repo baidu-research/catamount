@@ -37,6 +37,7 @@ TF_OP_TO_COUGR = {
     'FloorDiv': BasePointwiseOp,
     'FloorMod': BasePointwiseOp,
     'Gather': GatherOp,
+    'GreaterEqual': GreaterEqualOp,
     'Identity': IdentityOp,
     'Less': LessOp,
     'LogicalAnd': LogicalAndOp,
@@ -109,7 +110,6 @@ TF_OP_TO_COUGR = {
 # FusedBatchNormGrad
 # GatherV2
 # Greater
-# GreaterEqual
 # GroupByWindowDataset
 # HashTableV2
 # InitializeTableFromTextFileV2
