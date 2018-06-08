@@ -156,6 +156,18 @@ class Conv2DOp(Op):
 class MatMulOp(Op):
     def __init__(self, name):
         super(MatMulOp, self).__init__(name)
+        self._transpose_a = False
+        self._transpose_b = False
+        self._transpose_c = False
+
+    def setTransposeInput(self, input_idx, is_transposed):
+        if input_idx == 0:
+            self._transpose_a = is_transposed
+        elif input_idx == 1:
+            self._transpose_b = is_transposed
+        else:
+            assert input_idx == 0 or input_idx == 1, \
+                'Unknown input index {}'.format(input_idx)
 
     def propagateShapes(self):
         # [_] TODO (Joel): Will need to handle transposes here...
@@ -163,19 +175,26 @@ class MatMulOp(Op):
         assert len(self._inputs) == 2
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
-        inner_dim = tensor_a.shape.getDim(1)
+        if not self._transpose_a:
+            inner_dim = tensor_a.shape.getDim(1)
+        else:
+            inner_dim = tensor_a.shape.getDim(0)
+        if not self._transpose_b:
+            b_in_dim = tensor_b.shape.getDim(0)
+        else:
+            b_in_dim = tensor_b.shape.getDim(1)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
         assert (type(inner_dim) == sympy.Symbol or \
-                type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
-                inner_dim == self._inputs[1].shape.getDim(0)), \
+                type(b_in_dim) == sympy.Symbol or \
+                inner_dim == b_in_dim), \
                'Dimension check failed in op {} with inputs {} and {}, '\
                'and output {}'.format(self._name, self._inputs[0].shape,
                                       self._inputs[1].shape,
                                       self._outputs[0].shape)
-        if inner_dim != tensor_b.shape.getDim(0):
-            print('WARN: MatMulOp: Enough info to resolve dimensions!')
         # Resolve shapes
+        if self._transpose_c:
+            raise NotImplementedError('Handle transposed output')
         tensor_c = self._outputs[0]
         first_dim = tensor_a.shape.getDim(0)
         tensor_c.shape.setDimension(0, first_dim)
@@ -187,19 +206,27 @@ class MatMulOp(Op):
         # Get matrix inner dimension
         assert len(self._inputs) == 2
         tensor_a = self._inputs[0]
-        inner_dim = tensor_a.shape.getDim(1)
-        # [_] TODO (Joel): HACK!!!!: FIX ME!!! (Create tensor dimension in
-        #                  the tensor_shape code, and add a check... either
-        #                  both int and equal, or symbols)
+        tensor_b = self._inputs[1]
+        if not self._transpose_a:
+            inner_dim = tensor_a.shape.getDim(1)
+        else:
+            inner_dim = tensor_a.shape.getDim(0)
+        if not self._transpose_b:
+            b_in_dim = tensor_b.shape.getDim(0)
+        else:
+            b_in_dim = tensor_b.shape.getDim(1)
+        # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
         assert (type(inner_dim) == sympy.Symbol or \
-                type(self._inputs[1].shape.getDim(0)) == sympy.Symbol or \
-                inner_dim == self._inputs[1].shape.getDim(0)), \
+                type(b_in_dim) == sympy.Symbol or \
+                inner_dim == b_in_dim), \
                'Dimension check failed in op {} with inputs {} and {}, '\
                'and output {}'.format(self._name, self._inputs[0].shape,
                                       self._inputs[1].shape,
                                       self._outputs[0].shape)
         # Get output number of elements
+        if self._transpose_c:
+            raise NotImplementedError('Handle transposed output')
         assert len(self._outputs) == 1
         out_shape = self._outputs[0].shape
         out_elts = out_shape.numElements()

@@ -315,6 +315,12 @@ def get_const_value_from_op(tf_sess, tf_op):
                                   .format(tf_op.name, value_proto.dtype))
     return value
 
+def get_transpose_attributes_from_op(tf_sess, tf_op, op):
+    if tf_op.get_attr('transpose_a'):
+        op.setTransposeInput(0, True)
+    if tf_op.get_attr('transpose_b'):
+        op.setTransposeInput(1, True)
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -323,6 +329,10 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
         # For ConstantOps, we may need their value to resolve tensor shapes
         # for downstream ops. Collect and set in the op
         op.outputs[0].setValue(get_const_value_from_op(tf_sess, tf_op))
+
+    if isinstance(op, MatMulOp):
+        # MatMuls may specify transposes as attributes to the op
+        get_transpose_attributes_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)
