@@ -82,8 +82,15 @@ class Tensor:
         return self._value
 
     def __str__(self):
+        value_to_print = self._value
+        if isinstance(self._value, list):
+            if len(self._value) > 10:
+                value_to_print = '['
+                for i in range(10):
+                    value_to_print += '{}, '.format(self._value[i])
+                value_to_print += '...]'
         return 'Tensor(name: {}, shape: {}, value: {})' \
-               .format(self._name, self._shape, self._value)
+               .format(self._name, self._shape, value_to_print)
 
     def isValid(self):
         # Valid tensors have a valid TensorShape
@@ -132,9 +139,12 @@ class Tensor:
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
                 # TODO (Joel): Make this check smarter. This will fail on
-                # rank 2+ tensors specified as lists of lists
-                for val in value:
-                    assert isinstance(val, supported_python_types)
+                # rank 2+ tensors specified as lists of lists. Also make it
+                # quicker if possible
+                for idx, val in enumerate(value):
+                    assert isinstance(val, supported_python_types), \
+                        'Tensor {} setting value[{}] to {} with type {}' \
+                        .format(self, idx, val, type(val))
                 assert len(value) == self._shape.numElements()
         else:
             raise NotImplementedError('Yet unsupported dtype: {}'

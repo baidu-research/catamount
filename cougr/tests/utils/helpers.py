@@ -14,9 +14,8 @@ def add_symbols(name, out_shape):
     # print('  Adding symbols for {}: out_shape: {}'.format(name, out_shape))
     global symbol_table
     global subs_table
-    for idx, dim in enumerate(out_shape):
-        sym_name = '{}::dim_{}'.format(name, idx)
-        symbol = sympy.Symbol(sym_name)
+
+    def add_symbol(symbol, dim):
         assert sym_name not in symbol_table.keys()
         symbol_table[sym_name] = symbol
         # print('Added symbol name {} with sym {}'.format(sym_name, symbol))
@@ -24,6 +23,14 @@ def add_symbols(name, out_shape):
             dim = dim.value
         if dim is not None:
             subs_table[symbol] = dim
+
+    if isinstance(out_shape, list):
+        for idx, dim in enumerate(out_shape):
+            sym_name = '{}::dim_{}'.format(name, idx)
+            add_symbol(sympy.Symbol(sym_name), dim)
+    else:
+        sym_name = '{}::unk'.format(name)
+        add_symbol(sympy.Symbol(sym_name), out_shape)
 
 def reset_symbols():
     global symbol_table
@@ -98,3 +105,7 @@ def concat(name, out_shape, input_list, axis=0):
 def constant(name, out_shape, axes=None):
     add_symbols(name, out_shape)
     return cougr.constant(name, out_shape, axes)
+
+def expanddims(name, out_shape, input, axis=0):
+    add_symbols(name, out_shape)
+    return cougr.expanddims(name, out_shape, input, axis)

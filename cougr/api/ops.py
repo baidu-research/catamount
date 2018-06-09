@@ -38,6 +38,25 @@ def concat(name, out_shape, input_list, axis=0, graph=None):
     graph.addInputToOp(concat_op, axis_tensor)
     return out_tensor
 
+def expanddims(name, out_shape, input, axis=0, graph=None):
+    if graph is None:
+        graph = get_default_graph()
+
+    if not isinstance(axis, int):
+        raise NotImplementedError(
+            'cougr.expanddims axis yet unsupported type: {}'
+            .format(type(axis)))
+
+    expanddims_op = ExpandDimsOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    expanddims_op.addOutput(out_tensor)
+    graph.addOp(expanddims_op)
+    graph.addInputToOp(expanddims_op, input)
+    # Finally, add the axis input tensor last (rank 0)
+    axis_tensor = constant('{}:axis'.format(name), [], axis)
+    graph.addInputToOp(expanddims_op, axis_tensor)
+    return out_tensor
+
 def matmul(name, out_shape, in_a, in_b, graph=None):
     if graph is None:
         graph = get_default_graph()

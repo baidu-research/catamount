@@ -33,8 +33,8 @@ class ConcatOp(Op):
         out_value = None
         for idx in range(len(self._inputs) - 1):
             if self._inputs[idx].shape.rank != 1 or axis != 0:
-                raise NotImplementedError('ConcatOp {} values non-1 rank'
-                                          .format(self._name))
+                self.notImplemented('ConcatOp {} values non-1 rank'
+                                    .format(self._name))
             if out_value is None:
                 out_value = self._inputs[idx].value
             else:
@@ -51,9 +51,8 @@ class ExpandDimsOp(Op):
         super(ExpandDimsOp, self).__init__(name)
 
     def propagateShapes(self):
-        assert len(self._inputs) == 2
-        assert len(self._outputs) == 1
-        assert self._outputs[0].shape.isFullyDefined()
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
         axis = self._inputs[1].value
         if axis is None:
             print('WARN: Undetermined axis for ExpandDimsOp {}'
@@ -61,11 +60,21 @@ class ExpandDimsOp(Op):
             return
         if self._inputs[0].shape.rank == 0:
             assert axis == 0
+            if not self._outputs[0].shape.isFullyDefined():
+                self.notImplemented(
+                    'ExpandDimsOp propagateShapes scalar output')
             out_value = [self._inputs[0].value]
             self._outputs[0].setValue(out_value)
         else:
-            raise NotImplementedError(
-                'ExpandDimsOp propagateShapes rank 1+')
+            out_shape = list(self._inputs[0].shape.dims)
+            self.debugAssert(axis <= len(out_shape) and \
+                             axis >= (-len(out_shape) - 1))
+            if axis < 0:
+                axis += len(out_shape) + 1
+            out_shape.insert(axis, 1)
+            self._outputs[0].shape.mergeShape(out_shape)
+            if self._inputs[0].value is not None:
+                self.notImplemented('ExpandDimsOp propagate vals rank 1+')
 
     def calcAlgFlops(self):
         # ExpandDimsOp has no algorithmic Flops
@@ -86,6 +95,7 @@ class FillOp(Op):
         # as the first input tensor
         assert len(self._inputs) == 2, 'FillOp {} has {} inputs' \
             .format(self._name, len(self._inputs))
+        assert self._inputs[1].shape.isScalar()
         assert len(self._outputs) == 1, 'FillOp {} has {} outputs' \
             .format(self._name, len(self._outputs))
         # The first input tensor contains the shape of output tensor
@@ -95,7 +105,12 @@ class FillOp(Op):
             return
         self._outputs[0].shape.mergeShape(out_shape)
         if self._outputs[0].shape.isFullyDefined():
-            raise NotImplementedError('FillOp may specify output value')
+            if self._outputs[0].shape.isScalar():
+                self._outputs[0].setValue(self._inputs[1].value)
+            else:
+                self.notImplemented(
+                    'FillOp {} may specify rank-1+ output value'
+                    .format(self._name))
 
     def calcAlgFlops(self):
         # FillOps have no Flops
@@ -137,8 +152,8 @@ class NumLikeOp(Op):
         # The output tensor should be the same shape as the input
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
-                raise NotImplementedError('NumLikeOp propagateShapes {}'
-                                          .format(self._name))
+                self.notImplemented('NumLikeOp propagateShapes {}'
+                                    .format(self._name))
             self._outputs[0].shape.mergeShape(self._inputs[0].shape)
 
     def calcAlgFlops(self):
@@ -156,8 +171,26 @@ class ReshapeOp(Op):
         # 2) If the second tensor contains -1, then reshape according to the
         #    other dimensions of second tensor and fill the -1 dimension to
         #    maintain the same number of elements.
-        print('WARN: ReshapeOp propagateShapes not complete')
-        pass
+        assert len(self._inputs) == 2
+        assert len(self._outputs) == 1
+        num_elts = self._inputs[0].shape.numElements()
+        if self._inputs[1].shape.isScalar():
+            self._outputs[0].shape.mergeShape(num_elts)
+        elif self._inputs[1].shape.rank == 1 and \
+             self._inputs[1].value is not None and \
+             len(self._inputs[1].value) == 1:
+            # Whether the second input value is None, [-1], or [num_elts]
+            # doesn't matter, because the output tensor would be the same.
+            # Could consider doing a check here that the value is correct.
+            self._outputs[0].shape.mergeShape([num_elts])
+        else:
+            print('WARN: Implement reshape {} conditions'.format(self._name))
+            # self.notImplemented('Reshape to complete')
+
+        if self._outputs[0].shape.isFullyDefined() and \
+           self._inputs[0].value is not None:
+            self.notImplemented('Reshape {} could propagate values'
+                .format(self._name))
 
     def calcAlgFlops(self):
         # ReshapeOps have no Flops
@@ -188,9 +221,9 @@ class ShapeOp(Op):
         # Can set some output values if the input shape is known
         if not self._inputs[0].shape.isUnknown():
             out_value = []
-            for dim in self._inputs[0].shape.dims:
+            for dim_idx in range(self._inputs[0].shape.rank):
                 # Can propagate symbols and values, so request symbols
-                out_value.append(dim.symbol)
+                out_value.append(self._inputs[0].shape.getDim(dim_idx))
             self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
@@ -285,7 +318,7 @@ class StridedSliceOp(Op):
                         if dim_size > 1:
                             out_dims.append(dim_size)
                     else:
-                        raise NotImplementedError('Unspecified slice config')
+                        self.notImplemented('Unspecified slice config')
                 else:
                     # If the ranges to not specify these dimensions, then
                     # the input dimension gets preserved to the output
@@ -301,7 +334,7 @@ class StridedSliceOp(Op):
         if len(begin) == 1 and len(end) == 1 and len(stride) == 1:
             out_value = tensor_vals[begin[0]:end[0]:stride[0]]
         else:
-            raise NotImplementedError('Unable to slice rank 2+ tensors')
+            self.notImplemented('Unable to slice rank 2+ tensors')
         self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
@@ -330,8 +363,9 @@ class TransposeOp(Op):
         assert len(self._inputs) == 2
         assert len(self._outputs) == 1
         if self._inputs[1].value is None:
-            raise NotImplementedError(
-                'TransposeOp propagateShapes: try to infer shapes')
+            print('WARN: TransposeOp {} propagateShapes unknown input[1]'
+                  .format(self._name))
+            return
 
         # If second input has fully specified value, use it to propagate
         # first input dimensions to output dimensions

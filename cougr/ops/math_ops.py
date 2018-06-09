@@ -176,13 +176,17 @@ class MatMulOp(Op):
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
         if not self._transpose_a:
+            first_dim = tensor_a.shape.getDim(0)
             inner_dim = tensor_a.shape.getDim(1)
         else:
+            first_dim = tensor_a.shape.getDim(1)
             inner_dim = tensor_a.shape.getDim(0)
         if not self._transpose_b:
             b_in_dim = tensor_b.shape.getDim(0)
+            last_dim = tensor_b.shape.getDim(1)
         else:
             b_in_dim = tensor_b.shape.getDim(1)
+            last_dim = tensor_b.shape.getDim(0)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
         assert (type(inner_dim) == sympy.Symbol or \
@@ -196,10 +200,7 @@ class MatMulOp(Op):
         if self._transpose_c:
             raise NotImplementedError('Handle transposed output')
         tensor_c = self._outputs[0]
-        first_dim = tensor_a.shape.getDim(0)
-        tensor_c.shape.setDimension(0, first_dim)
-        second_dim = tensor_b.shape.getDim(1)
-        tensor_c.shape.setDimension(1, second_dim)
+        tensor_c.shape.mergeShape([first_dim, last_dim])
 
     def calcAlgFlops(self):
         # [_] TODO (Joel): Will need to handle transposes here...
@@ -247,13 +248,17 @@ class ReduceOp(Op):
         assert len(self._inputs) == 1 or len(self._inputs) == 2
         assert len(self._outputs) == 1
         if len(self._inputs) == 2:
+            # TODO (Joel): May be too strict
             assert self._axes is None
-            # TODO (Joel) Get axes from the second input
-            raise NotImplementedError('Read axes from input tensor')
-        for dim_index in range(self._inputs[0].shape.rank):
-            if dim_index not in self._axes:
-                dim = self._inputs[0].shape.getDim(dim_index)
-                self._outputs[0].shape.setDimension(0, dim_index)
+            self._axes = self._inputs[1].value
+        if self._axes is not None:
+            out_shape = []
+            for dim_index in range(self._inputs[0].shape.rank):
+                if dim_index not in self._axes:
+                    dim = self._inputs[0].shape.getDim(dim_index)
+                    out_shape.append(dim)
+            self._outputs[0].shape.mergeShape(out_shape)
+            # TODO (Joel): Also calculate value? Depends on the reduction_op!
 
     def calcAlgFlops(self):
         assert len(self._inputs) == 1 or len(self._inputs) == 2, \

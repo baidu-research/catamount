@@ -7,10 +7,12 @@ class IdentityOp(Op):
 
     def propagateShapes(self):
         # Identity must propagate input size to output size
-        assert len(self._inputs) == 1
-        assert len(self._outputs) == 1
-        assert(self._inputs[0].shape == self._outputs[0].shape)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
+        self.debugAssert(self._inputs[0].shape.isUnknown() or
+                         self._inputs[0].shape == self._outputs[0].shape)
+        if not self._inputs[0].shape.isUnknown():
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
 
     def calcAlgFlops(self):
         # IdentityOps have no Flops

@@ -23,8 +23,9 @@ var/
 # Unix cache
 .cache
 
-# Tensorflow checkpoints
+# Tensorflow checkpoints, events
 *.data-00000-of-00001
 *.meta
 *.index
 *checkpoint
+*events.out.tfevents.*

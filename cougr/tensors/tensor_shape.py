@@ -308,7 +308,8 @@ class TensorShape(object):
         other = as_tensor_shape(other)
         # TODO (Joel): These checks will not work when a TensorShape
         # is None! Fix later
-        assert self.rank == other.rank
+        assert self.rank == other.rank, \
+            'Ranks: {} != {}'.format(self, other)
         assert self._dims is not None
         assert other.dims is not None
         # Now perform merging
@@ -326,7 +327,9 @@ class TensorShape(object):
             # Assume that the caller has right to extend dimensions
             print('WARN: Adding dimensions to None TensorShape')
             self._dims = [Dimension(None)] * (dim_index + 1)
-        assert len(self._dims) > dim_index
+        assert len(self._dims) > dim_index, \
+            'Trying to set dim {} outside bounds {} to {}' \
+            .format(dim_index, len(self._dims), dim_symbol_or_name)
         self._dims[dim_index].setSymbolOrName(dim_symbol_or_name)
 
     def getSymbolName(self, dim_index):
