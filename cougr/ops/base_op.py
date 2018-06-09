@@ -9,6 +9,21 @@ class Op:
         self._outputs = []
         self._parent = None
 
+    def debugString(self):
+        to_return = 'In op {} of type {}:'.format(self._name, type(self))
+        for in_tensor in self._inputs:
+            to_return += '\n  In:  {}'.format(in_tensor)
+        for out_tensor in self._outputs:
+            to_return += '\n  Out: {}'.format(out_tensor)
+        return to_return
+
+    def notImplemented(self, string):
+        # A helper function for printing op details before a crash
+        raise NotImplementedError('{}\n{}'.format(string, self.debugString()))
+
+    def debugAssert(self, condition, message=''):
+        assert condition, '{}\n{}'.format(message, self.debugString())
+
     def isControlOp(self):
         return False
 
