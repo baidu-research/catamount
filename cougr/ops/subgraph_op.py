@@ -41,7 +41,6 @@ class SubgraphOp(Op):
         whether their input and output tensors have producers and consumers
         specified. Then, check that sources and sinks are set up correctly.
         '''
-        print('Checking validity in op {}'.format(self.debugString()))
         # Check op tensor producers and consumers
         for id, op in self._ops_by_name.items():
             assert op.parent is not None
