@@ -4,7 +4,7 @@ import cougr.frameworks.tensorflow
 
 tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_static_unroll/tf_graph.meta'
 
-def test_tf_simple_while_loop():
+def test_tf_static_unroll_rnn():
     graph = cougr.frameworks.tensorflow.import_graph(tf_example_filename)
     assert graph.isValid()
 
@@ -72,5 +72,5 @@ def test_tf_simple_while_loop():
 
 
 if __name__ == "__main__":
-    test_tf_simple_while_loop()
+    test_tf_static_unroll_rnn()
 
