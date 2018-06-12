@@ -59,12 +59,22 @@ class SubgraphOp(Op):
                     print('WARN: All inputs to op {} inside block!'
                           .format(op.name))
                     return False
-        # TODO (Joel): Sinks may also be a problem...
+        # Check sinks: Two conditions make an op a sink:
+        # 1) An output has no consumers
+        # 2) An output has consumers outside the block
         for id, op in self._sinks.items():
-            for out_tensor in op.outputs:
-                if len(out_tensor.consumers) > 0:
-                    print('WARN: op {} is not a true sink: {}'
-                          .format(op.name, out_tensor.name))
+            if len(op.outputs) > 0:
+                some_external_output = False
+                for out_tensor in op.outputs:
+                    if len(out_tensor.consumers) > 0:
+                        for consumer in out_tensor.consumers.keys():
+                            if consumer not in self._ops_by_name.keys():
+                                some_external_output = True
+                    else:
+                        some_external_output = True
+                if not some_external_output:
+                    print('WARN: All outputs from op {} inside block!'
+                          .format(op.name))
                     return False
         return True
 
