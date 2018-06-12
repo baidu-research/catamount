@@ -176,17 +176,17 @@ class MatMulOp(Op):
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
         if not self._transpose_a:
-            first_dim = tensor_a.shape.getDim(0)
-            inner_dim = tensor_a.shape.getDim(1)
+            first_dim = tensor_a.shape.getDimension(0)
+            inner_dim = tensor_a.shape.getDimension(1)
         else:
-            first_dim = tensor_a.shape.getDim(1)
-            inner_dim = tensor_a.shape.getDim(0)
+            first_dim = tensor_a.shape.getDimension(1)
+            inner_dim = tensor_a.shape.getDimension(0)
         if not self._transpose_b:
-            b_in_dim = tensor_b.shape.getDim(0)
-            last_dim = tensor_b.shape.getDim(1)
+            b_in_dim = tensor_b.shape.getDimension(0)
+            last_dim = tensor_b.shape.getDimension(1)
         else:
-            b_in_dim = tensor_b.shape.getDim(1)
-            last_dim = tensor_b.shape.getDim(0)
+            b_in_dim = tensor_b.shape.getDimension(1)
+            last_dim = tensor_b.shape.getDimension(0)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
         assert (type(inner_dim) == sympy.Symbol or \
@@ -209,13 +209,13 @@ class MatMulOp(Op):
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
         if not self._transpose_a:
-            inner_dim = tensor_a.shape.getDim(1)
+            inner_dim = tensor_a.shape.getDimension(1)
         else:
-            inner_dim = tensor_a.shape.getDim(0)
+            inner_dim = tensor_a.shape.getDimension(0)
         if not self._transpose_b:
-            b_in_dim = tensor_b.shape.getDim(0)
+            b_in_dim = tensor_b.shape.getDimension(0)
         else:
-            b_in_dim = tensor_b.shape.getDim(1)
+            b_in_dim = tensor_b.shape.getDimension(1)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
         assert (type(inner_dim) == sympy.Symbol or \
@@ -231,7 +231,7 @@ class MatMulOp(Op):
         assert len(self._outputs) == 1
         out_shape = self._outputs[0].shape
         out_elts = out_shape.numElements()
-        return (2 * inner_dim * out_elts)
+        return (2 * inner_dim.symbol * out_elts)
 
 
 class ReduceOp(Op):
@@ -255,7 +255,7 @@ class ReduceOp(Op):
             out_shape = []
             for dim_index in range(self._inputs[0].shape.rank):
                 if dim_index not in self._axes:
-                    dim = self._inputs[0].shape.getDim(dim_index)
+                    dim = self._inputs[0].shape.getDimension(dim_index)
                     out_shape.append(dim)
             self._outputs[0].shape.mergeShape(out_shape)
             # TODO (Joel): Also calculate value? Depends on the reduction_op!
@@ -266,7 +266,8 @@ class ReduceOp(Op):
             .format(self.name, [input for input in self._inputs])
         flops_to_return = self._flops_per_element
         for dim_index in range(self._inputs[0].shape.rank):
-            flops_to_return *= self._inputs[0].shape.getDim(dim_index)
+            dim = self._inputs[0].shape.getDimension(dim_index)
+            flops_to_return *= dim.symbol
         return flops_to_return
 
 

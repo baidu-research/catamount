@@ -70,8 +70,8 @@ def test_concat_op():
             out_dims.dims[axis] = out_c_dim
             check_symbol_table = {}
             for idx in range(concat_out.shape.rank):
-                c_out_dim = concat_out.shape.getDim(idx)
-                out_dim = out_dims.getDim(idx)
+                c_out_dim = concat_out.shape.getDimension(idx).symbol
+                out_dim = out_dims.getDimension(idx).symbol
                 if isinstance(out_dim, sympy.Symbol) and \
                    isinstance(c_out_dim, int):
                     if out_dim not in check_symbol_table.keys():

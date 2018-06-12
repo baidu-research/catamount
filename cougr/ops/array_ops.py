@@ -223,7 +223,8 @@ class ShapeOp(Op):
             out_value = []
             for dim_idx in range(self._inputs[0].shape.rank):
                 # Can propagate symbols and values, so request symbols
-                out_value.append(self._inputs[0].shape.getDim(dim_idx))
+                dim = self._inputs[0].shape.getDimension(dim_idx)
+                out_value.append(dim.symbol)
             self._outputs[0].setValue(out_value)
 
     def calcAlgFlops(self):
@@ -322,7 +323,7 @@ class StridedSliceOp(Op):
                 else:
                     # If the ranges to not specify these dimensions, then
                     # the input dimension gets preserved to the output
-                    out_dims.append(self._inputs[0].shape.dims[idx])
+                    out_dims.append(self._inputs[0].shape.getDimension(idx))
             self._outputs[0].shape.mergeShape(out_dims)
 
         # Check if values can be resolved

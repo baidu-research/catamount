@@ -63,7 +63,12 @@ class Dimension(object):
             self._symbol = symbol_or_name
         elif isinstance(symbol_or_name, Dimension):
             # Need to copy self._value and self._symbol if they are not None
-            self._value = symbol_or_name.value
+            if self._value is None:
+                self._value = symbol_or_name.value
+            else:
+                assert symbol_or_name.value is None or \
+                       self._value == symbol_or_name.value
+            # Always propagate symbols
             self._symbol = symbol_or_name._symbol
         else:
             raise TypeError('Unknown symbol type {}'
@@ -293,7 +298,7 @@ class TensorShape(object):
             second_shape = list(other.dims)
         # Extend second shape to first shape length
         while len(second_shape) < len(first_shape):
-            second_shape.insert(0, Dimension(None))
+            second_shape.insert(0, Dimension(1))
         # Now perform broadcast
         bcast_shape_list = []
         for idx in range(len(first_shape) - 1, -1, -1):
@@ -317,7 +322,11 @@ class TensorShape(object):
             if self._dims[idx].value is None:
                self.setDimension(idx, dim)
             else:
-               assert self._dims[idx] == dim
+               assert self._dims[idx] == dim, \
+                   'Dimension mismatch in Tensor {}: self[{}] {}, other {}' \
+                   .format(self._tensor, idx, self._dims[idx], dim)
+               if self._dims[idx]._symbol is None:
+                   self.setDimension(idx, dim)
 
     def associateTensor(self, tensor):
         self._tensor = tensor
@@ -337,13 +346,12 @@ class TensorShape(object):
         assert self._dims is None or dim_index < len(self._dims)
         return '{}::dim_{}'.format(self._tensor.name, dim_index)
 
-    def getDim(self, idx):
+    def getDimension(self, idx):
         assert(idx < len(self._dims))
         to_return = self._dims[idx]
         if to_return.symbol is None:
             to_return.setSymbolName(self.getSymbolName(idx))
-        assert to_return.symbol is not None
-        return to_return.symbol
+        return to_return
 
     def numElements(self):
         if self._dims is None:
