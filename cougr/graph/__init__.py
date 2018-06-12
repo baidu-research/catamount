@@ -28,47 +28,6 @@ class Graph(SubgraphOp):
         _cougr_default_graph = self
         return ctx_mgr
 
-    def isValid(self):
-        ''' Return whether the graph is fully specified. Check whether all ops
-        have output tensors, whether those tensors have valid shapes, and
-        whether their input and output tensors have producers and consumers
-        specified. Then, check that sources and sinks are set up correctly.
-        '''
-        # Check op tensor producers and consumers
-        for id, op in self._ops_by_name.items():
-            assert op.parent is not None
-            for in_tensor in op.inputs:
-                if not in_tensor.isValid():
-                    print('WARN: tensor {} not valid for op {}'
-                          .format(in_tensor.name, op.name))
-                    return False
-                if op.name not in in_tensor.consumers.keys():
-                    print('WARN: tensor {} not consumed by op {}'
-                          .format(in_tensor.name, op.name))
-                    return False
-            for out_tensor in op.outputs:
-                if not out_tensor.isValid():
-                    print('WARN: tensor {} not valid for op {}'
-                          .format(out_tensor.name, op.name))
-                    return False
-                if out_tensor.producer is not op:
-                    print('WARN: tensor {} not produced by op {}'
-                          .format(out_tensor.name, op.name))
-                    return False
-        # Check sources and sinks
-        for id, op in self._sources.items():
-            if len(op.inputs) > 0:
-                print('WARN: op {} is not a true source'
-                      .format(op.name))
-                return False
-        for id, op in self._sinks.items():
-            for out_tensor in op.outputs:
-                if len(out_tensor.consumers) > 0:
-                    print('WARN: op {} is not a true sink: {}'
-                          .format(op.name, out_tensor.name))
-                    return False
-        return True
-
     def propagateTensorShapeNames(self):
         ''' Propagate bound tensor shape names through the network to bind
         downstream shapes.

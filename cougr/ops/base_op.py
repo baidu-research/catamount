@@ -24,6 +24,27 @@ class Op:
     def debugAssert(self, condition, message=''):
         assert condition, '{}\n{}'.format(message, self.debugString())
 
+    def isValid(self):
+        for in_tensor in self._inputs:
+            if not in_tensor.isValid():
+                print('WARN: tensor {} not valid for op {}'
+                      .format(in_tensor.name, self._name))
+                return False
+            if self._name not in in_tensor.consumers.keys():
+                print('WARN: tensor {} not consumed by op {}'
+                      .format(in_tensor.name, self._name))
+                return False
+        for out_tensor in self._outputs:
+            if not out_tensor.isValid():
+                print('WARN: tensor {} not valid for op {}'
+                      .format(out_tensor.name, self._name))
+                return False
+            if out_tensor.producer is not self:
+                print('WARN: tensor {} not produced by op {}'
+                      .format(out_tensor.name, self._name))
+                return False
+        return True
+
     def isControlOp(self):
         return False
 

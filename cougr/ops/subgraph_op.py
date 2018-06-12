@@ -35,6 +35,40 @@ class SubgraphOp(Op):
                 out_str += '  Out tensor: {}\n'.format(out_tensor)
         return out_str
 
+    def isValid(self):
+        ''' Return whether the graph is fully specified. Check whether all ops
+        have output tensors, whether those tensors have valid shapes, and
+        whether their input and output tensors have producers and consumers
+        specified. Then, check that sources and sinks are set up correctly.
+        '''
+        print('Checking validity in op {}'.format(self.debugString()))
+        # Check op tensor producers and consumers
+        for id, op in self._ops_by_name.items():
+            assert op.parent is not None
+            if not op.isValid():
+                return False
+        # Check sources: Two conditions make an op a source:
+        # 1) An op has no inputs, OR
+        # 2) Some input must be produced outside block
+        for id, op in self._sources.items():
+            if len(op.inputs) > 0:
+                some_external_input = False
+                for in_tensor in op.inputs:
+                    if in_tensor.producer.name not in self._ops_by_name.keys():
+                        some_external_input = True
+                if not some_external_input:
+                    print('WARN: All inputs to op {} inside block!'
+                          .format(op.name))
+                    return False
+        # TODO (Joel): Sinks may also be a problem...
+        for id, op in self._sinks.items():
+            for out_tensor in op.outputs:
+                if len(out_tensor.consumers) > 0:
+                    print('WARN: op {} is not a true sink: {}'
+                          .format(op.name, out_tensor.name))
+                    return False
+        return True
+
     def addOp(self, op):
         assert isinstance(op, Op)
         assert op.name not in self._ops_by_name.keys()
