@@ -1,4 +1,7 @@
+import sympy
+
 from .base_op import Op
+from cougr.tensors.tensor import DataType
 
 
 class BasePointwiseOp(Op):
@@ -281,9 +284,30 @@ class RangeOp(Op):
         start = self._inputs[0].value
         limit = self._inputs[1].value
         delta = self._inputs[2].value
+
+        if start is None or limit is None or delta is None:
+            return
+
+        # Set output shape
+        supported_shape_types = (int, sympy.Symbol)
+        if self._outputs[0].dtype == DataType.int32:
+            if isinstance(start, supported_shape_types) and \
+               isinstance(limit, supported_shape_types) and \
+               isinstance(delta, supported_shape_types):
+                num_elts = (limit - start + delta - 1) // delta
+                self._outputs[0].shape.mergeShape([num_elts])
+                print('RangeOp: {}\nTrying to set num_elts to {}'.format(self.debugString(), num_elts))
+            else:
+                self.notImplemented('RangeOp shape types {} {} {}'
+                                    .format(start, limit, delta))
+        else:
+            self.notImplemented('RangeOp other data type {}'
+                                .format(self._outputs[0].dtype))
+
         if not isinstance(start, int) or not isinstance(limit, int) or \
            not isinstance(delta, int):
             return
+
         value = [val for val in range(start, limit, delta)]
         # Note: Setting output value will verify that the shapes are
         # fully specified and match
