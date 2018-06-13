@@ -103,15 +103,6 @@ class Tensor:
             for idx, dim in enumerate(np_shape):
                 shape_dim = self.shape.getDimension(idx).value
                 if dim != shape_dim:
-                    if dim == 0:
-                        # This can happen from a reshape or strided slice
-                        # resulting in an empty tensor for predefined
-                        # shape [Dimension(1)]. Corner case!
-                        print('WARN: Value dim[{}] = {} mismatch with shape' \
-                              ' {} in tensor:\n {}'
-                              .format(idx, dim, shape_dim, self))
-                        assert shape_dim == 1
-                        continue
                     print('WARN: Value dim[{}] = {} mismatch with shape {} ' \
                           'in tensor:\n {}'.format(idx, dim, shape_dim, self))
                     return False

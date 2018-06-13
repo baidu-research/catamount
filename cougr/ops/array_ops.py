@@ -397,7 +397,7 @@ class StridedSliceOp(Op):
                 dim_end = None
             else:
                 dim_end = end[0]
-            out_value = tensor_vals[begin[0]:end[0]:stride[0]]
+            out_value = tensor_vals[dim_begin:dim_end:stride[0]]
         else:
             self.notImplemented('Unable to slice rank 2+ tensors')
         self._outputs[0].setValue(out_value)
