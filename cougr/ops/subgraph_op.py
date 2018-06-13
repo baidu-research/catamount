@@ -22,19 +22,6 @@ class SubgraphOp(Op):
             self.addOp(op)
         self.findAllSourcesSinks()
 
-    def __str__(self):
-        # Dump the full graph definition
-        # Note: This can be performed as a flattened operation
-        out_str = ''
-        for op_name in sorted(self._ops_by_name.keys()):
-            op = self._ops_by_name[op_name]
-            out_str += '{} {}\n'.format(op.name, op)
-            for in_tensor in op._inputs:
-                out_str += '  In tensor: {}\n'.format(in_tensor)
-            for out_tensor in op._outputs:
-                out_str += '  Out tensor: {}\n'.format(out_tensor)
-        return out_str
-
     def isValid(self):
         ''' Return whether the graph is fully specified. Check whether all ops
         have output tensors, whether those tensors have valid shapes, and
