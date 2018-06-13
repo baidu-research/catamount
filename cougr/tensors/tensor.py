@@ -142,7 +142,7 @@ class Tensor:
                 assert isinstance(value, supported_python_types), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
-            elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
+            else:
                 if isinstance(value, supported_python_types):
                     value = np.array([value])
                 elif isinstance(value, list):
@@ -150,25 +150,14 @@ class Tensor:
                 assert isinstance(value, np.ndarray), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
-                for val in value:
-                    assert isinstance(val, supported_python_types), \
-                        'Op {}: Trying to set tensor value of type {} to ' \
-                        'value {} of type {}'.format(self._name, self._dtype,
-                                                     val, type(val))
-            else:
-                if isinstance(value, list):
-                    value = np.array(value)
-                assert isinstance(value, np.ndarray), \
-                    'Tensor {} setting value to {} with type {}' \
-                    .format(self, value, type(value))
-                # TODO (Joel): Make this check smarter. This will fail on
-                # rank 2+ tensors specified as lists of lists. Also make it
-                # quicker if possible
                 assert value.dtype in supported_python_types or \
                        value.dtype.kind in np_string_types, \
                     '{}:\nTrying to set value dtype to {}' \
                     .format(self, value.dtype)
-                assert list(value.shape) == self._shape.asList()
+                assert list(value.shape) == self._shape.asList(), \
+                    '{}:\nShape mismatch. Value {}, shapes {} != {}' \
+                    .format(self, value, list(value.shape),
+                            self._shape.asList())
         else:
             raise NotImplementedError('Yet unsupported dtype: {}'
                                       .format(self._dtype))
