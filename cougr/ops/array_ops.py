@@ -1,6 +1,7 @@
 import numpy as np
 import sympy
 from .base_op import Op
+from ..tensors.tensor import DataType
 from ..tensors.tensor_shape import Dimension, TensorShape
 
 
@@ -143,6 +144,34 @@ class GatherOp(Op):
 
     def calcAlgFlops(self):
         # GatherOps have no Flops
+        return 0
+
+
+class InvertPermutationOp(Op):
+    def __init__(self, name):
+        super(InvertPermutationOp, self).__init__(name)
+
+    def propagateShapes(self):
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(self._inputs[0].dtype == DataType.int32)
+        self.debugAssert(len(self._outputs) == 1)
+        self.debugAssert(self._outputs[0].dtype == DataType.int32)
+        if self._inputs[0].shape.isUnknown():
+            # Cannot propagate unknown shape
+            return
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+
+        if self._inputs[0].value is None:
+            # Cannot propagate unknown value
+            return
+
+        out_value = self._inputs[0].value
+        assert isinstance(out_value, np.ndarray)
+        out_value = np.argsort(out_value)
+        self._outputs[0].setValue(out_value)
+
+    def calcAlgFlops(self):
+        # InvertPermutationOps have no Flops
         return 0
 
 

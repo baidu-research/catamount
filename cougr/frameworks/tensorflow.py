@@ -39,6 +39,7 @@ TF_OP_TO_COUGR = {
     'Gather': GatherOp,
     'GreaterEqual': GreaterEqualOp,
     'Identity': IdentityOp,
+    'InvertPermutation': InvertPermutationOp,
     'Less': LessOp,
     'LogicalAnd': LogicalAndOp,
     'LogicalNot': LogicalNotOp,
