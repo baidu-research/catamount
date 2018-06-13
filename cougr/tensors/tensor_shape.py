@@ -1,4 +1,4 @@
-import re
+import numpy as np
 import sympy
 
 
@@ -18,7 +18,7 @@ def as_dimension(value):
 def as_tensor_shape(value):
     if isinstance(value, TensorShape):
         return value
-    elif isinstance(value, list):
+    elif isinstance(value, list) or isinstance(value, np.ndarray):
         list_dims = [as_dimension(dim) for dim in value]
         return TensorShape(list_dims)
     else:
@@ -351,6 +351,13 @@ class TensorShape(object):
         to_return = self._dims[idx]
         if to_return.symbol is None:
             to_return.setSymbolName(self.getSymbolName(idx))
+        return to_return
+
+    def asList(self):
+        assert self.isFullyDefined()
+        to_return = []
+        for dim in self._dims:
+            to_return.append(dim.value)
         return to_return
 
     def numElements(self):

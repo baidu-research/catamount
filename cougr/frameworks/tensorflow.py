@@ -275,7 +275,7 @@ def get_const_value_from_op(tf_sess, tf_op):
         else:
             s = struct.Struct(unpack_strs[value_proto.dtype])
             it = s.iter_unpack(value_proto.tensor_content)
-            value = [x[0] for x in it]
+            value = np.array([x[0] for x in it])
             assert len(value) == tf_op.outputs[0].shape.num_elements(), \
                 'Op: {}, value: {}'.format(tf_op.name, value)
     elif value_proto.dtype == types_pb2.DT_FLOAT:
@@ -295,8 +295,9 @@ def get_const_value_from_op(tf_sess, tf_op):
                     print('WARN: Unable to read op {} value from proto'
                           .format(tf_op.name))
                     value = [None]
-                value = [value[0]] * tf_op.outputs[0].shape.num_elements()
-            assert len(value) == tf_op.outputs[0].shape.num_elements(), \
+                np_shape = tf_op.outputs[0].shape.as_list()
+                value = np.full(np_shape, value[0], dtype=float)
+            assert list(value.shape) == tf_op.outputs[0].shape.as_list(), \
                 'Op: {}, value: {}'.format(tf_op.name, value)
     elif value_proto.dtype == types_pb2.DT_STRING:
         if tf_op.outputs[0].shape.ndims == 0 or \
@@ -309,7 +310,8 @@ def get_const_value_from_op(tf_sess, tf_op):
             value = []
             for i in range(tf_op.outputs[0].shape.num_elements()):
                 value.append(value_proto.string_val[i].decode('utf-8'))
-            assert len(value) == tf_op.outputs[0].shape.num_elements(), \
+            value = np.array(value)
+            assert list(value.shape) == tf_op.outputs[0].shape.as_list(), \
                 'Op: {}, value: {}'.format(tf_op.name, value)
     else:
         raise NotImplementedError('Other TF op {} dtype to handle {}'
@@ -321,6 +323,13 @@ def get_transpose_attributes_from_op(tf_sess, tf_op, op):
         op.setTransposeInput(0, True)
     if tf_op.get_attr('transpose_b'):
         op.setTransposeInput(1, True)
+
+def get_slice_op_attributes_from_op(tf_sess, tf_op, op):
+    op.setBeginMask(tf_op.get_attr('begin_mask'))
+    op.setEllipsisMask(tf_op.get_attr('ellipsis_mask'))
+    op.setEndMask(tf_op.get_attr('end_mask'))
+    op.setNewAxisMask(tf_op.get_attr('new_axis_mask'))
+    op.setShrinkAxisMask(tf_op.get_attr('shrink_axis_mask'))
 
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
@@ -334,6 +343,10 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     if isinstance(op, MatMulOp):
         # MatMuls may specify transposes as attributes to the op
         get_transpose_attributes_from_op(tf_sess, tf_op, op)
+
+    if isinstance(op, StridedSliceOp):
+        # StridedSliceOps can have mask attributes
+        get_slice_op_attributes_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)

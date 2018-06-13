@@ -1,3 +1,4 @@
+import numpy as np
 from .base_op import Op
 from ..tensors.tensor_shape import Dimension, TensorShape
 
@@ -38,8 +39,9 @@ class ConcatOp(Op):
             if out_value is None:
                 out_value = self._inputs[idx].value
             else:
-                out_value.extend(self._inputs[idx].value)
+                out_value = np.append(out_value, self._inputs[idx].value)
         self._outputs[0].setValue(out_value)
+        assert self._inputs[0].isValid()
 
     def calcAlgFlops(self):
         # ConcatOps have no Flops
@@ -126,8 +128,16 @@ class GatherOp(Op):
         # the indices to gather from first tensor.
         assert len(self._inputs) == 2
         assert len(self._outputs) == 1
-        # TODO (Joel): Optional third tensor can specify the axis of data
-        # to index.
+        axis = 0 # TODO (Joel): Optional third tensor can specify axis
+        if axis == 0:
+           out_dims = []
+           for dim_idx in range(self._inputs[1].shape.rank):
+               out_dims.append(self._inputs[1].shape.getDimension(dim_idx))
+           for dim_idx in range(1, self._inputs[0].shape.rank):
+               out_dims.append(self._inputs[0].shape.getDimension(dim_idx))
+           self._outputs[0].shape.mergeShape(out_dims)
+        else:
+           self.notImplemented('GatherOp propagateShapes: Non-zero axis')
 
     def calcAlgFlops(self):
         # GatherOps have no Flops
@@ -279,6 +289,34 @@ class StackOp(Op):
 class StridedSliceOp(Op):
     def __init__(self, name):
         super(StridedSliceOp, self).__init__(name)
+        self._begin_mask = 0
+        self._ellipsis_mask = 0
+        self._end_mask = 0
+        self._new_axis_mask = 0
+        self._shrink_axis_mask = 0
+
+    def setBeginMask(self, mask):
+        assert isinstance(mask, int)
+        self._begin_mask = mask
+
+    def setEllipsisMask(self, mask):
+        assert isinstance(mask, int)
+        self._ellipsis_mask = mask
+
+    def setEndMask(self, mask):
+        assert isinstance(mask, int)
+        self._end_mask = mask
+
+    def setNewAxisMask(self, mask):
+        assert isinstance(mask, int)
+        self._new_axis_mask = mask
+
+    def setShrinkAxisMask(self, mask):
+        assert isinstance(mask, int)
+        self._shrink_axis_mask = mask
+
+    def isIndexSet(self, mask, bit_idx):
+        return (mask >> bit_idx % 2) == 1
 
     def propagateShapes(self):
         # Note: StridedSliceOp has many, many potential inputs and outputs,
@@ -295,28 +333,46 @@ class StridedSliceOp(Op):
             print('WARN: StridedSliceOp {} unable to resolve output shape'
                   .format(self._name))
             return
-        if not isinstance(begin, list):
+        if not isinstance(begin, list) and not isinstance(begin, np.ndarray):
             assert isinstance(begin, int)
             begin = [begin]
-        if not isinstance(end, list):
+        if not isinstance(end, list) and not isinstance(begin, np.ndarray):
             assert isinstance(end, int)
             end = [end]
-        if not isinstance(stride, list):
+        if not isinstance(stride, list) and not isinstance(begin, np.ndarray):
             assert isinstance(stride, int)
             stride = [stride]
 
+        if self._ellipsis_mask != 0:
+            self.notImplemented('Handle ellipsis mask')
+        if self._new_axis_mask != 0:
+            self.notImplemented('Handle new axis mask')
+
         # Check input to output tensor shape propagation
+        input_shape = self._inputs[0].shape
         if not self._outputs[0].shape.isFullyDefined():
             out_dims = []
-            for idx in range(self._inputs[0].shape.rank):
+            for idx in range(input_shape.rank):
                 if idx < len(begin):
                     # Slice this dimension
-                    if begin[idx] is not None and \
-                       end[idx] is not None and \
+                    if (begin[idx] is not None or \
+                        self.isIndexSet(self._begin_mask, idx)) and \
+                       (end[idx] is not None or \
+                        self.isIndexSet(self._end_mask, idx)) and \
                        stride[idx] is not None:
-                        dim_size = (end[idx] - begin[idx] + stride[idx] - 1)
+                        if (self._begin_mask >> idx % 2) == 1:
+                           dim_begin = 0
+                        else:
+                           dim_begin = begin[idx]
+                        if (self._end_mask >> idx % 2) == 1:
+                           dim_end = input_shape.dims[idx].value
+                        else:
+                           dim_end = end[idx]
+                        dim_size = (dim_end - dim_begin + stride[idx] - 1)
                         dim_size //= stride[idx]
-                        if dim_size > 1:
+                        if self.isIndexSet(self._shrink_axis_mask, idx):
+                            assert dim_size == 1
+                        else:
                             out_dims.append(dim_size)
                     else:
                         self.notImplemented('Unspecified slice config')
@@ -333,6 +389,14 @@ class StridedSliceOp(Op):
             return
 
         if len(begin) == 1 and len(end) == 1 and len(stride) == 1:
+            if self.isIndexSet(self._begin_mask, 0):
+                dim_begin = None
+            else:
+                dim_begin = begin[0]
+            if self.isIndexSet(self._end_mask, 0):
+                dim_end = None
+            else:
+                dim_end = end[0]
             out_value = tensor_vals[begin[0]:end[0]:stride[0]]
         else:
             self.notImplemented('Unable to slice rank 2+ tensors')

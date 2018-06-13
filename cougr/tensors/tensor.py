@@ -97,6 +97,24 @@ class Tensor:
         if type(self._shape) is not TensorShape or not self._shape.isValid():
             print('WARN: Invalid shape for tensor {}'.format(self._name))
             return False
+        # Valid values have correct shape
+        if self._value is not None:
+            np_shape = np.shape(self._value)
+            for idx, dim in enumerate(np_shape):
+                shape_dim = self.shape.getDimension(idx).value
+                if dim != shape_dim:
+                    if dim == 0:
+                        # This can happen from a reshape or strided slice
+                        # resulting in an empty tensor for predefined
+                        # shape [Dimension(1)]. Corner case!
+                        print('WARN: Value dim[{}] = {} mismatch with shape' \
+                              ' {} in tensor:\n {}'
+                              .format(idx, dim, shape_dim, self))
+                        assert shape_dim == 1
+                        continue
+                    print('WARN: Value dim[{}] = {} mismatch with shape {} ' \
+                          'in tensor:\n {}'.format(idx, dim, shape_dim, self))
+                    return False
         return True
 
     def setProducer(self, op):
@@ -114,10 +132,11 @@ class Tensor:
 
     def setValue(self, value):
         supported_python_types = ( bool, int, float, sympy.Symbol,
-                                   sympy.Expr, str )
+                                   sympy.Expr, str, np.int64, np.str_ )
+        np_string_types = ( 'U', 'S' )
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
             if self._shape.rank == 0:
-                if isinstance(value, list):
+                if isinstance(value, list) or isinstance(value, np.ndarray):
                     assert len(value) == 1
                     value = value[0]
                 assert isinstance(value, supported_python_types), \
@@ -125,8 +144,10 @@ class Tensor:
                     .format(self, value, type(value))
             elif (self._shape.rank == 1 and self._shape.dims[0] == 1):
                 if isinstance(value, supported_python_types):
-                    value = [value]
-                assert isinstance(value, list), \
+                    value = np.array([value])
+                elif isinstance(value, list):
+                    value = np.array(value)
+                assert isinstance(value, np.ndarray), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
                 for val in value:
@@ -135,17 +156,19 @@ class Tensor:
                         'value {} of type {}'.format(self._name, self._dtype,
                                                      val, type(val))
             else:
-                assert isinstance(value, list), \
+                if isinstance(value, list):
+                    value = np.array(value)
+                assert isinstance(value, np.ndarray), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))
                 # TODO (Joel): Make this check smarter. This will fail on
                 # rank 2+ tensors specified as lists of lists. Also make it
                 # quicker if possible
-                for idx, val in enumerate(value):
-                    assert isinstance(val, supported_python_types), \
-                        'Tensor {} setting value[{}] to {} with type {}' \
-                        .format(self, idx, val, type(val))
-                assert len(value) == self._shape.numElements()
+                assert value.dtype in supported_python_types or \
+                       value.dtype.kind in np_string_types, \
+                    '{}:\nTrying to set value dtype to {}' \
+                    .format(self, value.dtype)
+                assert list(value.shape) == self._shape.asList()
         else:
             raise NotImplementedError('Yet unsupported dtype: {}'
                                       .format(self._dtype))
