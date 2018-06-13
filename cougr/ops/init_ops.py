@@ -14,6 +14,9 @@ class IdentityOp(Op):
         if not self._inputs[0].shape.isUnknown():
             self._outputs[0].shape.mergeShape(self._inputs[0].shape)
 
+        if self._inputs[0].value is not None:
+            self._outputs[0].setValue(self._inputs[0].value)
+
     def calcAlgFlops(self):
         # IdentityOps have no Flops
         return 0
