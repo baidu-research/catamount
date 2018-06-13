@@ -296,7 +296,6 @@ class RangeOp(Op):
                isinstance(delta, supported_shape_types):
                 num_elts = (limit - start + delta - 1) // delta
                 self._outputs[0].shape.mergeShape([num_elts])
-                print('RangeOp: {}\nTrying to set num_elts to {}'.format(self.debugString(), num_elts))
             else:
                 self.notImplemented('RangeOp shape types {} {} {}'
                                     .format(start, limit, delta))
