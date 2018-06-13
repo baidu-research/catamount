@@ -340,6 +340,28 @@ class SplitOp(Op):
         return 0
 
 
+class SqueezeOp(Op):
+    def __init__(self, name):
+        super(SqueezeOp, self).__init__(name)
+
+    def propagateShapes(self):
+        self.debugAssert(len(self._inputs) > 0)
+        self.debugAssert(len(self._outputs) == 1)
+        if len(self._inputs) == 1:
+            in_shape = self._inputs[0].shape.dims
+            out_shape = []
+            for dim in in_shape:
+                if dim.value is None or dim.value > 1:
+                    out_shape.append(dim)
+            self._outputs[0].shape.mergeShape(out_shape)
+        else:
+            self.notImplemented('Squeeze propagateShapes multi-input')
+
+    def calcAlgFlops(self):
+        # SqueezeOps have no Flops
+        return 0
+
+
 class StackOp(Op):
     def __init__(self, name):
         super(StackOp, self).__init__(name)

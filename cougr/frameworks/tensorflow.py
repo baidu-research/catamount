@@ -81,6 +81,7 @@ TF_OP_TO_COUGR = {
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
     'Sum': ReduceOp,
+    'Squeeze': SqueezeOp,
     'Switch': SwitchOp,
     'Tanh': TanhOp,
     'TensorArrayV3': TensorArrayOp,
