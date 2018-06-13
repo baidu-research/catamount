@@ -513,3 +513,23 @@ class TransposeOp(Op):
         return 0
 
 
+class WhereOp(Op):
+    def __init__(self, name):
+        super(WhereOp, self).__init__(name)
+
+    def propagateShapes(self):
+        self.debugAssert(len(self._outputs) == 1)
+        if len(self._inputs) == 1:
+            first_dim = sympy.Symbol('{}::num_true'
+                                     .format(self._inputs[0].name))
+            self._outputs[0].shape.mergeShape([first_dim, 1])
+        else:
+            self.debugAssert(len(self._inputs) == 2 or len(self._inputs) == 2)
+            self.notImplemented('Where with 1 or 2 inputs')
+
+    def calcAlgFlops(self):
+        self.debugAssert(len(self._inputs) == 1)
+        # Assume one Flop per input element to check condition and decide
+        # how to set the output
+        flops = self._inputs[0].shape.numElements()
+        return flops

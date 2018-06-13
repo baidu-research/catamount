@@ -86,6 +86,7 @@ TF_OP_TO_COUGR = {
     'TensorArrayV3': TensorArrayOp,
     'Transpose': TransposeOp,
     'VariableV2': VariableOp,
+    'Where': WhereOp,
     'ZerosLike': NumLikeOp,
 }
 
@@ -116,7 +117,6 @@ TF_OP_TO_COUGR = {
 # HashTableV2
 # InitializeTableFromTextFileV2
 # InTopK
-# InvertPermutation
 # Iterator
 # IteratorGetNext
 # IteratorToStringHandle
@@ -185,7 +185,6 @@ TF_OP_TO_COUGR = {
 # Unpack
 # UnsortedSegmentSum
 # Unstage
-# Where
 # ZipDataset
 
 TF_DTYPE_TO_COUGR = {
