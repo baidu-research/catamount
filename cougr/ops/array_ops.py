@@ -1,6 +1,8 @@
 import numpy as np
+import sympy
 from .base_op import Op
 from ..tensors.tensor_shape import Dimension, TensorShape
+
 
 class ConcatOp(Op):
     def __init__(self, name):
@@ -183,19 +185,55 @@ class ReshapeOp(Op):
         #    maintain the same number of elements.
         assert len(self._inputs) == 2
         assert len(self._outputs) == 1
+
         num_elts = self._inputs[0].shape.numElements()
         if self._inputs[1].shape.isScalar():
             self._outputs[0].shape.mergeShape(num_elts)
-        elif self._inputs[1].shape.rank == 1 and \
-             self._inputs[1].value is not None and \
-             len(self._inputs[1].value) == 1:
-            # Whether the second input value is None, [-1], or [num_elts]
-            # doesn't matter, because the output tensor would be the same.
-            # Could consider doing a check here that the value is correct.
-            self._outputs[0].shape.mergeShape([num_elts])
         else:
-            print('WARN: Implement reshape {} conditions'.format(self._name))
-            # self.notImplemented('Reshape to complete')
+            if self._inputs[1].value is None:
+                if self._inputs[1].shape.isUnknown():
+                    self.notImplemented('Reshape in1 val {} shape {}'
+                        .format(self._inputs[1].value, self._inputs[1].shape))
+                else:
+                    if len(self._inputs[1].shape.dims) == 1 and \
+                       self._inputs[1].shape.dims[0] == 1:
+                        # Assume that the output must be the flattened
+                        # input[0] values, so the shape is the same as the
+                        # number of input[0] values.
+                        self._outputs[0].shape.mergeShape([num_elts])
+                    else:
+                        # TODO: Cannot resolve shapes (unknown input[1] value)?
+                        print('WARN: ReshapeOp implement: in1 val {} shape {}'
+                              .format(self._inputs[1].value,
+                                      self._inputs[1].shape))
+            else:
+                out_shape = self._inputs[1].value
+                assert isinstance(out_shape, np.ndarray)
+                out_shape = out_shape.tolist()
+                prod_dims = None
+                minus_1_idx = None
+                for idx, val in enumerate(out_shape):
+                    if val == -1:
+                        assert minus_1_idx is None
+                        minus_1_idx = idx
+                    else:
+                        assert isinstance(val, (int, sympy.Expr))
+                        if prod_dims is None:
+                            prod_dims = 1
+                        prod_dims *= val
+                if minus_1_idx is not None:
+                    if prod_dims is None:
+                        minus_1_dim = num_elts
+                    else:
+                        minus_1_dim = num_elts / prod_dims
+                    out_shape[minus_1_idx] = minus_1_dim
+                else:
+                    if prod_dims != num_elts:
+                        print('WARN: ReshapeOp implement condition: {} {}'
+                              .format(prod_dims, num_elts))
+                        return
+                    assert prod_dims == num_elts
+                self._outputs[0].shape.mergeShape(out_shape)
 
         if self._outputs[0].shape.isFullyDefined() and \
            self._inputs[0].value is not None:
