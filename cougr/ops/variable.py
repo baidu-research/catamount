@@ -44,7 +44,8 @@ class CastOp(Op):
         assert len(self._outputs) == 1
         if self._inputs[0].shape != self._outputs[0].shape:
             self._outputs[0].shape.mergeShape(self._inputs[0].shape)
-        # TODO (Joel): Also propagate values if necessary
+        if self._inputs[0].value is not None:
+            self._outputs[0].setValue(self._inputs[0].value)
 
     def calcAlgFlops(self):
         # Assignments have no Flops
