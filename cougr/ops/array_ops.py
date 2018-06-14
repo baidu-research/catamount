@@ -221,19 +221,24 @@ class ReshapeOp(Op):
         else:
             if self._inputs[1].value is None:
                 if self._inputs[1].shape.isUnknown():
-                    self.notImplemented('Reshape in1 val {} shape {}'
-                        .format(self._inputs[1].value, self._inputs[1].shape))
+                    self.notImplemented('Reshape {} in1 val {} shape {}'
+                        .format(self.name, self._inputs[1].value,
+                                self._inputs[1].shape))
                 else:
-                    if len(self._inputs[1].shape.dims) == 1 and \
-                       self._inputs[1].shape.dims[0] == 1:
+                    assert self._inputs[1].shape.rank == 1
+                    if self._inputs[1].shape.dims[0].value == 1:
                         # Assume that the output must be the flattened
                         # input[0] values, so the shape is the same as the
                         # number of input[0] values.
                         self._outputs[0].shape.mergeShape([num_elts])
+                    elif self._inputs[0].shape.rank == \
+                         self._inputs[1].shape.dims[0].value:
+                        # Try merging input and output shapes
+                        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
                     else:
                         # TODO: Cannot resolve shapes (unknown input[1] value)?
-                        print('WARN: ReshapeOp implement: in1 val {} shape {}'
-                              .format(self._inputs[1].value,
+                        print('WARN: Reshape {} impl: in1 val {} shape {}'
+                              .format(self.name, self._inputs[1].value,
                                       self._inputs[1].shape))
             else:
                 out_shape = self._inputs[1].value
@@ -258,8 +263,8 @@ class ReshapeOp(Op):
                     out_shape[minus_1_idx] = minus_1_dim
                 else:
                     if prod_dims != num_elts:
-                        print('WARN: ReshapeOp implement condition: {} {}'
-                              .format(prod_dims, num_elts))
+                        print('WARN: Reshape {} implement condition: {} {}'
+                              .format(self.name, prod_dims, num_elts))
                         return
                     assert prod_dims == num_elts
                 self._outputs[0].shape.mergeShape(out_shape)
