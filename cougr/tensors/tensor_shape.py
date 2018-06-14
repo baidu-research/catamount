@@ -348,7 +348,7 @@ class TensorShape(object):
 
     def getDimension(self, idx):
         assert(idx < len(self._dims))
-        to_return = self._dims[idx]
+        to_return = Dimension(self._dims[idx])
         if to_return.symbol is None:
             to_return.setSymbolName(self.getSymbolName(idx))
         return to_return
