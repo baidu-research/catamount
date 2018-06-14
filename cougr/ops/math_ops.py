@@ -49,6 +49,11 @@ class DivOp(BasePointwiseOp):
         super(DivOp, self).__init__(name)
 
 
+class ExpOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(ExpOp, self).__init__(name)
+
+
 class GreaterEqualOp(BasePointwiseOp):
     def __init__(self, name):
         super(GreaterEqualOp, self).__init__(name)
@@ -64,14 +69,29 @@ class LogicalAndOp(BasePointwiseOp):
         super(LogicalAndOp, self).__init__(name)
 
 
+class LogicalNotOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(LogicalNotOp, self).__init__(name)
+
+
 class LogicalOrOp(BasePointwiseOp):
     def __init__(self, name):
         super(LogicalOrOp, self).__init__(name)
 
 
-class LogicalNotOp(BasePointwiseOp):
+class MaximumOp(BasePointwiseOp):
     def __init__(self, name):
-        super(LogicalNotOp, self).__init__(name)
+        super(MaximumOp, self).__init__(name)
+
+
+class MinimumOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(MinimumOp, self).__init__(name)
+
+
+class MulOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(MulOp, self).__init__(name)
 
 
 class NegOp(BasePointwiseOp):
@@ -84,29 +104,9 @@ class NotEqualOp(BasePointwiseOp):
         super(NotEqualOp, self).__init__(name)
 
 
-class MinimumOp(BasePointwiseOp):
-    def __init__(self, name):
-        super(MinimumOp, self).__init__(name)
-
-
-class MaximumOp(BasePointwiseOp):
-    def __init__(self, name):
-        super(MaximumOp, self).__init__(name)
-
-
-class MulOp(BasePointwiseOp):
-    def __init__(self, name):
-        super(MulOp, self).__init__(name)
-
-
 class PowOp(BasePointwiseOp):
     def __init__(self, name):
         super(PowOp, self).__init__(name)
-
-
-class ExpOp(PowOp):
-    def __init__(self, name):
-        super(ExpOp, self).__init__(name)
 
 
 class ReluOp(BasePointwiseOp):
@@ -237,43 +237,6 @@ class MatMulOp(Op):
         return (2 * inner_dim.symbol * out_elts)
 
 
-class ReduceOp(Op):
-    def __init__(self, name, reduction_op='sum', axes=None):
-        super(ReduceOp, self).__init__(name)
-        if isinstance(axes, int):
-            axes = [axes]
-        self._axes = axes
-        self._flops_per_element = 1
-
-    def propagateShapes(self):
-        # First input is always the tensor to be reduce, and the optional
-        # second tensor describes the dimensions to be reduced.
-        assert len(self._inputs) == 1 or len(self._inputs) == 2
-        assert len(self._outputs) == 1
-        if len(self._inputs) == 2:
-            # TODO (Joel): May be too strict
-            assert self._axes is None
-            self._axes = self._inputs[1].value
-        if self._axes is not None:
-            out_shape = []
-            for dim_index in range(self._inputs[0].shape.rank):
-                if dim_index not in self._axes:
-                    dim = self._inputs[0].shape.getDimension(dim_index)
-                    out_shape.append(dim)
-            self._outputs[0].shape.mergeShape(out_shape)
-            # TODO (Joel): Also calculate value? Depends on the reduction_op!
-
-    def calcAlgFlops(self):
-        assert len(self._inputs) == 1 or len(self._inputs) == 2, \
-            'Reduce {} has too many inputs: {}' \
-            .format(self.name, [input for input in self._inputs])
-        flops_to_return = self._flops_per_element
-        for dim_index in range(self._inputs[0].shape.rank):
-            dim = self._inputs[0].shape.getDimension(dim_index)
-            flops_to_return *= dim.symbol
-        return flops_to_return
-
-
 class RangeOp(Op):
     def __init__(self, name):
         super(RangeOp, self).__init__(name)
@@ -315,3 +278,41 @@ class RangeOp(Op):
     def calcAlgFlops(self):
         # Range op has no algorithmic Flops
         return 0
+
+
+class ReduceOp(Op):
+    def __init__(self, name, reduction_op='sum', axes=None):
+        super(ReduceOp, self).__init__(name)
+        if isinstance(axes, int):
+            axes = [axes]
+        self._axes = axes
+        self._flops_per_element = 1
+
+    def propagateShapes(self):
+        # First input is always the tensor to be reduce, and the optional
+        # second tensor describes the dimensions to be reduced.
+        assert len(self._inputs) == 1 or len(self._inputs) == 2
+        assert len(self._outputs) == 1
+        if len(self._inputs) == 2:
+            # TODO (Joel): May be too strict
+            assert self._axes is None
+            self._axes = self._inputs[1].value
+        if self._axes is not None:
+            out_shape = []
+            for dim_index in range(self._inputs[0].shape.rank):
+                if dim_index not in self._axes:
+                    dim = self._inputs[0].shape.getDimension(dim_index)
+                    out_shape.append(dim)
+            self._outputs[0].shape.mergeShape(out_shape)
+            # TODO (Joel): Also calculate value? Depends on the reduction_op!
+
+    def calcAlgFlops(self):
+        assert len(self._inputs) == 1 or len(self._inputs) == 2, \
+            'Reduce {} has too many inputs: {}' \
+            .format(self.name, [input for input in self._inputs])
+        flops_to_return = self._flops_per_element
+        for dim_index in range(self._inputs[0].shape.rank):
+            dim = self._inputs[0].shape.getDimension(dim_index)
+            flops_to_return *= dim.symbol
+        return flops_to_return
+
