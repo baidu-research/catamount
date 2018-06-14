@@ -7,14 +7,7 @@ import tensorflow.contrib.mpi_collectives as mpi
 from tensorflow.core.framework import types_pb2
 
 from cougr.graph import *
-from cougr.ops.array_ops import *
-from cougr.ops.constant import *
-from cougr.ops.ctrl_ops import *
-from cougr.ops.init_ops import *
-from cougr.ops.math_ops import *
-from cougr.ops.placeholder import *
-from cougr.ops.unknown_op import *
-from cougr.ops.variable import *
+from cougr.ops import *
 from cougr.tensors.tensor import *
 
 # Tools to import Tensorflow MetaGraphs into CouGr format
@@ -49,6 +42,7 @@ TF_OP_TO_COUGR = {
     'Mean': ReduceOp,
     'Merge': MergeOp,
     'Minimum': MinimumOp,
+    'MPIAllgather': AllgatherOp,
     # tf.contrib.mpi_collectives.MPIInit has no compute graph function
     'MPIInit': NoOp,
     # tf.contrib.mpi_collectives.MPISize behaves like a placeholder
@@ -372,9 +366,12 @@ def construct_cougr_graph(tf_sess, tf_graph):
 
         # Create the CouGr internal op
         op = cougr_type(tf_op.name)
+
         if tf_op.type == 'Split' or tf_op.type == 'SplitV':
             print('WARN: TF Split op may need extra handling: {}'
                   .format(tf_op))
+        if cougr_type == ReduceOp:
+            print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
 
         # Create the output tensors for this op
         for i in range(len(tf_op.outputs)):
