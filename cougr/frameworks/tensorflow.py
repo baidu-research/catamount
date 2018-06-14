@@ -76,6 +76,7 @@ TF_OP_TO_COUGR = {
     'Shape': ShapeOp,
     'Sigmoid': SigmoidOp,
     'Size': SizeOp,
+    'Split': SplitOp,
     'SplitV': SplitOp,
     'Sqrt': SqrtOp,
     'StridedSlice': StridedSliceOp,
@@ -91,8 +92,20 @@ TF_OP_TO_COUGR = {
     'ZerosLike': NumLikeOp,
 }
 
-# [_] TODO (Joel): Add these for all networks of interest!
+# TODO (Joel): Prioritize these ops:
+# SparseSoftmaxCrossEntropyWithLogits
+# TensorArrayGatherV3
+# TensorArrayGradV3
+# TensorArrayReadV3
+# TensorArrayScatterV3
+# TensorArraySizeV3
+# TensorArrayWriteV3
+# MPIAllgather
+# MPIAllreduce
+# ScatterSub
 # AddN
+
+# TODO (Joel): Add these for all networks of interest!
 # All
 # ApplyGradientDescent
 # ApplyMomentum
@@ -133,8 +146,6 @@ TF_OP_TO_COUGR = {
 # MaxPoolGrad
 # MergeSummary
 # Min
-# MPIAllgather
-# MPIAllreduce
 # Multinomial
 # OneHot
 # Pad
@@ -153,7 +164,6 @@ TF_OP_TO_COUGR = {
 # ReverseSequence
 # Round
 # ScalarSummary
-# ScatterSub
 # Select
 # ShapeN
 # ShuffleDataset
@@ -162,7 +172,6 @@ TF_OP_TO_COUGR = {
 # SkipDataset
 # Slice
 # Softmax
-# SparseSoftmaxCrossEntropyWithLogits
 # Split
 # Squeeze
 # Stack
@@ -174,12 +183,6 @@ TF_OP_TO_COUGR = {
 # Stage
 # StopGradient
 # TanhGrad
-# TensorArrayGatherV3
-# TensorArrayGradV3
-# TensorArrayReadV3
-# TensorArrayScatterV3
-# TensorArraySizeV3
-# TensorArrayWriteV3
 # TextLineDataset
 # Tile
 # TruncatedNormal
@@ -367,6 +370,9 @@ def construct_cougr_graph(tf_sess, tf_graph):
 
         # Create the CouGr internal op
         op = cougr_type(tf_op.name)
+        if tf_op.type == 'Split' or tf_op.type == 'SplitV':
+            print('WARN: TF Split op may need extra handling: {}'
+                  .format(tf_op))
 
         # Create the output tensors for this op
         for i in range(len(tf_op.outputs)):
