@@ -70,6 +70,7 @@ TF_OP_TO_COUGR = {
     'Shape': ShapeOp,
     'Sigmoid': SigmoidOp,
     'Size': SizeOp,
+    'SparseSoftmaxCrossEntropyWithLogits': SparseSoftmaxCrossEntropyWithLogitsOp,
     'Split': SplitOp,
     'SplitV': SplitOp,
     'Sqrt': SqrtOp,
@@ -87,7 +88,6 @@ TF_OP_TO_COUGR = {
 }
 
 # TODO (Joel): Prioritize these ops:
-# SparseSoftmaxCrossEntropyWithLogits
 # TensorArrayGatherV3
 # TensorArrayGradV3
 # TensorArrayReadV3
