@@ -366,8 +366,10 @@ class TensorShape(object):
             return sympy.Symbol(self.getSymbolName('?'))
         num_elts = Dimension(1)
         for idx, dim in enumerate(self._dims):
-            if dim.symbol is None:
-                dim.setSymbolName(self.getSymbolName(idx))
+            if dim.value is None:
+                if dim.symbol is None:
+                    dim = Dimension(None)
+                    dim.setSymbolName(self.getSymbolName(idx))
             num_elts *= dim
         assert num_elts.symbol is not None
         return num_elts.symbol
