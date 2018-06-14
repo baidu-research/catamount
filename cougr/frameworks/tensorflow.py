@@ -94,7 +94,6 @@ TF_OP_TO_COUGR = {
 # TensorArrayScatterV3
 # TensorArraySizeV3
 # TensorArrayWriteV3
-# MPIAllgather
 # MPIAllreduce
 # ScatterSub
 # AddN
