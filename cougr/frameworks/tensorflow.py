@@ -301,6 +301,8 @@ def get_const_value_from_op(tf_sess, tf_op):
                     value = [None]
                 np_shape = tf_op.outputs[0].shape.as_list()
                 value = np.full(np_shape, value[0], dtype=float)
+            else:
+                value = np.array(value)
             assert list(value.shape) == tf_op.outputs[0].shape.as_list(), \
                 'Op: {}, value: {}'.format(tf_op.name, value)
     elif value_proto.dtype == types_pb2.DT_STRING:
