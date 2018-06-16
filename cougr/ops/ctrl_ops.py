@@ -53,6 +53,8 @@ class EnterOp(Op):
             fail_str = 'EnterOp {} propagateShapes unknown input shape' \
                        .format(self._name)
             raise NotImplementedError(fail_str)
+        if self._inputs[0].value is not None:
+            self._outputs[0].setValue(self._inputs[0].value)
 
     def calcAlgFlops(self):
         # EnterOps perform no calculations
