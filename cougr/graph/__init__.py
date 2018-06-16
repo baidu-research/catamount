@@ -41,7 +41,7 @@ class Graph(SubgraphOp):
         _cougr_default_graph = self
         return ctx_mgr
 
-    def propagateTensorShapeNames(self):
+    def propagateTensorShapeNames(self, warn_if_ill_defined=False):
         ''' Propagate bound tensor shape names through the network to bind
         downstream shapes.
         '''
@@ -49,8 +49,15 @@ class Graph(SubgraphOp):
         # flattened topological traversal from all sources to all sinks
         for next_op in self.getTopologicalOpOrder():
             next_op.propagateShapes()
+            if warn_if_ill_defined:
+                # Check all next_op outputs to see if there are ill-defined
+                # output shapes and warn if so:
+                for out_tensor in next_op.outputs:
+                    if not out_tensor.shape.isFullySymbolic():
+                        print('WARN: Op out shape ill-defined: {} {}'
+                              .format(next_op.name, next_op))
 
-    def bindTensorShapeDimensions(self, bind_dict):
+    def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False):
         for name in bind_dict.keys():
             assert name in self._ops_by_name.keys()
             op = self._ops_by_name[name]
@@ -59,7 +66,7 @@ class Graph(SubgraphOp):
             for dim_idx, dim_name_or_symbol in enumerate(bind_dict[name]):
                 if dim_name_or_symbol is not None:
                     op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol)
-        self.propagateTensorShapeNames()
+        self.propagateTensorShapeNames(warn_if_ill_defined)
 
 
 # The CouGr default graph is used throughout the API
