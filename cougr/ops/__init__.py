@@ -7,6 +7,7 @@ from .loss_ops import *
 from .math_ops import *
 from .placeholder import *
 from .subgraph_op import *
+from .tensor_array_ops import *
 from .unknown_op import *
 from .variable import *
 
