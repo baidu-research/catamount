@@ -103,18 +103,47 @@ def reduce(name, op_func, out_shape, input, axes=0, graph=None):
     graph.addInputToOp(op, input)
     return out_tensor
 
-def split(name, out_shape, input, num_splits=2, axis=0, graph=None):
+def split(name, out_shape, input, size_splits=None, axis=0, num_split=2,
+          graph=None):
     if graph is None:
         graph = get_default_graph()
 
-    split_op = SplitOp(name, num_splits=num_splits, axis=axis)
+    if size_splits is not None:
+        raise NotImplementedError('Split needs to handle size_splits {}'
+                                  .format(size_splits))
+
+    # Instantiate op
+    split_op = SplitOp(name)
+    # Add num_split attribute
+    if not isinstance(num_split, int):
+        raise NotImplementedError('num_split of type {}'
+                                  .format(type(num_split)))
+    split_op.setNumSplit(num_split)
+    # Add output tensors
     out_tensors = []
-    for i in range(num_splits):
+    for i in range(num_split):
         out_name = '{}_out{}'.format(name, i)
         out_tensors.append(Tensor(out_name, TensorShape(out_shape)))
         split_op.addOutput(out_tensors[i])
     graph.addOp(split_op)
+    # Add inputs (tensor to split, size_splits, axis)
     graph.addInputToOp(split_op, input)
+    if size_splits is None:
+        # Pass scalar 0 as indicator that split should use num_split
+        # attribute instead of size_splits
+        size_splits_tensor = constant('{}_size_splits'.format(name),
+                                      out_shape=[], value=0)
+    else:
+        assert isinstance(size_splits, Tensor)
+        size_splits_tensor = size_splits
+    graph.addInputToOp(split_op, size_splits_tensor)
+    if isinstance(axis, int):
+        axis_tensor = constant('{}_axis'.format(name), out_shape=[],
+                               value=axis)
+    else:
+        assert isinstance(axis, Tensor)
+        axis_tensor = axis
+    graph.addInputToOp(split_op, axis_tensor)
     return out_tensors
 
 def variable(name, out_shape, graph=None):

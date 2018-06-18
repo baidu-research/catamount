@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow.contrib.mpi_collectives as mpi
 from tensorflow.core.framework import types_pb2
 
+import cougr
 from cougr.graph import *
 from cougr.ops import *
 from cougr.tensors.tensor import *
@@ -330,6 +331,9 @@ def get_slice_op_attributes_from_op(tf_sess, tf_op, op):
     op.setNewAxisMask(tf_op.get_attr('new_axis_mask'))
     op.setShrinkAxisMask(tf_op.get_attr('shrink_axis_mask'))
 
+def get_split_op_attributes_from_op(tf_sess, tf_op, op):
+    op.setNumSplit(tf_op.get_attr('num_split'))
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -339,13 +343,16 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
         # for downstream ops. Collect and set in the op
         op.outputs[0].setValue(get_const_value_from_op(tf_sess, tf_op))
 
-    if isinstance(op, MatMulOp):
+    elif isinstance(op, MatMulOp):
         # MatMuls may specify transposes as attributes to the op
         get_transpose_attributes_from_op(tf_sess, tf_op, op)
 
-    if isinstance(op, StridedSliceOp):
+    elif isinstance(op, StridedSliceOp):
         # StridedSliceOps can have mask attributes
         get_slice_op_attributes_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, SplitOp):
+        get_split_op_attributes_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)
@@ -366,9 +373,6 @@ def construct_cougr_graph(tf_sess, tf_graph):
         # Create the CouGr internal op
         op = cougr_type(tf_op.name)
 
-        if tf_op.type == 'Split' or tf_op.type == 'SplitV':
-            print('WARN: TF Split op may need extra handling: {}'
-                  .format(tf_op))
         if cougr_type == ReduceOp:
             print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
 
@@ -391,8 +395,21 @@ def construct_cougr_graph(tf_sess, tf_graph):
 
         # Track the input tensor names to connect them in next phase
         op_inputs[op.name] = []
-        for i in range(len(tf_op.inputs)):
-            op_inputs[op.name].append(tf_op.inputs[i].name)
+        if tf_op.type == 'Split':
+            # TF Split op has different interface than CouGr. Need to add the
+            # size_splits tensor to match the CouGr interface (input[1])
+            assert len(tf_op._inputs) == 2
+            op_inputs[op.name].append(tf_op._inputs[1].name)
+            # Signal to CouGr to use the num_split attribute by setting
+            # size_splits equal to a scalar constant of value 0
+            size_splits = cougr.constant('{}_size_splits'.format(op.name),
+                                         out_shape=[], value=0, graph=graph)
+            tensors[size_splits.name] = size_splits
+            op_inputs[op.name].append(size_splits.name)
+            op_inputs[op.name].append(tf_op._inputs[0].name)
+        else:
+            for i in range(len(tf_op.inputs)):
+                op_inputs[op.name].append(tf_op.inputs[i].name)
 
         # Get the tf_op's attributes and set them as necessary
         parse_tf_op_attributes_into_op(tf_sess, tf_op, op)

@@ -92,11 +92,13 @@ def reduce(name, op_func, out_shape, input, axes=0):
     correct_alg_flops += to_add_flops
     return cougr.reduce(name, op_func, out_shape, input, axes)
 
-def split(name, out_shape, input, num_splits=2, axis=0):
-    for i in range(num_splits):
+def split(name, out_shape, input, size_splits=None, axis=0, num_split=2):
+    if size_splits is not None:
+        raise NotImplementedError('Helper split: Need to handle size_splits')
+    for i in range(num_split):
         out_name = '{}_out{}'.format(name, i)
         add_symbols(out_name, out_shape)
-    return cougr.split(name, out_shape, input, num_splits, axis)
+    return cougr.split(name, out_shape, input, size_splits, axis, num_split)
 
 def concat(name, out_shape, input_list, axis=0):
     add_symbols(name, out_shape)

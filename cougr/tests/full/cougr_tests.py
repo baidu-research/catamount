@@ -43,7 +43,7 @@ def lstm_cell(name, input, state):
     c, h = state
     lstm_concat_seq = concat('{}_concat'.format(name), [batch_size, in_dim], [h, input], axis=1)
     recur_linear = linear('{}_proj'.format(name), [in_dim, out_dim], [batch_size, out_dim], lstm_concat_seq)
-    i, j, f, o = split('{}_split'.format(name), [batch_size, hidden_dim], recur_linear, num_splits=4, axis=1)
+    i, j, f, o = split('{}_split'.format(name), [batch_size, hidden_dim], recur_linear, num_split=4, axis=1)
     forget_bias = variable('{}_f_bias'.format(name), [hidden_dim])
     i = pointwise('{}_i_sig'.format(name), cougr.SigmoidOp, [batch_size, hidden_dim], i)
     j = pointwise('{}_j_tanh'.format(name), cougr.TanhOp, [batch_size, hidden_dim], j)

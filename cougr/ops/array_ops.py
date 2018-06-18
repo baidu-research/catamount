@@ -333,12 +333,60 @@ class SizeOp(Op):
 
 
 class SplitOp(Op):
-    def __init__(self, name, num_splits=0, axis=0):
+    ''' Split the input tensor (input[0]) either using the shape supplied as
+        the second input (input[1]) or if the second input is _____TODO______,
+        then split evenly according to num_split attribute. Split along axis
+        specified in third input (input[2]) or the axis attribute (TODO).
+    '''
+    def __init__(self, name):
         super(SplitOp, self).__init__(name)
+        self._num_split = None
+
+    def setNumSplit(self, num_split):
+        self._num_split = num_split
 
     def propagateShapes(self):
-        # Assume SliceOps have fully specified shapes
-        pass
+        # input[0] is the tensor to split
+        # input[1] is the sizes of the split or a scalar 0 if using num_split
+        # input[2] is the axis of the split
+        self.debugAssert(len(self._inputs) == 3)
+        self.debugAssert(self._num_split is None or \
+                         len(self._outputs) == self._num_split)
+
+        # Check size_splits tensor first
+        # Cases to fall back on num_split:
+        # 1) if size_split is a scalar of value 0
+        # 2) if size_split value is None
+        # TODO (Joel): Finish implementation when size_splits is specified!
+        size_splits = self._inputs[1]
+        if (size_splits.shape.isScalar() and size_splits.value != 0) or \
+           (not size_splits.shape.isScalar() and \
+            size_splits.value is not None):
+            self.notImplemented('Handle fully-specified size_splits')
+
+        if self._num_split is None:
+            num_split = len(self._outputs)
+        else:
+            num_split = self._num_split
+
+        axis = self._inputs[2].value
+        self.debugAssert(axis is not None)
+
+        in_tensor = self._inputs[0]
+
+        out_shape = TensorShape(in_tensor.shape)
+        self.debugAssert(axis < len(out_shape.dims))
+        out_dim = out_shape.dims[axis]
+        if out_dim.value is not None:
+            self.debugAssert(out_dim._value % num_split == 0)
+            out_dim._value //= num_split
+        if out_dim._symbol is not None:
+            out_dim._symbol = -(-out_dim._symbol // num_split)
+        out_shape.dims[axis] = out_dim
+        for out_tensor in self.outputs:
+            out_tensor.shape.mergeShape(out_shape)
+
+        # TODO (Joel): Can split if input is specified
 
     def calcAlgFlops(self):
         # SplitOps have no Flops

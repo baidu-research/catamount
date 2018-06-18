@@ -190,7 +190,9 @@ class TensorShape(object):
                        dim is None)
                 self._dims.append(Dimension(dim))
         elif isinstance(dims, TensorShape):
-            self._dims = dims.dims
+            self._dims = []
+            for dim in dims.dims:
+                self._dims.append(Dimension(dim))
         else:
             raise TypeError('Unknown TensorShape type {}'.format(type(dims)))
 
