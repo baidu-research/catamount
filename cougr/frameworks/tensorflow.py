@@ -82,6 +82,7 @@ TF_OP_TO_COUGR = {
     'Switch': SwitchOp,
     'Tanh': TanhOp,
     'TensorArrayV3': TensorArrayOp,
+    'Tile': TileOp,
     'Transpose': TransposeOp,
     'VariableV2': VariableOp,
     'Where': WhereOp,
@@ -178,7 +179,6 @@ TF_OP_TO_COUGR = {
 # StopGradient
 # TanhGrad
 # TextLineDataset
-# Tile
 # TruncatedNormal
 # Unpack
 # UnsortedSegmentSum

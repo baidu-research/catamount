@@ -549,6 +549,35 @@ class StridedSliceOp(Op):
         return 0
 
 
+class TileOp(Op):
+    def __init__(self, name):
+        super(TileOp, self).__init__(name)
+
+    def propagateShapes(self):
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
+
+        # If input[0] has fully defined shape and input[1] has fully
+        # defined value, then can set the output shape
+        in_shape = self._inputs[0].shape
+        if not in_shape.isFullyDefined():
+            # Cannot propagate shapes
+            return
+        multiples_val = self._inputs[1].value
+        if multiples_val is None:
+            # Cannot propagate shapes
+            return
+
+        out_shape = []
+        for idx, dim in enumerate(in_shape.dims):
+            out_shape.append(dim * multiples_val[idx])
+        self._outputs[0].shape.mergeShape(out_shape)
+
+    def calcAlgFlops(self):
+        # TileOps have no Flops
+        return 0
+
+
 class TransposeOp(Op):
     def __init__(self, name):
         super(TransposeOp, self).__init__(name)

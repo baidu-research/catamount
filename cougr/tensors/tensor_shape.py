@@ -110,7 +110,7 @@ class Dimension(object):
         return self
 
     def __mul__(self, other):
-        assert isinstance(other, Dimension)
+        other = as_dimension(other)
         to_return = Dimension()
         if self._value is None or other._value is None:
             to_return._value = None
