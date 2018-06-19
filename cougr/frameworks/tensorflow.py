@@ -90,6 +90,7 @@ TF_OP_TO_COUGR = {
 }
 
 # TODO (Joel): Prioritize these ops:
+# BroadcastGradientArgs
 # TensorArrayGatherV3
 # TensorArrayGradV3
 # TensorArrayReadV3
@@ -108,7 +109,6 @@ TF_OP_TO_COUGR = {
 # Assert
 # BatchMatMul
 # BiasAddGrad
-# BroadcastGradientArgs
 # ConcatOffset
 # ControlTrigger
 # Conv2DBackpropFilter
