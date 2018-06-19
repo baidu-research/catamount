@@ -1,6 +1,7 @@
 import sympy
 
 import cougr
+from cougr.api import utils
 from cougr.graph import Graph
 from cougr.tensors.tensor_shape import Dimension, TensorShape
 
@@ -49,10 +50,11 @@ def test_expanddims_op():
             if isinstance(ph_dims, list):
                 for idx in range(len(ph_dims)):
                     if ph_dims[idx] is None:
-                        ph_dims[idx] = sympy.Symbol('in::dim_{}'.format(idx))
+                        ph_dims[idx] = utils.getIntSymbolFromString(
+                                           'in::dim_{}'.format(idx))
             else:
                 if ph_dims is None:
-                    ph_dims = sympy.Symbol('in::dim_0')
+                    ph_dims = utils.getIntSymbolFromString('in::dim_0')
             feed_dict['in'] = ph_dims
             print('    Feed dict: {}'.format(feed_dict))
 

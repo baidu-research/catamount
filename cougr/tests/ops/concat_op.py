@@ -1,6 +1,7 @@
 import sympy
 
 import cougr
+from cougr.api import utils
 from cougr.graph import Graph
 from cougr.tensors.tensor_shape import Dimension, TensorShape
 
@@ -53,7 +54,7 @@ def test_concat_op():
                     append_dim_sym = None
                     if dim is None:
                         dim_name = 'bind_{}_{}'.format(in_ph.name, idx)
-                        append_dim_sym = sympy.Symbol(dim_name)
+                        append_dim_sym = utils.getIntSymbolFromString(dim_name)
                     else:
                         append_dim_sym = dim
                     in_ph_dims.append(append_dim_sym)

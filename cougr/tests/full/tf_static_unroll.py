@@ -1,5 +1,6 @@
 import sympy
 import cougr.frameworks.tensorflow
+from cougr.api import utils
 
 
 tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_static_unroll/tf_graph.meta'
@@ -10,21 +11,21 @@ def test_tf_static_unroll_rnn():
 
     algorithmic_flops = graph.calcAlgFlops()
 
-    ba_0 = sympy.Symbol('basic_rnn_cell/BiasAdd:0::dim_0')
-    ba_1 = sympy.Symbol('basic_rnn_cell/BiasAdd_1:0::dim_0')
-    ba_2 = sympy.Symbol('basic_rnn_cell/BiasAdd_2:0::dim_0')
-    ba_3 = sympy.Symbol('basic_rnn_cell/BiasAdd_3:0::dim_0')
-    ba_4 = sympy.Symbol('basic_rnn_cell/BiasAdd_4:0::dim_0')
-    mm_0 = sympy.Symbol('basic_rnn_cell/MatMul:0::dim_0')
-    mm_1 = sympy.Symbol('basic_rnn_cell/MatMul_1:0::dim_0')
-    mm_2 = sympy.Symbol('basic_rnn_cell/MatMul_2:0::dim_0')
-    mm_3 = sympy.Symbol('basic_rnn_cell/MatMul_3:0::dim_0')
-    mm_4 = sympy.Symbol('basic_rnn_cell/MatMul_4:0::dim_0')
-    th_0 = sympy.Symbol('basic_rnn_cell/Tanh:0::dim_0')
-    th_1 = sympy.Symbol('basic_rnn_cell/Tanh_1:0::dim_0')
-    th_2 = sympy.Symbol('basic_rnn_cell/Tanh_2:0::dim_0')
-    th_3 = sympy.Symbol('basic_rnn_cell/Tanh_3:0::dim_0')
-    th_4 = sympy.Symbol('basic_rnn_cell/Tanh_4:0::dim_0')
+    ba_0 = utils.getIntSymbolFromString('basic_rnn_cell/BiasAdd:0::dim_0')
+    ba_1 = utils.getIntSymbolFromString('basic_rnn_cell/BiasAdd_1:0::dim_0')
+    ba_2 = utils.getIntSymbolFromString('basic_rnn_cell/BiasAdd_2:0::dim_0')
+    ba_3 = utils.getIntSymbolFromString('basic_rnn_cell/BiasAdd_3:0::dim_0')
+    ba_4 = utils.getIntSymbolFromString('basic_rnn_cell/BiasAdd_4:0::dim_0')
+    mm_0 = utils.getIntSymbolFromString('basic_rnn_cell/MatMul:0::dim_0')
+    mm_1 = utils.getIntSymbolFromString('basic_rnn_cell/MatMul_1:0::dim_0')
+    mm_2 = utils.getIntSymbolFromString('basic_rnn_cell/MatMul_2:0::dim_0')
+    mm_3 = utils.getIntSymbolFromString('basic_rnn_cell/MatMul_3:0::dim_0')
+    mm_4 = utils.getIntSymbolFromString('basic_rnn_cell/MatMul_4:0::dim_0')
+    th_0 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh:0::dim_0')
+    th_1 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh_1:0::dim_0')
+    th_2 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh_2:0::dim_0')
+    th_3 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh_3:0::dim_0')
+    th_4 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh_4:0::dim_0')
     correct_alg_flops = 24 * (ba_0 + ba_1 + ba_2 + ba_3 + ba_4) + \
                         2304 * (mm_0 + mm_1 + mm_2 + mm_3 + mm_4) + \
                         144 * (th_0 + th_1 + th_2 + th_3 + th_4) + 2305
@@ -38,7 +39,7 @@ def test_tf_static_unroll_rnn():
 
     # Now, bind tensor names in the graph and verify that the algorithmic
     # Flop counts reflect the new name bindings
-    batch_size = sympy.Symbol('batch_size')
+    batch_size = utils.getIntSymbolFromString('batch_size')
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': ['seq_length', 'batch_size', 'hidden_dim'],

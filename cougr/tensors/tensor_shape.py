@@ -1,6 +1,8 @@
 import numpy as np
 import sympy
 
+from ..api import utils
+
 
 def as_dimension(value):
     if isinstance(value, Dimension):
@@ -76,7 +78,9 @@ class Dimension(object):
 
     def setSymbolName(self, symbol_name):
         assert(isinstance(symbol_name, str))
-        self._symbol = sympy.Symbol(symbol_name)
+        # Dimensions have integer types, so specify that this symbol
+        # represents an integer
+        self._symbol = utils.getIntSymbolFromString(symbol_name)
 
     @property
     def value(self):
@@ -364,8 +368,8 @@ class TensorShape(object):
 
     def numElements(self):
         if self._dims is None:
-            # Unknown dimensionality... return '?'
-            return sympy.Symbol(self.getSymbolName('?'))
+            # Unknown dimensionality... return '?'. Type is integer
+            return utils.getIntSymbolFromString(self.getSymbolName('?'))
         num_elts = Dimension(1)
         for idx, dim in enumerate(self._dims):
             if dim.value is None:

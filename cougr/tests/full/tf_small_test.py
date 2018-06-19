@@ -1,5 +1,6 @@
 import sympy
 import cougr.frameworks.tensorflow
+from cougr.api import utils
 
 
 tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow/tf_example_graph.meta'
@@ -10,9 +11,9 @@ def test_tf_load_and_calculate():
 
     algorithmic_flops = graph.calcAlgFlops()
 
-    add_dim_0 = sympy.Symbol('add:0::dim_0')
-    matmul_dim_0 = sympy.Symbol('matmul:0::dim_0')
-    mul_dim_0 = sympy.Symbol('mul:0::dim_0')
+    add_dim_0 = utils.getIntSymbolFromString('add:0::dim_0')
+    matmul_dim_0 = utils.getIntSymbolFromString('matmul:0::dim_0')
+    mul_dim_0 = utils.getIntSymbolFromString('mul:0::dim_0')
     correct_alg_flops = 256 * add_dim_0 + \
                         65536 * matmul_dim_0 + \
                         256 * mul_dim_0 + \
@@ -27,7 +28,7 @@ def test_tf_load_and_calculate():
 
     # Now, bind tensor names in the graph and verify that the algorithmic
     # Flop counts reflect the new name bindings
-    batch_size = sympy.Symbol('batch_size')
+    batch_size = utils.getIntSymbolFromString('batch_size')
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': [batch_size, None],

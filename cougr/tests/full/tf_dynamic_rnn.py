@@ -1,5 +1,6 @@
 import sympy
 import cougr.frameworks.tensorflow
+from cougr.api import utils
 
 
 tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_dynamic_rnn/tf_graph.meta'
@@ -10,10 +11,10 @@ def test_tf_dynamic_rnn():
 
     algorithmic_flops = graph.calcAlgFlops()
 
-    rwb_iters = sympy.Symbol('rnn/while/LoopCond_block::iters')
-    ba_0 = sympy.Symbol('rnn/while/basic_rnn_cell/BiasAdd:0::dim_0')
-    mm_0 = sympy.Symbol('rnn/while/basic_rnn_cell/MatMul:0::dim_0')
-    th_0 = sympy.Symbol('rnn/while/basic_rnn_cell/Tanh:0::dim_0')
+    rwb_iters = utils.getIntSymbolFromString('rnn/while/LoopCond_block::iters')
+    ba_0 = utils.getIntSymbolFromString('rnn/while/basic_rnn_cell/BiasAdd:0::dim_0')
+    mm_0 = utils.getIntSymbolFromString('rnn/while/basic_rnn_cell/MatMul:0::dim_0')
+    th_0 = utils.getIntSymbolFromString('rnn/while/basic_rnn_cell/Tanh:0::dim_0')
     correct_alg_flops = rwb_iters * \
                         (24 * ba_0 + 2304 * mm_0 + 144 * th_0 + 5) + \
                         2305
@@ -27,7 +28,7 @@ def test_tf_dynamic_rnn():
 
     # Now, bind tensor names in the graph and verify that the algorithmic
     # Flop counts reflect the new name bindings
-    batch_size = sympy.Symbol('batch_size')
+    batch_size = utils.getIntSymbolFromString('batch_size')
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': ['batch_size', 'seq_length', 'hidden_dim'],

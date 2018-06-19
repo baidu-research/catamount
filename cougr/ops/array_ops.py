@@ -1,6 +1,7 @@
 import numpy as np
 import sympy
 from .base_op import Op
+from ..api import utils
 from ..tensors.tensor import DataType
 from ..tensors.tensor_shape import Dimension, TensorShape
 
@@ -611,8 +612,8 @@ class WhereOp(Op):
     def propagateShapes(self):
         self.debugAssert(len(self._outputs) == 1)
         if len(self._inputs) == 1:
-            first_dim = sympy.Symbol('{}::num_true'
-                                     .format(self._inputs[0].name))
+            first_dim = utils.getIntSymbolFromString('{}::num_true'
+                            .format(self._inputs[0].name))
             self._outputs[0].shape.mergeShape([first_dim, 1])
         else:
             self.debugAssert(len(self._inputs) == 2 or len(self._inputs) == 2)

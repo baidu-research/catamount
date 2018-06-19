@@ -2,6 +2,7 @@ import sympy
 
 import cougr
 from cougr.tensors.tensor_shape import Dimension
+from cougr.api import utils
 
 
 # A set of helper functions for easy Flop calculations in tests
@@ -27,10 +28,10 @@ def add_symbols(name, out_shape):
     if isinstance(out_shape, list):
         for idx, dim in enumerate(out_shape):
             sym_name = '{}::dim_{}'.format(name, idx)
-            add_symbol(sympy.Symbol(sym_name), dim)
+            add_symbol(utils.getIntSymbolFromString(sym_name), dim)
     else:
         sym_name = '{}::unk'.format(name)
-        add_symbol(sympy.Symbol(sym_name), out_shape)
+        add_symbol(utils.getIntSymbolFromString(sym_name), out_shape)
 
 def reset_symbols():
     global symbol_table

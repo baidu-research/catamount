@@ -1,7 +1,6 @@
-import sympy
-
 from .base_op import Op
 from .subgraph_op import SubgraphOp
+from ..api import utils
 
 
 class ControlBlockOp(SubgraphOp):
@@ -25,7 +24,7 @@ class ControlBlockOp(SubgraphOp):
                 .format(type(self), self.name, type(self._root_op)))
 
         loop_iter_name = '{}::iters'.format(self.name)
-        loop_iters = sympy.Symbol(loop_iter_name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
         return loop_iters * super(ControlBlockOp, self).calcAlgFlops()
 
 

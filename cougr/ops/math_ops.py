@@ -192,8 +192,8 @@ class MatMulOp(Op):
             last_dim = tensor_b.shape.getDimension(0)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
-        assert (type(inner_dim) == sympy.Symbol or \
-                type(b_in_dim) == sympy.Symbol or \
+        assert (isinstance(inner_dim, sympy.Symbol) or \
+                isinstance(b_in_dim, sympy.Symbol) or \
                 inner_dim == b_in_dim), \
                'Dimension check failed in op {} with inputs {} and {}, '\
                'and output {}'.format(self._name, self._inputs[0].shape,
@@ -221,8 +221,8 @@ class MatMulOp(Op):
             b_in_dim = tensor_b.shape.getDimension(1)
         # [_] TODO (Joel): This assert will be too strict at some point
         import sympy
-        assert (type(inner_dim) == sympy.Symbol or \
-                type(b_in_dim) == sympy.Symbol or \
+        assert (isinstance(inner_dim, sympy.Symbol) or \
+                isinstance(b_in_dim, sympy.Symbol) or \
                 inner_dim == b_in_dim), \
                'Dimension check failed in op {} with inputs {} and {}, '\
                'and output {}'.format(self._name, self._inputs[0].shape,
