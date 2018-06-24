@@ -47,15 +47,15 @@ class Graph(SubgraphOp):
         '''
         # Topologically traverse from sources to sinks. This can be a
         # flattened topological traversal from all sources to all sinks
-        for next_op in self.getTopologicalOpOrder():
-            next_op.propagateShapes()
+        for op in self.getTopologicalOpOrder():
+            op.propagateShapes()
             if warn_if_ill_defined:
-                # Check all next_op outputs to see if there are ill-defined
+                # Check all op outputs to see if there are ill-defined
                 # output shapes and warn if so:
-                for out_tensor in next_op.outputs:
+                for out_tensor in op.outputs:
                     if not out_tensor.shape.isFullySymbolic():
                         print('WARN: Op out shape ill-defined: {} {}'
-                              .format(next_op.name, next_op))
+                              .format(op.name, op))
 
     def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False):
         for name in bind_dict.keys():
