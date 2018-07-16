@@ -75,6 +75,8 @@ def pointwise(name, op_type, out_shape, in_a, in_b=None):
     out_dim_0 = '{}::dim_0'.format(name)
     out_dim_1 = '{}::dim_1'.format(name)
     flops_per_elt = 1
+    # Sigmoid and Tanh implementations perform specific number of Flops per
+    # element as specified here.
     if op_type == cougr.SigmoidOp:
         flops_per_elt = 4
     if op_type == cougr.TanhOp:
