@@ -2,6 +2,7 @@ import sympy
 
 import cougr
 
+from cougr.api import utils
 from cougr.tests.utils.helpers import *
 
 
@@ -82,6 +83,13 @@ def test_manual_graph_build():
     '''
 
     # Sizes of everything
+    batch_size_str = 'batch_size'
+    seq_length_str = 'seq_length'
+    vocab_size_str = 'vocab_size'
+    hidden_dim_str = 'hidden_dim'
+    num_layers_str = 'num_layers' # TODO: Can we make this show up in output?
+    projection_dim_str = 'projection_dim'
+
     batch_size = None
     seq_length = None
     vocab_size = None
@@ -113,8 +121,6 @@ def test_manual_graph_build():
         #     # The body
         #     lstm_seq, new_state = lstm_cell(layer_name, lstm_seq, new_state)
         lstm_seq, new_state = lstm_cell(layer_name, lstm_seq, [c_state, h_state])
-        print(lstm_seq)
-        print(new_state)
 
     # 3) Projection layer
     proj_weights = variable('projection_weights',
@@ -143,15 +149,9 @@ def test_manual_graph_build():
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
 
-    batch_size_str = 'batch_size'
-    seq_length_str = 'seq_length'
-    vocab_size_str = 'vocab_size'
-    hidden_dim_str = 'hidden_dim'
-    num_layers_str = 'num_layers' # TODO: Can we make this show up in output?
-    projection_dim_str = 'projection_dim'
     feed_dict = { 'input': [batch_size_str, vocab_size_str],
                   'projection_weights': [hidden_dim_str, projection_dim_str],
-                  'output_weights': [hidden_dim_str, vocab_size_str],
+                  'output_weights': [projection_dim_str, vocab_size_str],
                   'output_bias': [vocab_size_str] }
 
     for idx in range(num_layers):
@@ -162,6 +162,9 @@ def test_manual_graph_build():
         feed_dict['{}_h_state'.format(lstm_layer_name)] = \
             [batch_size_str, hidden_dim_str]
     graph.bindTensorShapeDimensions(feed_dict)
+
+    assert graph.isValid()
+
     print(graph.calcAlgFlops())
 
     print(graph)
