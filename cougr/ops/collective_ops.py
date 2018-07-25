@@ -1,0 +1,41 @@
+import sympy
+
+from .base_op import Op
+from ..tensors.tensor_shape import Dimension
+
+
+class AllgatherOp(Op):
+    def __init__(self, name):
+        super(AllgatherOp, self).__init__(name)
+
+    def propagateShapes(self):
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
+        # Assume that there are multiple workers contributing to this
+        # collective operation and their matrix sizes are the same as first
+        # input tensor passed in here. Create a symbol to represent the number
+        # of participating workers
+        num_workers_symbol = sympy.Symbol('{}::num_workers'.format(self.name))
+
+        # TODO (Joel): We could take another input tensor to specify the axis
+        # on which to concatenate values. For now, axis = 0
+        axis = 0
+        final_shape = []
+        for idx in range(len(self._inputs[0].shape.dims)):
+            dim = self._inputs[0].shape.getDimension(idx)
+            if idx == axis:
+                # Manipulate the dimension make the value None (it is
+                # necessarily symbolic), and set the symbol to reflect
+                # multiple workers
+                dim_val = dim.value
+                new_dim = Dimension(None)
+                new_symbol = dim.symbol * num_workers_symbol
+                new_dim.setSymbolOrName(new_symbol)
+                final_shape.append(new_dim)
+            else:
+                final_shape.append(dim)
+        self._outputs[0].shape.mergeShape(final_shape)
+
+    def calcAlgFlops(self):
+        # Allgathers are only communication and no Flops
+        return 0
