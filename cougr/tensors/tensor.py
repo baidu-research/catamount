@@ -47,6 +47,64 @@ class DataType(Enum):
     def isString(type):
         return (type == DataType.string)
 
+    def sizeof(type):
+        sizeof = { 
+                   DataType.bool: 1,
+                   DataType.int8: 1,
+                   DataType.int16: 2,
+                   DataType.int32: 4,
+                   DataType.int64: 8,
+                   DataType.uint8: 1,
+                   DataType.uint16: 2,
+                   DataType.uint32: 4,
+                   DataType.uint64: 8,
+                   DataType.float16: 2,
+                   DataType.float32: 4,
+                   DataType.float64: 8,
+                 }
+        return sizeof[type]
+
+    def numpytype(type):
+        numpytype = {
+            DataType.bool: np.bool_,
+            DataType.int8: np.int8,
+            DataType.int16: np.int16,
+            DataType.int32: np.int32,
+            DataType.int64: np.int64,
+            DataType.uint8: np.uint8,
+            DataType.uint16: np.uint16,
+            DataType.uint32: np.uint32,
+            DataType.uint64: np.uint64,
+            DataType.float16: np.float16,
+            DataType.float32: np.float32,
+            DataType.float64: np.float64,
+        }
+        return numpytype[type]
+
+    def cast(in_val, out_dtype):
+        if isinstance(in_val, np.ndarray):
+            if in_val.dtype == object:
+                print('WARN: Should cast Numpy array in_val {} to type {}'
+                      .format(in_val, out_dtype))
+                out_val = in_val
+            else:
+                out_val = in_val.astype(DataType.numpytype(out_dtype))
+        else:
+            if isinstance(in_val, sympy.Expr):
+                print('WARN: Should cast Sympy in_val {} to type {}'
+                      .format(in_val, out_dtype))
+                out_val = in_val
+            else:
+                if out_dtype == DataType.float32:
+                    out_val = float(in_val)
+                else:
+                    print('in_val: {}'.format(in_val))
+                    print('Out type: {}, Numpy: {}'
+                          .format(out_dtype, DataType.numpytype(out_dtype)))
+                    raise NotImplementedError('DataType non-Numpy cast')
+        return out_val
+
+
 class Tensor:
     def __init__(self, name, shape, dtype=DataType.float32):
         self._name = name
@@ -81,6 +139,18 @@ class Tensor:
     def value(self):
         return self._value
 
+    @property
+    def size(self):
+        if self._dtype is None:
+            # Unknown DataType: Skip
+            return 0
+        if self._dtype.isString():
+            # TODO (Joel): For now, assume strings are ignored, since they
+            # are not operated on by any compute graph ops. Maybe later, we
+            # will need to count these in the bytes...?
+            return 0
+        return DataType.sizeof(self._dtype) * self._shape.numElements()
+
     def __str__(self):
         return 'Tensor(name: {}, shape: {}, value: {})' \
                .format(self._name, self._shape, self._value)
@@ -114,9 +184,14 @@ class Tensor:
     def hasConsumers(self):
         return len(self._consumers.keys()) > 0
 
+    def removeConsumer(self, op):
+        cons_op = self._consumers.pop(op.name, None)
+        assert cons_op is None or cons_op == op
+
     def setValue(self, value):
         supported_python_types = ( bool, int, float, sympy.Symbol,
-                                   sympy.Expr, str, np.int64, np.str_ )
+                                   sympy.Expr, str, np.int64, np.int32,
+                                   np.str_ )
         np_string_types = ( 'U', 'S' )
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
             if self._shape.rank == 0:

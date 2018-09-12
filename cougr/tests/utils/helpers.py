@@ -51,13 +51,25 @@ def get_correct_alg_flops():
 
 
 # Wrappers on CouGr ops to add their symbols to the test harness symbol table
+def concat(name, out_shape, input_list, axis=0):
+    add_symbols(name, out_shape)
+    return cougr.concat(name, out_shape, input_list, axis)
+
+def constant(name, out_shape, value=None):
+    add_symbols(name, out_shape)
+    return cougr.constant(name, out_shape, value)
+
+def dynamic_stitch(name, out_shape, indices_list, data_list):
+    add_symbols(name, out_shape)
+    return cougr.dynamic_stitch(name, out_shape, indices_list, data_list)
+
+def expanddims(name, out_shape, input, axis=0):
+    add_symbols(name, out_shape)
+    return cougr.expanddims(name, out_shape, input, axis)
+
 def placeholder(name, out_shape):
     add_symbols(name, out_shape)
     return cougr.placeholder(name, out_shape)
-
-def variable(name, out_shape):
-    add_symbols(name, out_shape)
-    return cougr.variable(name, out_shape)
 
 def matmul(name, out_shape, in_a, in_b):
     add_symbols(name, out_shape)
@@ -103,14 +115,6 @@ def split(name, out_shape, input, size_splits=None, axis=0, num_split=2):
         add_symbols(out_name, out_shape)
     return cougr.split(name, out_shape, input, size_splits, axis, num_split)
 
-def concat(name, out_shape, input_list, axis=0):
+def variable(name, out_shape):
     add_symbols(name, out_shape)
-    return cougr.concat(name, out_shape, input_list, axis)
-
-def constant(name, out_shape, axes=None):
-    add_symbols(name, out_shape)
-    return cougr.constant(name, out_shape, axes)
-
-def expanddims(name, out_shape, input, axis=0):
-    add_symbols(name, out_shape)
-    return cougr.expanddims(name, out_shape, input, axis)
+    return cougr.variable(name, out_shape)

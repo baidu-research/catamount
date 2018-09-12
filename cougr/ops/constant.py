@@ -19,6 +19,18 @@ class NoOp(Op):
         # NoOps have no Flops
         return 0
 
+    def outputShapeIllDefined(self):
+        # Ignore output shape checks for ops considered "NoOp"
+        return False
+
+    def calcAlgBytes(self):
+        # Assume NoOps access no memory bytes
+        return 0
+
+    def calcAlgFootprint(self):
+        # Assume NoOps have no tensors to access
+        return 0
+
 
 class ConstantOp(Op):
     def __init__(self, name):
@@ -32,3 +44,9 @@ class ConstantOp(Op):
         # Constants have no Flops
         return 0
 
+    def calcAlgBytes(self):
+        return self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Just return the output tensor bytes
+        return self.bytesAccessOutput()

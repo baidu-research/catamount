@@ -22,6 +22,12 @@ class SubgraphOp(Op):
             self.addOp(op)
         self.findAllSourcesSinks()
 
+    def debugString(self):
+        to_return = 'In op {} of type {}:'.format(self._name, type(self))
+        for op_name in sorted(self._ops_by_name.keys()):
+            to_return += '\n Subop: {}'.format(op_name)
+        return to_return
+
     def isValid(self):
         ''' Return whether the graph is fully specified. Check whether all ops
         have output tensors, whether those tensors have valid shapes, and
@@ -30,7 +36,7 @@ class SubgraphOp(Op):
         '''
         # Check op tensor producers and consumers
         for id, op in self._ops_by_name.items():
-            assert op.parent is not None
+            self.debugAssert(op.parent is not None)
             if not op.isValid():
                 return False
         # Check sources: Two conditions make an op a source:
@@ -66,8 +72,8 @@ class SubgraphOp(Op):
         return True
 
     def addOp(self, op):
-        assert isinstance(op, Op)
-        assert op.name not in self._ops_by_name.keys()
+        self.debugAssert(isinstance(op, Op))
+        self.debugAssert(op.name not in self._ops_by_name.keys())
 
         # Add the op
         self._ops_by_name[op.name] = op
@@ -84,17 +90,27 @@ class SubgraphOp(Op):
             self._sinks[op.name] = op
 
     def addInputToOp(self, op, tensor):
-        assert op.name in self._ops_by_name.keys(), \
-            'Op not in graph: {}'.format(op.name)
+        self.debugAssert(op.name in self._ops_by_name.keys(),
+                         'Op not in graph: {}'.format(op.name))
         op.addInput(tensor)
         tensor.addConsumer(op)
         if op.name in self._sources.keys():
-            assert self._sources[op.name] == op
+            self.debugAssert(self._sources[op.name] == op)
             self._sources.pop(op.name)
         producer_op = tensor.producer
         if producer_op.name in self._sinks.keys():
-            assert self._sinks[producer_op.name] == producer_op
+            self.debugAssert(self._sinks[producer_op.name] == producer_op)
             self._sinks.pop(producer_op.name)
+
+    def removeOp(self, op):
+        # Remove op from _ops_by_name
+        self._ops_by_name.pop(op.name, None)
+        # Update sources as appropriate
+        self._sources.pop(op.name, None)
+        # Update sinks as appropriate
+        self._sinks.pop(op.name, None)
+        # Let the op disconnect itself from inputs
+        op.resetInputs()
 
     @property
     def opsByName(self):
@@ -118,6 +134,12 @@ class SubgraphOp(Op):
                 for consumer in out_tensor.consumers.values():
                     to_return.add(out_tensor)
         return list(to_return)
+
+    def outputShapeIllDefined(self):
+        # Subgraph ops are collections of other ops. Ignore whether subgraph
+        # ops have ill-defined output shapes in favor of just checking their
+        # children ops directly.
+        return False
 
     def findAllSourcesSinks(self):
         for op in self._ops_by_name.values():
@@ -159,7 +181,7 @@ class SubgraphOp(Op):
 
         topo_ordered_ops = []
         for source_op in self._sources.values():
-            assert source_op.parent == self
+            self.debugAssert(source_op.parent == self)
             topo_ordered_ops.append(source_op)
         visited_ops = set(topo_ordered_ops)
         frontier_ops = set()
@@ -170,9 +192,11 @@ class SubgraphOp(Op):
                         frontier_ops.add(op)
         while len(frontier_ops) > 0:
             next_op = frontier_ops.pop()
-            assert next_op.name in self._ops_by_name.keys()
-            assert next_op not in visited_ops, \
-                'Already visited {}!'.format(next_op.name)
+            self.debugAssert(next_op.name in self._ops_by_name.keys(),
+                             'Subgraph {}:\nOp not found! {}'.format(
+                             self.name, next_op.debugString()))
+            self.debugAssert(next_op not in visited_ops,
+                             'Already visited {}!'.format(next_op.name))
             # Check if input producers have been visited
             if next_op.canVisit(visited_ops):
                 visited_ops.add(next_op)
@@ -192,8 +216,21 @@ class SubgraphOp(Op):
                 frontier_ops.add(next_op)
         return topo_ordered_ops
 
+    def calcModelParameters(self):
+        ''' Calculate the number of model parameters for the subgraph.
+        '''
+        # Use a flattened traversal, since we only care about VariableOps
+        ops_to_execute = self.getTopologicalOpOrder()
+        total_model_params = 0
+        for op in ops_to_execute:
+            op_model_params = op.calcModelParameters()
+            # print('Op: {}, alg_flops: {}'.format(op.name, op_alg_flops))
+            total_model_params += op_model_params
+        return total_model_params
+
     # [_] TODO (Joel): Only traverse feeds to fetches and count along path
-    def calcAlgFlops(self, feed_dict=None, fetches_dict=None):
+    def calcAlgFlops(self, feed_dict=None, fetches_dict=None,
+                     verbose=False):
         ''' Calculate the algorithmic Flops for the compute graph based on
         the ops that depend on ops in the feed_dict.
         '''
@@ -203,10 +240,54 @@ class SubgraphOp(Op):
                              fetches_dict=fetches_dict, hierarchical=True)
         total_alg_flops = 0
         for op in ops_to_execute:
-            assert op.parent == self, \
-                'Incorrect parent for op {}: {}'.format(op.name, op.parent)
+            self.debugAssert(op.parent == self,
+                             'Incorrect parent for op {}: {}'
+                             .format(op.name, op.parent.name))
             op_alg_flops = op.calcAlgFlops()
-            # print('Op: {}, alg_flops: {}'.format(op.name, op_alg_flops))
+            if verbose:
+                print('alg_flops {}: {}'.format(op.name, op_alg_flops))
             total_alg_flops += op_alg_flops
         return total_alg_flops
+
+    # [_] TODO (Joel): Only traverse feeds to fetches and count along path
+    def calcAlgBytes(self, feed_dict=None, fetches_dict=None,
+                     verbose=False):
+        ''' Calculate the algorithmic memory bytes accessed for the compute
+        graph based on the ops that depend on ops in the feed_dict.
+        '''
+        # Use a hierarchical traversal and allow parents to count for their
+        # children.
+        ops_to_execute = self.getTopologicalOpOrder(feed_dict=feed_dict,
+                             fetches_dict=fetches_dict, hierarchical=True)
+        total_alg_bytes = 0
+        for op in ops_to_execute:
+            self.debugAssert(op.parent == self,
+                             'Incorrect parent for op {}: {}'
+                             .format(op.name, op.parent.name))
+            op_alg_bytes = op.calcAlgBytes()
+            if verbose:
+                print('alg_bytes {}: {}'.format(op.name, op_alg_bytes))
+            total_alg_bytes += op_alg_bytes
+        return total_alg_bytes
+
+    # [_] TODO (Joel): Only traverse feeds to fetches and count along path
+    def calcAlgFootprint(self, feed_dict=None, fetches_dict=None,
+                         verbose=False):
+        ''' Calculate the algorithmic memory footprint accessed during a
+        traversal of the compute graph.
+        '''
+        # Use a hierarchical traversal and allow parents to count for their
+        # children.
+        ops_to_execute = self.getTopologicalOpOrder(feed_dict=feed_dict,
+                             fetches_dict=fetches_dict, hierarchical=True)
+        total_alg_foot = 0
+        for op in ops_to_execute:
+            self.debugAssert(op.parent == self,
+                             'Incorrect parent for op {}: {}'
+                             .format(op.name, op.parent.name))
+            op_alg_foot = op.calcAlgFootprint()
+            if verbose:
+                print('alg_foot {}: {}'.format(op.name, op_alg_foot))
+            total_alg_foot += op_alg_foot
+        return total_alg_foot
 

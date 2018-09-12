@@ -41,6 +41,13 @@ class Graph(SubgraphOp):
         _cougr_default_graph = self
         return ctx_mgr
 
+    def getPlaceholders(self):
+        to_return = []
+        for op in self._ops_by_name.values():
+            if isinstance(op, PlaceholderOp):
+                to_return.append(op)
+        return to_return
+
     def propagateTensorShapeNames(self, warn_if_ill_defined=False):
         ''' Propagate bound tensor shape names through the network to bind
         downstream shapes.
@@ -52,10 +59,9 @@ class Graph(SubgraphOp):
             if warn_if_ill_defined:
                 # Check all op outputs to see if there are ill-defined
                 # output shapes and warn if so:
-                for out_tensor in op.outputs:
-                    if not out_tensor.shape.isFullySymbolic():
-                        print('WARN: Op out shape ill-defined: {} {}'
-                              .format(op.name, op))
+                if op.outputShapeIllDefined():
+                    print('WARN: Op out shape ill-defined: {} {}'
+                          .format(op.name, op))
 
     def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False):
         for name in bind_dict.keys():

@@ -2,6 +2,7 @@ import sympy
 
 from .base_op import Op
 from ..tensors.tensor_shape import Dimension
+from cougr.api import utils
 
 
 class AllgatherOp(Op):
@@ -15,7 +16,8 @@ class AllgatherOp(Op):
         # collective operation and their matrix sizes are the same as first
         # input tensor passed in here. Create a symbol to represent the number
         # of participating workers
-        num_workers_symbol = sympy.Symbol('{}::num_workers'.format(self.name))
+        num_workers_str = '{}::num_workers'.format(self.name)
+        num_workers_symbol = utils.getIntSymbolFromString(num_workers_str)
 
         # TODO (Joel): We could take another input tensor to specify the axis
         # on which to concatenate values. For now, axis = 0
@@ -39,3 +41,14 @@ class AllgatherOp(Op):
     def calcAlgFlops(self):
         # Allgathers are only communication and no Flops
         return 0
+
+    def calcAlgBytes(self):
+        # Allgathers read and write the whole size of the output tensor twice:
+        # Reads to forward the last chunk to the next neighbor, and writes to
+        # get the next chunk from the previous neighbor.
+        return 2 * self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+

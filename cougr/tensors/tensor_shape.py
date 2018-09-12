@@ -7,12 +7,17 @@ from ..api import utils
 def as_dimension(value):
     if isinstance(value, Dimension):
         return value
-    elif isinstance(value, int):
-        return Dimension(value)
+    elif isinstance(value, (int, np.int64)):
+        return Dimension(int(value))
     elif isinstance(value, (sympy.Symbol, sympy.Expr)):
         to_return = Dimension(None)
         to_return.setSymbolOrName(value)
         return to_return
+    elif isinstance(value, np.float64):
+        assert value.is_integer()
+        return Dimension(int(value))
+    elif value is None:
+        return Dimension(None)
     else:
         raise TypeError('Cannot convert value of type {} to Dimension'
                         .format(type(value)))
@@ -72,6 +77,9 @@ class Dimension(object):
                        self._value == symbol_or_name.value
             # Always propagate symbols
             self._symbol = symbol_or_name._symbol
+        elif symbol_or_name is None:
+            print('WARN: Trying to set symbol or name to None in {}'
+                  .format(self))
         else:
             raise TypeError('Unknown symbol type {}'
                             .format(type(symbol_or_name)))
@@ -288,8 +296,11 @@ class TensorShape(object):
         else:
             first_shape = list(self._dims)
             second_shape = list(other.dims)
+        # Extend the shorter shape list with broadcastable dimensions
+        while len(second_shape) < len(first_shape):
+            second_shape.insert(0, Dimension(1))
         # Iterate from trailing dimensions to early dimensions
-        for idx in range(len(second_shape) - 1, -1, -1):
+        for idx in range(len(first_shape) - 1, -1, -1):
             if not first_shape[idx].canBroadcastTogether(second_shape[idx]):
                 return False
         return True
@@ -317,13 +328,12 @@ class TensorShape(object):
 
     def mergeShape(self, other):
         other = as_tensor_shape(other)
-        # TODO (Joel): These checks will not work when a TensorShape
-        # is None! Fix later
-        assert self.rank == other.rank, \
+        assert self.rank is None or self.rank == other.rank, \
             'Ranks: {} != {}'.format(self, other)
-        assert self._dims is not None
         assert other.dims is not None
         # Now perform merging
+        if self.rank is None:
+            self._dims = [Dimension(None) for x in range(other.rank)]
         for idx, dim in enumerate(other.dims):
             if self._dims[idx].value is None:
                self.setDimension(idx, dim)
@@ -353,7 +363,9 @@ class TensorShape(object):
         return '{}::dim_{}'.format(self._tensor.name, dim_index)
 
     def getDimension(self, idx):
-        assert(idx < len(self._dims))
+        assert idx < len(self._dims), \
+               'Dimension {} out-of-bounds for Tensor {}' \
+               .format(idx, self._tensor)
         to_return = Dimension(self._dims[idx])
         if to_return.symbol is None:
             to_return.setSymbolName(self.getSymbolName(idx))

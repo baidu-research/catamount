@@ -6,7 +6,7 @@ class PlaceholderOp(Op):
         super(PlaceholderOp, self).__init__(name)
 
     def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol):
-        assert len(self._outputs) == 1
+        self.debugAssert(len(self._outputs) == 1)
         self._outputs[0].shape.setDimension(dim_index, dim_name_or_symbol)
 
     def propagateShapes(self):
@@ -16,3 +16,11 @@ class PlaceholderOp(Op):
     def calcAlgFlops(self):
         # Placeholders have no Flops
         return 0
+
+    def calcAlgBytes(self):
+        return self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+

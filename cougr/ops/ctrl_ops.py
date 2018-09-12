@@ -12,7 +12,7 @@ class ControlBlockOp(SubgraphOp):
     '''
     def __init__(self, name, root_op, ops_list):
         super(ControlBlockOp, self).__init__(name, ops_list)
-        assert isinstance(root_op, Op)
+        self.debugAssert(isinstance(root_op, Op))
         # The op that controls the execution of the children ops and
         # designation of the type of the control block
         self._root_op = root_op
@@ -27,22 +27,79 @@ class ControlBlockOp(SubgraphOp):
         loop_iters = utils.getIntSymbolFromString(loop_iter_name)
         return loop_iters * super(ControlBlockOp, self).calcAlgFlops()
 
+    def calcAlgBytes(self):
+        ''' Calculate the algorithmic memory bytes accessed for the compute
+        graph based on the ops that depend on ops in the feed_dict.
+        '''
+        if not isinstance(self._root_op, LoopConditionOp):
+            raise NotImplementedError(
+                ' {} has unknown _root_op type {}'
+                .format(type(self), self.name, type(self._root_op)))
+
+        # Use a hierarchical traversal and allow parents to count for their
+        # children.
+        ops_to_execute = self.getTopologicalOpOrder(hierarchical=True)
+        alg_bytes_one_iter = 0
+        enter_exit_op_bytes = 0
+        for op in ops_to_execute:
+            assert op.parent == self, \
+                'Incorrect parent for op {}: {}'.format(op.name, op.parent)
+            if isinstance(op, (EnterOp, ExitOp)):
+                enter_exit_op_bytes += op.calcAlgBytes()
+            else:
+                op_alg_bytes = op.calcAlgBytes()
+                # print('Op: {}, alg_bytes: {}'.format(op.name, op_alg_bytes))
+                alg_bytes_one_iter += op_alg_bytes
+
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
+        return loop_iters * alg_bytes_one_iter + enter_exit_op_bytes
+
+    def calcAlgFootprint(self):
+        ''' Calculate the algorithmic memory footprint to perform the compute
+        graph computation.
+        '''
+        if not isinstance(self._root_op, LoopConditionOp):
+            raise NotImplementedError(
+                ' {} has unknown _root_op type {}'
+                .format(type(self), self.name, type(self._root_op)))
+
+        # Use a hierarchical traversal and allow parents to count for their
+        # children.
+        ops_to_execute = self.getTopologicalOpOrder(hierarchical=True)
+        alg_foot_one_iter = 0
+        enter_exit_op_foot = 0
+        for op in ops_to_execute:
+            assert op.parent == self, \
+                'Incorrect parent for op {}: {}'.format(op.name, op.parent)
+            if isinstance(op, (EnterOp, ExitOp)):
+                enter_exit_op_foot += op.calcAlgFootprint()
+            else:
+                op_alg_bytes = op.calcAlgFootprint()
+                # print('Op: {}, alg_bytes: {}'.format(op.name, op_alg_bytes))
+                alg_foot_one_iter += op_alg_bytes
+
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
+        return loop_iters * alg_foot_one_iter + enter_exit_op_foot
+
 
 class EnterOp(Op):
     ''' EnterOp designates the start of a control flow operation that acts
         on the input tensor to the op. The output tensor is just the input
-        tensor, but the output tensor may need to be annotated with
+        tensor. However, the output tensor will need to be annotated with
         information about the control flow path it is on. For example, for
         variables used inside dynamic loops, the tensor may need to track
-        the dynamic instance ID.
+        the dynamic instance ID. MergeOps enforce dynamic instance
+        versioning, so EnterOps do no real work.
     '''
     def __init__(self, name):
         super(EnterOp, self).__init__(name)
 
     def propagateShapes(self):
         # EnterOps should forward their inputs to their outputs
-        assert len(self._inputs) == 1
-        assert len(self._outputs) == 1
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('EnterOp propagateShapes {}'
@@ -59,6 +116,16 @@ class EnterOp(Op):
         # EnterOps perform no calculations
         return 0
 
+    def calcAlgBytes(self):
+        # EnterOps only forward the input tensor to the
+        # output, but they don't access any tensors
+        return 0
+
+    def calcAlgFootprint(self):
+        # EnterOps only forward the input tensor to the
+        # output, but they don't access any tensors
+        return 0
+
 
 class ExitOp(Op):
     ''' ExitOp designates the end of a control flow operation that acts
@@ -71,8 +138,8 @@ class ExitOp(Op):
 
     def propagateShapes(self):
         # ExitOps have no outputs to propagate to
-        assert len(self._inputs) == 1, 'Op: {}'.format(self._name)
-        assert len(self._outputs) == 1, 'Op: {}'.format(self._name)
+        self.debugAssert(len(self._inputs) == 1, 'Op: {}'.format(self._name))
+        self.debugAssert(len(self._outputs) == 1, 'Op: {}'.format(self._name))
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('ExitOp propagateShapes {}'
@@ -85,6 +152,16 @@ class ExitOp(Op):
 
     def calcAlgFlops(self):
         # ExitOps perform no calculations
+        return 0
+
+    def calcAlgBytes(self):
+        # ExitOps only forward the input tensor to the
+        # output, but they don't access any tensors
+        return 0
+
+    def calcAlgFootprint(self):
+        # ExitOps only forward the input tensor to the
+        # output, but they don't access any tensors
         return 0
 
 
@@ -102,14 +179,21 @@ class LoopConditionOp(Op):
     def propagateShapes(self):
         # LoopConditionOps forward their input to their output
         # [_] TODO (Joel): If shapes are unspecified, bind them
-        assert len(self._inputs) == 1
-        assert self._inputs[0].shape.numElements() == 1
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(self._inputs[0].shape.numElements() == 1)
         for out_tensor in self._outputs:
-            assert out_tensor.shape.numElements() == 1
+            self.debugAssert(out_tensor.shape.numElements() == 1)
 
     def calcAlgFlops(self):
         # LoopConditionOps perform no calculations
         return 0
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
 
 
 class MergeOp(Op):
@@ -141,18 +225,24 @@ class MergeOp(Op):
     def propagateShapes(self):
         # MergeOps forward their input to their output for the
         # next iteration of a loop
-        assert len(self._inputs) >= 1
-        assert len(self._outputs) == 2
+        self.debugAssert(len(self._inputs) >= 1)
+        self.debugAssert(len(self._outputs) == 2)
         # NOTE: Any of the input shapes can be unknown, so find one that is
         # known (if one does not exist, cannot propagate)
         in_shape = None
-        for in_tensor in self._inputs:
+        in_value = None
+        in_index = None
+        for idx, in_tensor in enumerate(self._inputs):
             if not in_tensor.shape.isUnknown():
                 if in_shape is not None:
                     # Verify that all input tensor can be merged
-                    assert in_tensor.shape.canBroadcastTogether(in_shape)
+                    self.debugAssert(
+                        in_tensor.shape.canBroadcastTogether(in_shape))
                 else:
                     in_shape = in_tensor.shape
+            if in_value is None and in_tensor.value is not None:
+                in_value = in_tensor.value
+                in_index = idx
         if not in_shape.isUnknown():
             if in_shape != self._outputs[0].shape:
                 raise NotImplementedError('MergeOp propagateShapes {}'
@@ -163,8 +253,23 @@ class MergeOp(Op):
                        .format(self._name)
             raise NotImplementedError(fail_str)
 
+        # If any of the inputs is ready, propagate it to the outputs
+        if in_value is not None:
+            self._outputs[0].setValue(in_value)
+            self._outputs[1].setValue(in_index)
+
     def calcAlgFlops(self):
         # MergeOps perform no calculations
+        return 0
+
+    def calcAlgBytes(self):
+        # MergeOps only forward the first ready input tensors to the
+        # output, but they don't access any tensors
+        return 0
+
+    def calcAlgFootprint(self):
+        # MergeOps only forward the first ready input tensors to the
+        # output, but they don't add any new tensors
         return 0
 
 
@@ -177,8 +282,8 @@ class NextIterationOp(Op):
     def propagateShapes(self):
         # NextIterationOps forward their input to their output for the
         # next iteration of a loop
-        assert len(self._inputs) == 1
-        assert len(self._outputs) == 1
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
                 raise NotImplementedError('NextIterationOp propagateShapes {}'
@@ -191,6 +296,16 @@ class NextIterationOp(Op):
 
     def calcAlgFlops(self):
         # NextIterationOps perform no calculations
+        return 0
+
+    def calcAlgBytes(self):
+        # NextIterationOps only copy input tensor to the output, but does
+        # not read or write tensors
+        return 0
+
+    def calcAlgFootprint(self):
+        # NextIterationOps only copy input tensor to the output, but does
+        # not read or write tensors
         return 0
 
 
@@ -208,23 +323,35 @@ class SwitchOp(Op):
         # SwitchOps have two inputs and two outputs, and they conditionally
         # propagate the first input either to the first or second output
         # depending on whether the second input is true or false, resp.
-        assert len(self._inputs) == 2
-        assert self._inputs[1].shape.isScalar()
-        assert len(self._outputs) == 2
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(self._inputs[1].shape.isScalar())
+        self.debugAssert(len(self._outputs) == 2)
         if self._inputs[0].shape.isUnknown():
-            fail_str = 'SwitchOp {} propagateShapes unknown input shape' \
-                       .format(self._name)
-            raise NotImplementedError(fail_str)
-        else:
-            if self._inputs[0].shape != self._outputs[0].shape:
-                raise NotImplementedError('SwitchOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
-            if self._inputs[0].shape != self._outputs[1].shape:
-                raise NotImplementedError('SwitchOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[1].shape.mergeShape(self._inputs[0].shape)
+            self.notImplemented('Switch propagateShapes unknown input shape')
+
+        if self._inputs[0].shape != self._outputs[0].shape:
+            self.notImplemented('SwitchOp propagateShapes output 0')
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        if self._inputs[0].value is not None:
+            self._outputs[0].setValue(self._inputs[0].value)
+
+        if self._inputs[0].shape != self._outputs[1].shape:
+            self.notImplemented('SwitchOp propagateShapes output 1')
+        self._outputs[1].shape.mergeShape(self._inputs[0].shape)
+        if self._inputs[0].value is not None:
+            self._outputs[1].setValue(self._inputs[0].value)
 
     def calcAlgFlops(self):
         # SwitchOps perform no calculations
         return 0
+
+    def calcAlgBytes(self):
+        # SwitchOps only copy the input tensor to the appropriate output,
+        # but do not read the inputs or write outputs
+        return 0
+
+    def calcAlgFootprint(self):
+        # SwitchOps only copy the input tensor to the appropriate output,
+        # but do not read the inputs or write outputs
+        return 0
+

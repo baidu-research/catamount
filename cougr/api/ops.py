@@ -1,6 +1,7 @@
 from ..graph import get_default_graph
 from ..tensors import *
 from ..ops.array_ops import *
+from ..ops.ctrl_ops import *
 from ..ops.constant import *
 from ..ops.math_ops import *
 from ..ops.placeholder import *
@@ -36,6 +37,32 @@ def concat(name, out_shape, input_list, axis=0, graph=None):
     # Finally, add the axis input tensor last (rank 0)
     axis_tensor = constant('{}:axis'.format(name), [], axis)
     graph.addInputToOp(concat_op, axis_tensor)
+    return out_tensor
+
+def dynamic_stitch(name, out_shape, indices_list=None, data_list=None,
+                   graph=None):
+    if graph is None:
+        graph = get_default_graph()
+
+    dynstitch_op = DynamicStitchOp(name)
+    out_tensor = Tensor(name, TensorShape(out_shape))
+    dynstitch_op.addOutput(out_tensor)
+    graph.addOp(dynstitch_op)
+    for input in indices_list:
+        graph.addInputToOp(dynstitch_op, input)
+    for input in data_list:
+        graph.addInputToOp(dynstitch_op, input)
+    return out_tensor
+
+def enter(name, input, graph=None):
+    if graph is None:
+        graph = get_default_graph()
+
+    enter_op = EnterOp(name)
+    out_tensor = Tensor(name, TensorShape(input.shape))
+    enter_op.addOutput(out_tensor)
+    graph.addOp(enter_op)
+    graph.addInputToOp(enter_op, input)
     return out_tensor
 
 def expanddims(name, out_shape, input, axis=0, graph=None):

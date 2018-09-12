@@ -22,7 +22,8 @@ class Op:
         raise NotImplementedError('{}\n{}'.format(string, self.debugString()))
 
     def debugAssert(self, condition, message=''):
-        assert condition, '{}\n{}'.format(message, self.debugString())
+        if not condition:
+            raise AssertionError('{}\n{}'.format(message, self.debugString()))
 
     def isValid(self):
         for in_tensor in self._inputs:
@@ -55,6 +56,12 @@ class Op:
         assert(isinstance(tensor, Tensor))
         self._inputs.append(tensor)
 
+    def resetInputs(self):
+        # For each input tensor, remove op from consumers list
+        for in_tensor in self._inputs:
+            in_tensor.removeConsumer(self)
+        self._inputs = []
+
     def addOutput(self, tensor):
         assert(isinstance(tensor, Tensor))
         self._outputs.append(tensor)
@@ -76,29 +83,27 @@ class Op:
         return True
 
     def propagateShapes(self):
-        print('Crashing in op {} propagateShapes...'.format(self._name))
-        for idx, input in enumerate(self._inputs):
-            print('In tensor[{}] name {}, shape {}, value {}'.format(idx,
-                  input.name, input.shape, input.value))
-        for idx, output in enumerate(self._outputs):
-            print('Out tensor[{}] name {}, shape {}, value {}'.format(idx,
-                  output.name, output.shape, output.value))
-        raise NotImplementedError('Op propagateShapes not implemented!',
-                                  type(self))
+        self.notImplemented('Op propagateShapes not implemented! {}'
+                            .format(type(self)))
+
+    def calcModelParameters(self):
+        # Only VariableOps will have parameters (their output tensors), so by
+        # default, assume there are no parameters in an Op.
+        return 0
 
     def calcAlgFlops(self):
-        raise NotImplementedError('Op calcAlgFlops not implemented!',
-                                  type(self))
+        self.notImplemented('Op calcAlgFlops not implemented! {}'
+                            .format(type(self)))
 
     def calcAlgBytes(self):
-        raise NotImplementedError('Op calcAlgBytes not implemented!',
-                                  type(self))
+        self.notImplemented('Op calcAlgBytes not implemented! {}'
+                            .format(type(self)))
 
     def calcAlgFootprint(self):
         # NOTE: Maybe take argument for training vs. inference (to decide
         # whether or not to save activations, respectively)
-        raise NotImplementedError('Op calcAlgFootprint not implemented!',
-                                  type(self))
+        self.notImplemented('Op calcAlgFootprint not implemented! {}'
+                            .format(type(self)))
 
     @property
     def name(self):
@@ -121,3 +126,21 @@ class Op:
             children of an op.
         '''
         return self._parent
+
+    def outputShapeIllDefined(self):
+        for out_tensor in self.outputs:
+            if not out_tensor.shape.isFullySymbolic():
+                return True
+        return False
+
+    def bytesAccessInput(self):
+        total_bytes_input = 0
+        for in_tensor in self.inputs:
+            total_bytes_input += in_tensor.size
+        return total_bytes_input
+
+    def bytesAccessOutput(self):
+        total_bytes_output = 0
+        for out_tensor in self.outputs:
+            total_bytes_output += out_tensor.size
+        return total_bytes_output

@@ -2,8 +2,19 @@ import os
 import struct
 import tensorflow as tf
 
-# To import graphs that use TF contrib libraries...
-import tensorflow.contrib.mpi_collectives as mpi
+
+# To import graphs that use various TF sublibraries...
+try:
+    import tensorflow.contrib.mpi_collectives as mpi
+except Exception as exc:
+    print('WARN: Cannot import tensorflow.contrib.mpi_collectives...' \
+          ' not built?')
+
+try:
+    import tensorswift as ts
+except Exception as exc:
+    print('WARN: Cannot import tensorswift... not installed?')
+
 from tensorflow.core.framework import types_pb2
 
 import cougr
@@ -15,31 +26,54 @@ from cougr.tensors.tensor import *
 
 TF_OP_TO_COUGR = {
     'Add': AddOp,
+    'AddN': AddNOp,
+    'All': ReduceOp,
+    'ArgMax': ReduceOp,
+    'Any': ReduceOp,
     'Assign': AssignOp,
     'AssignAdd': AddOp, # Here, TF reuses the input tensor for output
     'AssignSub': SubOp, # Here, TF reuses the input tensor for output
     'BiasAdd': AddOp, # Here, TF special-case for 1D bias input
+    'BiasAddGrad': ReduceOp, # Here, TF special-case to backprop bias
+    'BroadcastGradientArgs': BroadcastGradientArgsOp,
     'Cast': CastOp,
     'ConcatV2': ConcatOp,
+    'ConcatOffset': ConcatOffsetOp,
     'Const': ConstantOp,
+    'ControlTrigger': NoOp, # Ops added for synchronization only
+    'Conv2DBackpropFilter': Conv2DGradFilterOp,
+    'Conv2DBackpropInput': Conv2DGradInputOp,
     'Conv2D': Conv2DOp,
+    'DynamicStitch': DynamicStitchOp,
     'Enter': EnterOp,
+    'Equal': EqualOp,
     'Exit': ExitOp,
     'Exp': ExpOp,
     'ExpandDims': ExpandDimsOp,
     'Fill': FillOp,
-    'FloorDiv': BasePointwiseOp,
-    'FloorMod': BasePointwiseOp,
+    'FloorDiv': FloorDivOp,
+    'FloorMod': FloorModOp,
+    'FusedBatchNorm': FusedBatchNormOp,
+    'FusedBatchNormGrad': FusedBatchNormGradOp,
     'Gather': GatherOp,
+    'Greater': GreaterOp,
     'GreaterEqual': GreaterEqualOp,
     'Identity': IdentityOp,
+    'InTopKV2': InTopKOp,
     'InvertPermutation': InvertPermutationOp,
     'Less': LessOp,
+    'ListDiff': ListDiffOp,
+    'Log': LogOp,
     'LogicalAnd': LogicalAndOp,
+    'LogicalOr': LogicalOrOp,
     'LogicalNot': LogicalNotOp,
     'LoopCond': LoopConditionOp,
     'MatMul': MatMulOp,
+    'Max': ReduceOp,
     'Maximum': MaximumOp,
+    'MaxPool': MaxPoolOp,
+    'MaxPoolGrad': MaxPoolGradOp,
+    'Min': ReduceOp,
     'Mean': ReduceOp,
     'Merge': MergeOp,
     'Minimum': MinimumOp,
@@ -49,28 +83,40 @@ TF_OP_TO_COUGR = {
     # tf.contrib.mpi_collectives.MPISize behaves like a placeholder
     'MPISize': PlaceholderOp,
     'Mul': MulOp,
+    'Multinomial': MultinomialOp,
     'Neg': NegOp,
     'NextIteration': NextIterationOp,
     'NoOp': NoOp, # Ignore no-ops
     'NotEqual': NotEqualOp,
+    'OneHot': OneHotOp,
     'OnesLike': NumLikeOp,
-    'Pack': StackOp,
+    'Pack': PackOp,
     'Placeholder': PlaceholderOp,
+    'PreventGradient': PreventGradientOp,
     'Prod': ReduceOp,
     'Pow': PowOp,
     'RandomUniform': RandomInitializerOp,
     'Range': RangeOp,
+    'Rank': RankOp,
     'RealDiv': BasePointwiseOp,
     'Relu': ReluOp,
+    'ReluGrad': ReluGradOp,
     'Reduce': ReduceOp,
+    'RefEnter': EnterOp,
     'Reshape': ReshapeOp,
     'RestoreV2': NoOp, # Ignore Restore ops
+    'ReverseSequence': ReverseSequenceOp,
     'Rsqrt': RsqrtOp,
     'SaveV2': NoOp, # Ignore Saver ops
     'Scatter': ScatterOp,
+    'Select': SelectOp,
     'Shape': ShapeOp,
+    'ShapeN': ShapeOp, # ShapeOp takes multiple inputs like TF ShapeN
+    'Slice': SliceOp,
     'Sigmoid': SigmoidOp,
+    'SigmoidGrad': SigmoidGradOp,
     'Size': SizeOp,
+    'Softmax': SoftmaxOp,
     'SparseSoftmaxCrossEntropyWithLogits': SparseSoftmaxCrossEntropyWithLogitsOp,
     'Split': SplitOp,
     'SplitV': SplitOp,
@@ -79,109 +125,81 @@ TF_OP_TO_COUGR = {
     'Sub': SubOp,
     'Sum': ReduceOp,
     'Squeeze': SqueezeOp,
+    'StopGradient': StopGradientOp,
     'Switch': SwitchOp,
     'Tanh': TanhOp,
+    'TanhGrad': TanhGradOp,
     'TensorArrayV3': TensorArrayOp,
     'Tile': TileOp,
     'Transpose': TransposeOp,
+    'Unpack': UnpackOp,
     'VariableV2': VariableOp,
     'Where': WhereOp,
     'ZerosLike': NumLikeOp,
 }
 
 # TODO (Joel): Prioritize these ops:
-# BroadcastGradientArgs
-# TensorArrayGatherV3
-# TensorArrayGradV3
-# TensorArrayReadV3
-# TensorArrayScatterV3
-# TensorArraySizeV3
-# TensorArrayWriteV3
+# -- CharLMs and WorLMs (LAST OP!)
+# UnsortedSegmentSum
+# -- NMT
+# GatherV2
+# -- Speech
+# -- Others
 # MPIAllreduce
 # ScatterSub
 # AddN
 
-# TODO (Joel): Add these for all networks of interest!
-# All
+# TODO (Joel): These are required for accurate counts, but we can hack
+# TensorArrayGatherV3 # Same shape output as TensorArray input
+# TensorArrayGradV3
+# TensorArrayReadV3 # Same shape output as TensorArray input sliced on first dim
+# TensorArrayScatterV3
+# TensorArraySizeV3 # Input 1: Dim0 of tensor input to TensorArray
+# TensorArrayWriteV3
+# QueueDequeueV2
+# QueueEnqueueV2
+# Stack
+# StackPop
+# StackPopV2 # Same shape output as StackPush input
+# StackPush
+# StackPushV2
+# StackV2
+
+# TODO (Joel): Low priority. Counts are accurate without
 # ApplyGradientDescent
 # ApplyMomentum
-# ArgMax
 # Assert
 # BatchMatMul
-# BiasAddGrad
-# ConcatOffset
-# ControlTrigger
-# Conv2DBackpropFilter
-# Conv2DBackpropInput
-# DynamicStitch
-# Equal
 # FIFOQueueV2
 # FilterDataset
 # Floor
-# FusedBatchNorm
-# FusedBatchNormGrad
-# GatherV2
-# Greater
 # GroupByWindowDataset
 # HashTableV2
 # InitializeTableFromTextFileV2
-# InTopK
 # Iterator
 # IteratorGetNext
 # IteratorToStringHandle
 # L2Loss
-# ListDiff
 # Log
-# LogicalOr
 # LookupTableFindV2
 # MakeIterator
 # MapDataset
-# Max
-# MaxPool
-# MaxPoolGrad
 # MergeSummary
-# Min
-# Multinomial
-# OneHot
 # Pad
 # ParallelMapDataset
 # PrefetchDataset
-# PreventGradient
 # QueueCloseV2
-# QueueDequeueV2
-# QueueEnqueueV2
 # QueueSizeV2
 # RandomStandardNormal
 # RangeDataset
-# Rank
-# RefEnter
-# ReluGrad
-# ReverseSequence
 # Round
 # ScalarSummary
-# Select
-# ShapeN
 # ShuffleDataset
-# SigmoidGrad
-# Size
 # SkipDataset
-# Slice
-# Softmax
-# Split
 # Squeeze
-# Stack
-# StackPop
-# StackPopV2
-# StackPush
-# StackPushV2
-# StackV2
 # Stage
-# StopGradient
-# TanhGrad
 # TextLineDataset
 # TruncatedNormal
-# Unpack
-# UnsortedSegmentSum
 # Unstage
 # ZipDataset
 
@@ -204,9 +222,8 @@ def tf_shape_to_cougr(tf_shape):
     return TensorShape(dims)
 
 def load_tf_session(tf_filename):
-    if '.meta' not in tf_filename or not os.path.exists(tf_filename):
-        raise FileNotFoundError('ERROR: Invalid file {}. Must be .meta file'
-            .format(tf_filename))
+    if not os.path.exists(tf_filename):
+        raise FileNotFoundError('{}'.format(tf_filename))
     saver = tf.train.import_meta_graph(tf_filename)
     sess = tf.Session()
     try:
@@ -324,15 +341,32 @@ def get_transpose_attributes_from_op(tf_sess, tf_op, op):
     if tf_op.get_attr('transpose_b'):
         op.setTransposeInput(1, True)
 
-def get_slice_op_attributes_from_op(tf_sess, tf_op, op):
+def get_slice_attributes_from_op(tf_sess, tf_op, op):
     op.setBeginMask(tf_op.get_attr('begin_mask'))
     op.setEllipsisMask(tf_op.get_attr('ellipsis_mask'))
     op.setEndMask(tf_op.get_attr('end_mask'))
     op.setNewAxisMask(tf_op.get_attr('new_axis_mask'))
     op.setShrinkAxisMask(tf_op.get_attr('shrink_axis_mask'))
 
-def get_split_op_attributes_from_op(tf_sess, tf_op, op):
+def get_split_attributes_from_op(tf_sess, tf_op, op):
     op.setNumSplit(tf_op.get_attr('num_split'))
+
+def get_conv_attributes_from_op(tf_sess, tf_op, op):
+    op.setDataFormat(tf_op.get_attr('data_format').decode('utf-8'))
+    op.setStrides(tf_op.get_attr('strides'))
+    if isinstance(op, (Conv2DOp, Conv2DGradInputOp)):
+        op.setDilations(tf_op.get_attr('dilations'))
+
+def get_batch_norm_attributes_from_op(tf_sess, tf_op, op):
+    op.setDataFormat(tf_op.get_attr('data_format').decode('utf-8'))
+
+def get_pool_attributes_from_op(tf_sess, tf_op, op):
+    op.setDataFormat(tf_op.get_attr('data_format').decode('utf-8'))
+    op.setKSize(tf_op.get_attr('ksize'))
+    op.setStrides(tf_op.get_attr('strides'))
+
+def get_axis_attribute_from_op(tf_sess, tf_op, op):
+    op.setAxis(tf_op.get_attr('axis'))
 
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
@@ -349,10 +383,23 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
 
     elif isinstance(op, StridedSliceOp):
         # StridedSliceOps can have mask attributes
-        get_slice_op_attributes_from_op(tf_sess, tf_op, op)
+        get_slice_attributes_from_op(tf_sess, tf_op, op)
 
     elif isinstance(op, SplitOp):
-        get_split_op_attributes_from_op(tf_sess, tf_op, op)
+        get_split_attributes_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, (Conv2DOp, Conv2DGradFilterOp,
+                         Conv2DGradInputOp)):
+        get_conv_attributes_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, (FusedBatchNormOp, FusedBatchNormGradOp)):
+        get_batch_norm_attributes_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, PoolBaseOp):
+        get_pool_attributes_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, (PackOp, UnpackOp)):
+        get_axis_attribute_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)
@@ -374,6 +421,8 @@ def construct_cougr_graph(tf_sess, tf_graph):
         op = cougr_type(tf_op.name)
 
         if cougr_type == ReduceOp:
+            if tf_op.name == 'BiasAddGrad':
+                op.setAxes(0)
             print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
 
         # Create the output tensors for this op

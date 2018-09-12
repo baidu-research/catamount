@@ -7,6 +7,12 @@ class UnknownOp(Op):
     def __init__(self, name):
         super(UnknownOp, self).__init__(name)
 
+    def checkAndWarn(self):
+        if not UnknownOp._warned_once:
+            print('WARN: Graph contains unknown ops. Assuming 0 Flops, ' \
+                  '0 bytes accessed, 0 memory footprint for all unknown!')
+            UnknownOp._warned_once = True
+
     def propagateShapes(self):
         if not UnknownOp._warned_once:
             print('WARN: Graph contains unknown ops. ' \
@@ -14,8 +20,13 @@ class UnknownOp(Op):
             UnknownOp._warned_once = True
 
     def calcAlgFlops(self):
-        if not UnknownOp._warned_once:
-            print('WARN: Graph contains unknown ops. ' \
-                  'Assuming 0 Flops for all unknown!')
-            UnknownOp._warned_once = True
+        self.checkAndWarn()
+        return 0
+
+    def calcAlgBytes(self):
+        self.checkAndWarn()
+        return 0
+
+    def calcAlgFootprint(self):
+        self.checkAndWarn()
         return 0
