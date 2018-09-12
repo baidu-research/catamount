@@ -48,20 +48,45 @@ class Graph(SubgraphOp):
                 to_return.append(op)
         return to_return
 
-    def propagateTensorShapeNames(self, warn_if_ill_defined=False):
+    def propagateTensorShapeNames(self, warn_if_ill_defined=False,
+                                  verbose=False):
+
         ''' Propagate bound tensor shape names through the network to bind
         downstream shapes.
         '''
         # Topologically traverse from sources to sinks. This can be a
         # flattened topological traversal from all sources to all sinks
+        value_to_symbol_table = {}
+        symbol_to_value_table = {}
         for op in self.getTopologicalOpOrder():
+            if verbose:
+                print('Before prop: {}'.format(op.debugString()))
             op.propagateShapes()
+            if verbose:
+                print('After prop: {}'.format(op.debugString()))
+
             if warn_if_ill_defined:
                 # Check all op outputs to see if there are ill-defined
                 # output shapes and warn if so:
                 if op.outputShapeIllDefined():
                     print('WARN: Op out shape ill-defined: {} {}'
                           .format(op.name, op))
+            for out_tensor in op.outputs:
+                if out_tensor.shape.dims is None:
+                    continue
+                for dim in out_tensor.shape.dims:
+                    if dim._value is not None and dim._symbol is not None:
+                        if dim._value not in value_to_symbol_table:
+                            value_to_symbol_table[dim._value] = set()
+                        value_to_symbol_table[dim._value].add(dim._symbol)
+                        if dim._symbol not in symbol_to_value_table:
+                            symbol_to_value_table[dim._symbol] = set()
+                        symbol_to_value_table[dim._symbol].add(dim._value)
+        if verbose:
+            print('Propagate Tensor Shape Symbols Complete')
+            print('  Value to symbol table: {}'.format(value_to_symbol_table))
+            print('  Symbol to value table: {}'.format(symbol_to_value_table))
+
 
     def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False):
         for name in bind_dict.keys():

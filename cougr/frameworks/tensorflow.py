@@ -24,12 +24,33 @@ from cougr.tensors.tensor import *
 
 # Tools to import Tensorflow MetaGraphs into CouGr format
 
+class TFRestoreOp(Op):
+    ''' A designated op type for Tensorflow model saver restore ops.
+        The intent of this op is to identify model saver ops that
+        should be removed from the graph before returning it to the
+        import_graph() caller.
+    '''
+    def __init__(self, name):
+        super(TFRestoreOp, self).__init__(name)
+
+class TFSaveOp(Op):
+    ''' A designated op type for Tensorflow model saver save ops.
+        The intent of this op is to identify model saver ops that
+        should be removed from the graph before returning it to the
+        import_graph() caller.
+    '''
+    def __init__(self, name):
+        super(TFSaveOp, self).__init__(name)
+
+
 TF_OP_TO_COUGR = {
     'Add': AddOp,
     'AddN': AddNOp,
     'All': ReduceOp,
     'ArgMax': ReduceOp,
     'Any': ReduceOp,
+    'ApplyGradientDescent': ApplyGradientDescentOp,
+    'ApplyMomentum': ApplyMomentumOp,
     'Assign': AssignOp,
     'AssignAdd': AddOp, # Here, TF reuses the input tensor for output
     'AssignSub': SubOp, # Here, TF reuses the input tensor for output
@@ -104,10 +125,10 @@ TF_OP_TO_COUGR = {
     'Reduce': ReduceOp,
     'RefEnter': EnterOp,
     'Reshape': ReshapeOp,
-    'RestoreV2': NoOp, # Ignore Restore ops
+    'RestoreV2': TFRestoreOp, # Identify Restore ops for removal
     'ReverseSequence': ReverseSequenceOp,
     'Rsqrt': RsqrtOp,
-    'SaveV2': NoOp, # Ignore Saver ops
+    'SaveV2': TFSaveOp, # Identify Saver ops for removal
     'Scatter': ScatterOp,
     'Select': SelectOp,
     'Shape': ShapeOp,
@@ -147,7 +168,6 @@ TF_OP_TO_COUGR = {
 # -- Others
 # MPIAllreduce
 # ScatterSub
-# AddN
 
 # TODO (Joel): These are required for accurate counts, but we can hack
 # TensorArrayGatherV3 # Same shape output as TensorArray input
@@ -166,8 +186,6 @@ TF_OP_TO_COUGR = {
 # StackV2
 
 # TODO (Joel): Low priority. Counts are accurate without
-# ApplyGradientDescent
-# ApplyMomentum
 # Assert
 # BatchMatMul
 # FIFOQueueV2
@@ -237,6 +255,9 @@ def load_tf_session(tf_filename):
 def import_graph(tf_filename):
     sess = load_tf_session(tf_filename)
     cougr_graph = construct_cougr_graph(sess, sess.graph)
+    # Clean up TF bits to avoid problems with successive graph loads
+    sess.close()
+    tf.reset_default_graph()
     return cougr_graph
 
 def try_to_read_value_from_tensor(tf_sess, tf_op):
@@ -472,6 +493,68 @@ def construct_cougr_graph(tf_sess, tf_graph):
             assert in_tensor in tensors.keys(), \
                    'Unknown input tensor {}'.format(in_tensor)
             graph.addInputToOp(op, tensors[in_tensor])
+
+    # Remove any Tensorflow model saver ops from the graph. These ops
+    # always occur as a series of 6 ops:
+    # 1) Three ConstOps that define the (A) the name of the model, (B) the
+    #    names of saved tensors, and (C) the sizes/shapes of saved tensors.
+    # 2) Save and Restore ops, which takes the above inputs 0-2
+    # 3) An AssignOp, which takes the above reference, and if appropriate,
+    #    loads tensor data from the checkpoint and assigns the ref to it.
+    # 4) A control dependency op (IdentityOp) that takes the model name
+    #    op as input and has no outputs
+    ops_to_remove = set()
+    saver_ops = []
+    model_name_ops = set()
+    for op in graph.opsByName.values():
+        if isinstance(op, (TFRestoreOp, TFSaveOp)):
+            saver_ops.append(op)
+            ops_to_remove.add(op)
+            if op.inputs[0].producer not in model_name_ops:
+                model_name_ops.add(op.inputs[0].producer)
+    for saver_op in saver_ops:
+        if isinstance(saver_op, TFRestoreOp):
+            # Get input ops and verify they are consts
+            assert len(saver_op.inputs) == 3
+            for in_tensor in saver_op.inputs:
+                const_op = in_tensor.producer
+                assert isinstance(const_op, ConstantOp)
+                ops_to_remove.add(const_op)
+            assert len(saver_op.outputs) >= 1
+            # Restore ops can package all tensors together into a single
+            # op, so need to traverse all outputs to their assign ops
+            for out_tensor in saver_op.outputs:
+                assert len(out_tensor.consumers) == 1
+                for assign_op in out_tensor.consumers.values():
+                    assert isinstance(assign_op, AssignOp)
+                    ops_to_remove.add(assign_op)
+        else:
+            assert isinstance(saver_op, TFSaveOp)
+            assert len(saver_op.inputs) >= 3
+            for idx in range(3):
+                in_tensor = saver_op.inputs[idx]
+                const_op = in_tensor.producer
+                assert isinstance(const_op, ConstantOp)
+                ops_to_remove.add(const_op)
+            assert len(saver_op.outputs) == 0
+    model_name_consumers = []
+    for model_name_op in model_name_ops:
+        assert len(model_name_op.outputs) == 1
+        model_name_consumers.extend(
+            model_name_op.outputs[0].consumers.values())
+    for saver_op in model_name_consumers:
+        if saver_op not in ops_to_remove:
+            # Only other op to catch is the control dependency op, which
+            # is an IdentityOp and has no outputs
+            assert isinstance(saver_op, IdentityOp)
+            assert len(saver_op.outputs) == 1
+            assert len(saver_op.outputs[0].consumers) == 0
+            assert '/control_dependency' in saver_op.name
+            ops_to_remove.add(saver_op)
+    for op in ops_to_remove:
+        graph.removeOp(op)
+
+    assert graph.isValid()
 
     # Traverse the graph to find subgraph ops, such as loops
     # NOTES:

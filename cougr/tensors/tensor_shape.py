@@ -11,7 +11,7 @@ def as_dimension(value):
         return Dimension(int(value))
     elif isinstance(value, (sympy.Symbol, sympy.Expr)):
         to_return = Dimension(None)
-        to_return.setSymbolOrName(value)
+        to_return.setSymbolOrName(value.simplify())
         return to_return
     elif isinstance(value, np.float64):
         assert value.is_integer()
@@ -75,8 +75,9 @@ class Dimension(object):
             else:
                 assert symbol_or_name.value is None or \
                        self._value == symbol_or_name.value
-            # Always propagate symbols
-            self._symbol = symbol_or_name._symbol
+            # Always propagate symbols unless new symbol is None
+            if symbol_or_name._symbol is not None:
+                self._symbol = symbol_or_name._symbol
         elif symbol_or_name is None:
             print('WARN: Trying to set symbol or name to None in {}'
                   .format(self))
@@ -113,12 +114,32 @@ class Dimension(object):
 
     def __iadd__(self, other):
         assert isinstance(other, Dimension)
-        if self.symbol is not None and other.symbol is not None:
-            self._symbol = self.symbol + other.symbol
+        my_new_dim = Dimension()
         if self._value is None or other._value is None:
-            self._value = None
+            # If either values is None, then cannot calculate an integer
+            # dimension, so self._value must be set to None
+            my_new_dim._value = None
         else:
-            self._value += other._value
+            my_new_dim._value = self._value + other._value
+            assert isinstance(my_new_dim._value, int)
+        if self._symbol is not None:
+            if other._symbol is not None:
+                my_new_dim._symbol = self._symbol + other._symbol
+            else:
+                assert other._value is not None
+                my_new_dim._symbol = self._symbol + other._value
+        else:
+            assert self._value is not None
+            if other._symbol is not None:
+                my_new_dim._symbol = self._value + other._symbol
+            else:
+                # Cannot set symbol, because only have values
+                pass
+        if my_new_dim._symbol is not None:
+            assert isinstance(my_new_dim._symbol, sympy.Expr)
+            my_new_dim._symbol = my_new_dim._symbol.simplify()
+        self._value = my_new_dim._value
+        self._symbol = my_new_dim._symbol
         return self
 
     def __mul__(self, other):
@@ -128,8 +149,33 @@ class Dimension(object):
             to_return._value = None
         else:
             to_return._value = self._value * other._value
-        if self.symbol is not None and other.symbol is not None:
-            to_return._symbol = self.symbol * other.symbol
+            assert isinstance(self._value, int)
+        if self._symbol is not None:
+            if other._symbol is not None:
+                to_return._symbol = self._symbol * other._symbol
+            else:
+                assert other._value is not None
+                to_return._symbol = self._symbol * other._value
+        else:
+            assert self._value is not None
+            if other._symbol is not None:
+                to_return._symbol = self._value * other._symbol
+            else:
+                # Cannot set symbol, because only have values
+                pass
+        if to_return._symbol is not None:
+            assert isinstance(to_return._symbol, sympy.Expr)
+            to_return._symbol = to_return._symbol.simplify()
+        return to_return
+
+    def __floordiv__(self, other):
+        # TODO (Joel): Loosen this as appropriate
+        assert isinstance(other, int)
+        to_return = Dimension()
+        if self._value is not None:
+            to_return._value = self._value // other
+        if self._symbol is not None:
+            to_return._symbol = (self._symbol // other).simplify()
         return to_return
 
     def canBroadcastTogether(self, other):
@@ -199,8 +245,9 @@ class TensorShape(object):
             for dim in dims:
                 assert(isinstance(dim, int) or \
                        isinstance(dim, Dimension) or \
+                       isinstance(dim, sympy.Expr) or \
                        dim is None)
-                self._dims.append(Dimension(dim))
+                self._dims.append(as_dimension(dim))
         elif isinstance(dims, TensorShape):
             self._dims = []
             for dim in dims.dims:
@@ -372,10 +419,10 @@ class TensorShape(object):
         return to_return
 
     def asList(self):
-        assert self.isFullyDefined()
+        assert not self.isUnknown()
         to_return = []
         for dim in self._dims:
-            to_return.append(dim.value)
+            to_return.append(dim.symbol)
         return to_return
 
     def numElements(self):

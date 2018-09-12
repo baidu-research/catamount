@@ -6,6 +6,7 @@ from .ctrl_ops import *
 from .init_ops import *
 from .loss_ops import *
 from .math_ops import *
+from .optimizer_ops import *
 from .placeholder import *
 from .random_ops import *
 from .subgraph_op import *

@@ -24,7 +24,9 @@ class VariableOp(Op):
         return 0
 
     def calcAlgBytes(self):
-        return self.bytesAccessOutput()
+        # Variable ops just supply a persistent tensor to other ops for
+        # consumption. They are not accessed in this op.
+        return 0
 
     def calcAlgFootprint(self):
         # Return the size of the output tensor, which must be accessed

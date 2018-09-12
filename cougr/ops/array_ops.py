@@ -69,7 +69,9 @@ class ConcatOp(Op):
         self.debugAssert(len(self._inputs) >= 2)
         self.debugAssert(self._inputs[-1].shape.rank == 0)
         axis = self._inputs[-1].value
-        self.debugAssert(axis is not None, 'Op {} axis is None'.format(self._name))
+        self.debugAssert(axis is not None,
+                         'Op {} axis is None'.format(self._name))
+
         self.debugAssert(len(self._outputs) == 1)
         out_shape_c_dim = Dimension(0)
         propagate_values = True
@@ -349,7 +351,9 @@ class GatherOp(Op):
         return 0
 
     def calcAlgBytes(self):
-        return self.bytesAccessInput() + self.bytesAccessOutput()
+        # NOTE: The data in the output is read from input[0], but the op
+        # does not read all of input[0].
+        return self._inputs[1].size + 2 * self.bytesAccessOutput()
 
     def calcAlgFootprint(self):
         # Return the size of the output tensor, which must be accessed
@@ -677,7 +681,14 @@ class ShapeOp(Op):
                 for dim_idx in range(self._inputs[idx].shape.rank):
                     # Can propagate symbols and values, so request symbols
                     dim = self._inputs[idx].shape.getDimension(dim_idx)
-                    out_value.append(dim.symbol)
+                    # Prefer to propagate symbols before values, because
+                    # symbols can be resolved back to values, but not
+                    # vice versa
+                    if dim._symbol is not None:
+                        out_val = dim._symbol
+                    else:
+                        out_val = dim._value
+                    out_value.append(out_val)
                 self._outputs[idx].setValue(out_value)
 
     def calcAlgFlops(self):

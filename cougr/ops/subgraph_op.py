@@ -118,11 +118,14 @@ class SubgraphOp(Op):
 
     @property
     def inputs(self):
-        # Collect the inputs to all sources and return
+        # Collect all source op input tensors that are produced by ops
+        # from ancestor subgraphs
         to_return = set()
         for source_op in self._sources.values():
             for in_tensor in source_op.inputs:
-                to_return.add(in_tensor)
+                # Inputs are only those tensors produced by ops in my parent
+                if in_tensor.producer.parent == self.parent:
+                    to_return.add(in_tensor)
         return list(to_return)
 
     @property
@@ -180,51 +183,102 @@ class SubgraphOp(Op):
                 'Implement getTopologicalOpOrder to take fetches')
 
         topo_ordered_ops = []
+        op_inputs_visited = {}
+        frontier_ops = set()
+        visited_ops = set()
+        # Prime the frontier with source ops
+        # TODO (Joel): Could set frontier equal to feed_dict?
         for source_op in self._sources.values():
             self.debugAssert(source_op.parent == self)
-            topo_ordered_ops.append(source_op)
-        visited_ops = set(topo_ordered_ops)
-        frontier_ops = set()
-        for op in topo_ordered_ops:
-            for out_tensor in op.outputs:
-                for op in out_tensor.consumers.values():
-                    if op not in visited_ops:
-                        frontier_ops.add(op)
+            self.debugAssert(source_op not in op_inputs_visited)
+            op_inputs_visited[source_op] = set()
+            for in_tensor in source_op.inputs:
+                self.debugAssert(self.parent is not None)
+                # If the producer op is not from this subgraph, it needs
+                # to be visited in order to prime the subgraph
+                if in_tensor.producer.parent != self:
+                    op_inputs_visited[source_op].add(in_tensor.producer)
+                    visited_ops.add(in_tensor.producer)
+            if source_op.canVisit(op_inputs_visited[source_op]):
+                frontier_ops.add(source_op)
+        # Continually visit frontier ops until none left
         while len(frontier_ops) > 0:
             next_op = frontier_ops.pop()
-            self.debugAssert(next_op.name in self._ops_by_name.keys(),
-                             'Subgraph {}:\nOp not found! {}'.format(
-                             self.name, next_op.debugString()))
-            self.debugAssert(next_op not in visited_ops,
-                             'Already visited {}!'.format(next_op.name))
-            # Check if input producers have been visited
-            if next_op.canVisit(visited_ops):
-                visited_ops.add(next_op)
-                for out_tensor in next_op.outputs:
-                    for op in out_tensor.consumers.values():
-                        if op.name in self._ops_by_name.keys():
-                            if op not in visited_ops:
-                                frontier_ops.add(op)
-                            # Also get any first-level subgraphs
-                            if op.parent != self and op.parent.parent == self:
-                                if op.parent not in visited_ops:
-                                    frontier_ops.add(op.parent)
-                if not hierarchical or next_op.parent == self:
-                    topo_ordered_ops.append(next_op)
-            else:
-                # Put the op back on the end of the frontier to check later
-                frontier_ops.add(next_op)
+            self.debugAssert(next_op.canVisit(visited_ops),
+                             'Next op {} cannot visit. Visited: {}'
+                             .format(next_op.name, visited_ops))
+            if not hierarchical or next_op.parent == self:
+                topo_ordered_ops.append(next_op)
+            visited_ops.add(next_op)
+            for out_tensor in next_op.outputs:
+                for consumer in out_tensor.consumers.values():
+                    if consumer in visited_ops:
+                        continue
+                    if consumer not in op_inputs_visited:
+                        op_inputs_visited[consumer] = set()
+                    # To handle subgraph ops, the producer of a tensor must
+                    # be the op added to the consumer's scoreboard. Also, the
+                    # producer needs to be added to visited_ops.
+                    producer_op = next_op
+                    if next_op != out_tensor.producer:
+                        self.debugAssert(next_op, SubgraphOp)
+                        if hierarchical:
+                            producer_op = out_tensor.producer
+                            visited_ops.add(producer_op)
+                    op_inputs_visited[consumer].add(producer_op)
+                    # Check if the consumer can now be visited, and if so,
+                    # add it to the frontier
+                    if consumer.canVisit(op_inputs_visited[consumer]):
+                        if not hierarchical or consumer.parent == self:
+                            frontier_ops.add(consumer)
+                    # Also check the consumer to see if its parent subgraph
+                    # can be traversed (if parent different from self)
+                    if consumer.parent != self and \
+                       consumer.parent not in visited_ops:
+                        if consumer.parent.canVisit(visited_ops):
+                            frontier_ops.add(consumer.parent)
+        # print('Subgraph: {}'.format(self.name))
+        # print('All ops: {}'.format(len(self._ops_by_name.keys())))
+        children_ops = set()
+        for op in self._ops_by_name.values():
+            if op.parent == self:
+                children_ops.add(op)
+        # print('Children ops: {}'.format(len(children_ops)))
+        topo_set = set(topo_ordered_ops)
+        # print('Topo: {} (set: {})'.format(len(topo_ordered_ops), len(topo_set)))
+        # print('Visited: {}'.format(len(visited_ops)))
+        # print('Op ins visited: {}'.format(len(op_inputs_visited.keys())))
+        for op in self._ops_by_name.values():
+            if op not in visited_ops:
+                if not hierarchical or op.parent == self:
+                    print('  Not visited: {}'.format(op.name))
+        # Some sanity checks after traversal
+        # Subgraphs can have inputs (visited) from hierarchical parents
+        subgraph_ops = set(self._ops_by_name.values())
+        if hierarchical:
+            self.debugAssert(visited_ops.issuperset(children_ops))
+        else:
+            self.debugAssert(visited_ops == subgraph_ops)
+        self.debugAssert(visited_ops.issuperset(topo_ordered_ops))
+        topo_minus_subgraph = topo_set.difference(subgraph_ops)
+        self.debugAssert(subgraph_ops.issuperset(topo_ordered_ops),
+                         'Ops in topo not in subgraph: {}'
+                         .format([op.name for op in topo_minus_subgraph]))
         return topo_ordered_ops
 
     def calcModelParameters(self):
         ''' Calculate the number of model parameters for the subgraph.
         '''
-        # Use a flattened traversal, since we only care about VariableOps
-        ops_to_execute = self.getTopologicalOpOrder()
+        # Use an arbitrary flat traversal, since only care about VariableOps
+        ops_to_execute = self._ops_by_name.values()
         total_model_params = 0
         for op in ops_to_execute:
+            if isinstance(op, SubgraphOp):
+                # Flat traversal, so do not recurse into subgraphs
+                continue
             op_model_params = op.calcModelParameters()
-            # print('Op: {}, alg_flops: {}'.format(op.name, op_alg_flops))
+            # print('Subgraph: {}, Op: {}, Params: {}'
+            #       .format(self.name, op.name, op_model_params))
             total_model_params += op_model_params
         return total_model_params
 

@@ -77,7 +77,7 @@ class Op:
                 visited_ops: A set of ops that have been previously
                              visited in the graph
         '''
-        for in_tensor in self._inputs:
+        for in_tensor in self.inputs:
             if in_tensor.producer not in visited_ops:
                 return False
         return True

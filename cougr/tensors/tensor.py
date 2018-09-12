@@ -191,13 +191,16 @@ class Tensor:
     def setValue(self, value):
         supported_python_types = ( bool, int, float, sympy.Symbol,
                                    sympy.Expr, str, np.int64, np.int32,
-                                   np.str_ )
+                                   np.str_, np.bool_ )
         np_string_types = ( 'U', 'S' )
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
             if self._shape.rank == 0:
                 if isinstance(value, list) or isinstance(value, np.ndarray):
                     assert len(value) == 1
                     value = value[0]
+                if isinstance(value, (sympy.boolalg.BooleanTrue,
+                                      sympy.boolalg.BooleanFalse)):
+                    value = bool(value)
                 assert isinstance(value, supported_python_types), \
                     'Tensor {} setting value to {} with type {}' \
                     .format(self, value, type(value))

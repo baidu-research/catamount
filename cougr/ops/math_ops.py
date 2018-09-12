@@ -214,6 +214,17 @@ class MaximumOp(BasePointwiseOp):
     def __init__(self, name):
         super(MaximumOp, self).__init__(name)
 
+    def propagateShapes(self):
+        super(MaximumOp, self).propagateShapes()
+        self.debugAssert(len(self._inputs) == 2)
+        # TODO (Joel): Move the functor/lambda definition out to be
+        # a class member, and let BasePointwiseOp apply if not None
+        # if self._inputs[0].value is not None and \
+        #    self._inputs[1].value is not None:
+        #     vmax = np.vectorize(lambda x, y: sympy.Max(x, y))
+        #     out_val = vmax(self._inputs[0].value, self._inputs[1].value)
+        #     self._outputs[0].setValue(out_val)
+
 
 class MinimumOp(BasePointwiseOp):
     def __init__(self, name):
@@ -422,12 +433,16 @@ class Conv2DBaseOp(Op):
                                     .format(dilations))
         self._dilations = dilations
 
-    def calcConv2DFlops(self, filter_shape, output_shape):
+
+    def calcConv2DFlops(self, filter_shape, output_shape, backprop=False):
         filter_height = filter_shape.getDimension(0).symbol
         filter_width = filter_shape.getDimension(1).symbol
-        filter_in_depth = filter_shape.getDimension(2).symbol
+        if backprop:
+            filter_depth = filter_shape.getDimension(3).symbol
+        else:
+            filter_depth = filter_shape.getDimension(2).symbol
         output_size = output_shape.numElements()
-        flops = output_size * filter_in_depth * filter_height * \
+        flops = output_size * filter_depth * filter_height * \
                 filter_width * 2
         return flops
 
@@ -463,9 +478,13 @@ class Conv2DGradFilterOp(Conv2DBaseOp):
         if self._format == 'NCHW':
             in_chans = output_shape.getDimension(1).symbol
             out_chans = grads_shape.getDimension(1).symbol
+            stride_height = self._strides[2]
+            stride_width = self._strides[3]
         elif self._format == 'NHWC':
             in_chans = output_shape.getDimension(3).symbol
             out_chans = grads_shape.getDimension(3).symbol
+            stride_height = self._strides[1]
+            stride_width = self._strides[2]
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
@@ -474,8 +493,12 @@ class Conv2DGradFilterOp(Conv2DBaseOp):
         f_in_chans = filter_shape.getDimension(2).symbol
         f_out_chans = filter_shape.getDimension(3).symbol
         self.debugAssert(f_in_chans - in_chans == 0)
-        self.debugAssert(f_out_chans - out_chans == 0)
-        flops = self.calcConv2DFlops(filter_shape, output_shape)
+        self.debugAssert(f_out_chans - out_chans == 0,
+                'Conv2DGradFilter Dims differ: f_out_chans: {}, out_chans: {}'
+                .format(f_out_chans, out_chans))
+        flops = self.calcConv2DFlops(filter_shape, output_shape,
+                                     backprop=True)
+        flops /= (stride_height * stride_width)
         return flops
 
 
@@ -493,16 +516,26 @@ class Conv2DGradInputOp(Conv2DBaseOp):
         filter_shape = self._inputs[1].shape
         in_chans = filter_shape.getDimension(2)
         if self._format == 'NCHW':
-            out_height = grads_shape.getDimension(2)
-            out_width = grads_shape.getDimension(3)
-            in_height = out_height.symbol * self._strides[2]
-            in_width = out_width.symbol * self._strides[3]
+            if self._inputs[0].value is not None:
+                # If tracked, prefer to directly pull shape from input
+                in_height = self._inputs[0].value[2]
+                in_width = self._inputs[0].value[3]
+            else:
+                out_height = grads_shape.getDimension(2)
+                out_width = grads_shape.getDimension(3)
+                in_height = out_height * self._strides[2]
+                in_width = out_width * self._strides[3]
             out_shape = [batch_size, in_chans, in_height, in_width]
         elif self._format == 'NHWC':
-            out_height = grads_shape.getDimension(1)
-            out_width = grads_shape.getDimension(2)
-            in_height = out_height.symbol * self._strides[1]
-            in_width = out_width.symbol * self._strides[2]
+            if self._inputs[0].value is not None:
+                # If tracked, prefer to directly pull shape from input
+                in_height = self._inputs[0].value[1]
+                in_width = self._inputs[0].value[2]
+            else:
+                out_height = grads_shape.getDimension(1)
+                out_width = grads_shape.getDimension(2)
+                in_height = out_height * self._strides[1]
+                in_width = out_width * self._strides[2]
             out_shape = [batch_size, in_height, in_width, in_chans]
         else:
             self.notImplemented('Unknown data format: {}'
@@ -519,9 +552,13 @@ class Conv2DGradInputOp(Conv2DBaseOp):
         if self._format == 'NCHW':
             in_chans = output_shape.getDimension(1).symbol
             out_chans = grads_shape.getDimension(1).symbol
+            stride_height = self._strides[2]
+            stride_width = self._strides[3]
         elif self._format == 'NHWC':
             in_chans = output_shape.getDimension(3).symbol
             out_chans = grads_shape.getDimension(3).symbol
+            stride_height = self._strides[1]
+            stride_width = self._strides[2]
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
@@ -532,16 +569,18 @@ class Conv2DGradInputOp(Conv2DBaseOp):
             self.debugAssert(f_in_chans - in_chans == 0,
                 'Conv2D Dims differ: f_in_chans: {}, in_chans: {}'
                 .format(f_in_chans, in_chans))
-        elif isinstance(f_in_chans, sympy.Symbol) and \
-            isinstance(in_chans, sympy.Symbol):
-            self.debugAssert(sympy.Simplify(f_in_chans - in_chans) == 0,
+        elif isinstance(f_in_chans, (sympy.Symbol, sympy.Expr)) and \
+            isinstance(in_chans, (sympy.Symbol, sympy.Expr)):
+            self.debugAssert((f_in_chans - in_chans).simplify() == 0,
                 'Conv2D Dims differ: f_in_chans: {}, in_chans: {}'
                 .format(f_in_chans, in_chans))
         else:
             print('WARN: Conv2D dimension types: f_in_chans: {}, in_chans: {}'
                   .format(f_in_chans, in_chans))
         self.debugAssert(f_out_chans - out_chans == 0)
-        flops = self.calcConv2DFlops(filter_shape, output_shape)
+        flops = self.calcConv2DFlops(filter_shape, output_shape,
+                                     backprop=True)
+        flops /= (stride_height * stride_width)
         return flops
 
 
@@ -561,14 +600,14 @@ class Conv2DOp(Conv2DBaseOp):
         if self._format == 'NCHW':
             in_height = in_shape.getDimension(2)
             in_width = in_shape.getDimension(3)
-            out_height = in_height.symbol // self._strides[2]
-            out_width = in_width.symbol // self._strides[3]
+            out_height = in_height // self._strides[2]
+            out_width = in_width // self._strides[3]
             out_shape = [batch_size, out_chans, out_height, out_width]
         elif self._format == 'NHWC':
             in_height = in_shape.getDimension(1)
             in_width = in_shape.getDimension(2)
-            out_height = in_height.symbol // self._strides[1]
-            out_width = in_width.symbol // self._strides[2]
+            out_height = in_height // self._strides[1]
+            out_width = in_width // self._strides[2]
             out_shape = [batch_size, out_height, out_width, out_chans]
         else:
             self.notImplemented('Unknown data format: {}'
@@ -721,18 +760,19 @@ class MaxPoolOp(PoolBaseOp):
 
         in_shape = self._inputs[0].shape
         batch_size = in_shape.getDimension(0)
-        out_chans = in_shape.getDimension(1)
         if self._format == 'NCHW':
+            out_chans = in_shape.getDimension(1)
             in_height = in_shape.getDimension(2)
             in_width = in_shape.getDimension(3)
-            out_height = in_height.symbol // self._strides[2]
-            out_width = in_width.symbol // self._strides[3]
+            out_height = in_height // self._strides[2]
+            out_width = in_width // self._strides[3]
             out_shape = [batch_size, out_chans, out_height, out_width]
         elif self._format == 'NHWC':
+            out_chans = in_shape.getDimension(3)
             in_height = in_shape.getDimension(1)
             in_width = in_shape.getDimension(2)
-            out_height = in_height.symbol // self._strides[1]
-            out_width = in_width.symbol // self._strides[2]
+            out_height = in_height // self._strides[1]
+            out_width = in_width // self._strides[2]
             out_shape = [batch_size, out_height, out_width, out_chans]
         else:
             self.notImplemented('Unknown data format: {}'
