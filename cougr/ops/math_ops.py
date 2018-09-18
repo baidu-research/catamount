@@ -23,7 +23,7 @@ class BasePointwiseOp(Op):
         super(BasePointwiseOp, self).__init__(name)
         self._flops_per_element = 1
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         assert len(self._outputs) == 1
         if len(self._inputs) == 1:
             # Unary operator!
@@ -45,7 +45,8 @@ class BasePointwiseOp(Op):
 
         # Set the output dimensions
         if not final_shape.isUnknown():
-            self._outputs[0].shape.mergeShape(final_shape)
+            self._outputs[0].shape.mergeShape(final_shape,
+                                              make_symbolic=make_symbolic)
 
     def flopsPointwise(self):
         self.debugAssert(len(self._outputs) == 1)
@@ -67,8 +68,8 @@ class AddOp(BasePointwiseOp):
     def __init__(self, name):
         super(AddOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(AddOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(AddOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None:
@@ -80,7 +81,7 @@ class AddNOp(Op):
     def __init__(self, name):
         super(AddNOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._outputs) == 1)
         in_shape = None
         for in_tensor in self._inputs:
@@ -91,7 +92,8 @@ class AddNOp(Op):
                 if not in_tensor.shape.isUnknown():
                     self.debugAssert(in_shape == in_tensor.shape)
         if in_shape is not None:
-            self._outputs[0].shape.mergeShape(in_shape)
+            self._outputs[0].shape.mergeShape(in_shape,
+                                              make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._outputs) == 1)
@@ -126,8 +128,8 @@ class FloorDivOp(BasePointwiseOp):
     def __init__(self, name):
         super(FloorDivOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(FloorDivOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(FloorDivOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None:
@@ -139,11 +141,12 @@ class FloorModOp(BasePointwiseOp):
     def __init__(self, name):
         super(FloorModOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(FloorModOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(FloorModOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None:
+            self.debugAssert(self._outputs[0].shape.isFullyNumeric())
             self._outputs[0].setValue(np.mod(self._inputs[0].value,
                                              self._inputs[1].value))
 
@@ -157,8 +160,8 @@ class GreaterEqualOp(BasePointwiseOp):
     def __init__(self, name):
         super(GreaterEqualOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(GreaterEqualOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(GreaterEqualOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is None or \
            self._inputs[1].value is None:
@@ -173,8 +176,8 @@ class LessOp(BasePointwiseOp):
     def __init__(self, name):
         super(LessOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(LessOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(LessOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is None or \
            self._inputs[1].value is None:
@@ -214,8 +217,8 @@ class MaximumOp(BasePointwiseOp):
     def __init__(self, name):
         super(MaximumOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(MaximumOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(MaximumOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         # TODO (Joel): Move the functor/lambda definition out to be
         # a class member, and let BasePointwiseOp apply if not None
@@ -235,8 +238,8 @@ class MulOp(BasePointwiseOp):
     def __init__(self, name):
         super(MulOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(MulOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(MulOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None:
@@ -294,7 +297,7 @@ class SigmoidGradOp(Op):
     def __init__(self, name):
         super(SigmoidGradOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
         in_shape = None
@@ -305,7 +308,8 @@ class SigmoidGradOp(Op):
                 in_shape = self._inputs[1].shape
             else:
                 self.debugAssert(in_shape == self._inputs[1].shape)
-        self._outputs[0].shape.mergeShape(in_shape)
+        self._outputs[0].shape.mergeShape(in_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -342,8 +346,8 @@ class SubOp(BasePointwiseOp):
     def __init__(self, name):
         super(SubOp, self).__init__(name)
 
-    def propagateShapes(self):
-        super(SubOp, self).propagateShapes()
+    def propagateShapes(self, make_symbolic=False):
+        super(SubOp, self).propagateShapes(make_symbolic=make_symbolic)
         self.debugAssert(len(self._inputs) == 2)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None:
@@ -370,7 +374,7 @@ class TanhGradOp(Op):
     def __init__(self, name):
         super(TanhGradOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
         in_shape = None
@@ -381,7 +385,8 @@ class TanhGradOp(Op):
                 in_shape = self._inputs[1].shape
             else:
                 self.debugAssert(in_shape == self._inputs[1].shape)
-        self._outputs[0].shape.mergeShape(in_shape)
+        self._outputs[0].shape.mergeShape(in_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -458,14 +463,15 @@ class Conv2DGradFilterOp(Conv2DBaseOp):
     def __init__(self, name):
         super(Conv2DGradFilterOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         self.debugAssert(self._strides is not None)
 
         self.debugAssert(self._inputs[1].value is not None)
         filter_shape = self._inputs[1].value.tolist()
-        self._outputs[0].shape.mergeShape(filter_shape)
+        self._outputs[0].shape.mergeShape(filter_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -492,7 +498,9 @@ class Conv2DGradFilterOp(Conv2DBaseOp):
         filter_shape = self._outputs[0].shape
         f_in_chans = filter_shape.getDimension(2).symbol
         f_out_chans = filter_shape.getDimension(3).symbol
-        self.debugAssert(f_in_chans - in_chans == 0)
+        self.debugAssert(f_in_chans - in_chans == 0,
+                'Conv2DGradFilter Dims differ: f_in_chans: {}, in_chans: {}'
+                .format(f_in_chans, in_chans))
         self.debugAssert(f_out_chans - out_chans == 0,
                 'Conv2DGradFilter Dims differ: f_out_chans: {}, out_chans: {}'
                 .format(f_out_chans, out_chans))
@@ -506,7 +514,7 @@ class Conv2DGradInputOp(Conv2DBaseOp):
     def __init__(self, name):
         super(Conv2DGradInputOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         self.debugAssert(self._strides is not None)
@@ -540,7 +548,8 @@ class Conv2DGradInputOp(Conv2DBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape)
+        self._outputs[0].shape.mergeShape(out_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -588,7 +597,7 @@ class Conv2DOp(Conv2DBaseOp):
     def __init__(self, name):
         super(Conv2DOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
         self.debugAssert(self._strides is not None)
@@ -612,7 +621,8 @@ class Conv2DOp(Conv2DBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape)
+        self._outputs[0].shape.mergeShape(out_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -649,7 +659,7 @@ class MatMulOp(Op):
             assert input_idx == 0 or input_idx == 1, \
                 'Unknown input index {}'.format(input_idx)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Verify that shapes can be correctly resolved
         assert len(self._inputs) == 2
         tensor_a = self._inputs[0]
@@ -679,7 +689,8 @@ class MatMulOp(Op):
         if self._transpose_c:
             raise NotImplementedError('Handle transposed output')
         tensor_c = self._outputs[0]
-        tensor_c.shape.mergeShape([first_dim, last_dim])
+        tensor_c.shape.mergeShape([first_dim, last_dim],
+                                  make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Get matrix inner dimension
@@ -754,7 +765,7 @@ class MaxPoolOp(PoolBaseOp):
     def __init__(self, name):
         super(MaxPoolOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
 
@@ -777,7 +788,8 @@ class MaxPoolOp(PoolBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape)
+        self._outputs[0].shape.mergeShape(out_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1)
@@ -798,13 +810,14 @@ class MaxPoolGradOp(PoolBaseOp):
     def __init__(self, name):
         super(MaxPoolGradOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
 
         # Simply propagate the input 0 (x) shape to the output, since
         # output is the gradient with respect to x
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -823,7 +836,7 @@ class RangeOp(Op):
     def __init__(self, name):
         super(RangeOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         start = self._inputs[0].value
@@ -840,7 +853,8 @@ class RangeOp(Op):
             limit = as_int(limit)
             delta = as_int(delta)
             num_elts = (limit - start + delta - 1) // delta
-            self._outputs[0].shape.mergeShape([num_elts])
+            self._outputs[0].shape.mergeShape([num_elts],
+                                              make_symbolic=make_symbolic)
         else:
             self.notImplemented('RangeOp other data type {}'
                                 .format(self._outputs[0].dtype))
@@ -879,7 +893,9 @@ class ReduceOp(Op):
             axes = [axes]
         self._axes = axes
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
+        if self.name == 'tower0/gradients/tower0/linear/BiasAdd_grad/BiasAddGrad':
+            print('Before: {}'.format(self.debugString()))
         # First input is always the tensor to be reduced, and the optional
         # second tensor describes the dimensions to be reduced.
         self.debugAssert(len(self._inputs) == 1 or len(self._inputs) == 2)
@@ -890,19 +906,22 @@ class ReduceOp(Op):
             axes = self._inputs[1].value
         else:
             axes = self._axes
+        out_shape = []
         if axes is not None:
             if isinstance(axes, int):
                 axes = [axes]
             for idx in range(len(axes)):
                 if axes[idx] < 0:
                     axes[idx] += self._inputs[0].shape.rank
-            out_shape = []
             for dim_index in range(self._inputs[0].shape.rank):
                 if dim_index not in axes:
                     dim = self._inputs[0].shape.getDimension(dim_index)
                     out_shape.append(dim)
-            self._outputs[0].shape.mergeShape(out_shape)
+            self._outputs[0].shape.mergeShape(out_shape,
+                                              make_symbolic=make_symbolic)
             # TODO (Joel): Also calculate value? Depends on the reduction_op!
+        if self.name == 'tower0/gradients/tower0/linear/BiasAdd_grad/BiasAddGrad':
+            print('After: {}\n  out_shape: {}, axes: {}'.format(self.debugString(), out_shape, self._axes))
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1 or len(self._inputs) == 2,
@@ -927,7 +946,7 @@ class SelectOp(Op):
     def __init__(self, name):
         super(SelectOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         # Second and third inputs must be the same size
@@ -941,7 +960,8 @@ class SelectOp(Op):
                 in_shape = self._inputs[2].shape
         # Output is same shape as inputs
         if in_shape is not None:
-            self._outputs[0].shape.mergeShape(in_shape)
+            self._outputs[0].shape.mergeShape(in_shape,
+                                              make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -968,10 +988,11 @@ class SoftmaxOp(Op):
     def __init__(self, name):
         super(SoftmaxOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1)

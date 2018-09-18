@@ -5,7 +5,7 @@ class TensorArrayOp(Op):
     def __init__(self, name):
         super(TensorArrayOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # TODO (Joel): Propagate shapes for TensorArrayOp
         pass
 

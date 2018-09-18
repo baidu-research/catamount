@@ -61,7 +61,7 @@ class Dimension(object):
             to_return = '{} "{}"'.format(to_return, self._symbol)
         return 'Dimension({})'.format(to_return)
 
-    def setSymbolOrName(self, symbol_or_name):
+    def setSymbolOrName(self, symbol_or_name, make_symbolic=False):
         if isinstance(symbol_or_name, str):
             self.setSymbolName(symbol_or_name)
         elif isinstance(symbol_or_name, int):
@@ -84,6 +84,13 @@ class Dimension(object):
         else:
             raise TypeError('Unknown symbol type {}'
                             .format(type(symbol_or_name)))
+
+        if make_symbolic:
+            # When using symbolic-only propagation, clear values for
+            # dimensions that have a valid symbolic value
+            if self._symbol is not None and self._value is not None:
+                assert isinstance(self._symbol, sympy.Expr)
+                self._value = None
 
     def setSymbolName(self, symbol_name):
         assert(isinstance(symbol_name, str))
@@ -297,7 +304,7 @@ class TensorShape(object):
             return False
         return len(self._dims) == 0
 
-    def isFullyDefined(self):
+    def isFullyNumeric(self):
         # Return whether the shape has all dimension values set
         if self._dims is None:
             return False
@@ -373,7 +380,7 @@ class TensorShape(object):
         # print('Bcast: {} x {} => {}'.format(self, other, bcast_shape))
         return bcast_shape
 
-    def mergeShape(self, other):
+    def mergeShape(self, other, make_symbolic=False):
         other = as_tensor_shape(other)
         assert self.rank is None or self.rank == other.rank, \
             'Ranks: {} != {}'.format(self, other)
@@ -383,18 +390,29 @@ class TensorShape(object):
             self._dims = [Dimension(None) for x in range(other.rank)]
         for idx, dim in enumerate(other.dims):
             if self._dims[idx].value is None:
-               self.setDimension(idx, dim)
+               self.setDimension(idx, dim, make_symbolic=make_symbolic)
             else:
                assert self._dims[idx] == dim, \
                    'Dimension mismatch in Tensor {}: self[{}] {}, other {}' \
                    .format(self._tensor, idx, self._dims[idx], dim)
                if self._dims[idx]._symbol is None:
-                   self.setDimension(idx, dim)
+                   self.setDimension(idx, dim, make_symbolic=make_symbolic)
 
     def associateTensor(self, tensor):
         self._tensor = tensor
 
-    def setDimension(self, dim_index, dim_symbol_or_name):
+    def setDimension(self, dim_index, dim_symbol_or_name,
+                     make_symbolic=False):
+        ''' Set the TensorShape's specified dimension (dim_index) to the
+            specified symbol or name.
+
+            Args:
+              dim_index (int): The dimension index to change
+              dim_symbol_or_name: The int, string, or symbol to change the
+                  dimension to. Different types are resolved appropriately
+              make_symbolic (bool): Whether to clear the value of the
+                  dimension if the symbol is specified.
+        '''
         if self._dims is None:
             # Assume that the caller has right to extend dimensions
             print('WARN: Adding dimensions to None TensorShape')
@@ -402,7 +420,8 @@ class TensorShape(object):
         assert len(self._dims) > dim_index, \
             'Trying to set dim {} outside bounds {} to {}' \
             .format(dim_index, len(self._dims), dim_symbol_or_name)
-        self._dims[dim_index].setSymbolOrName(dim_symbol_or_name)
+        self._dims[dim_index].setSymbolOrName(dim_symbol_or_name,
+                                              make_symbolic=make_symbolic)
 
     def getSymbolName(self, dim_index):
         assert self._tensor is not None

@@ -11,7 +11,7 @@ class MultinomialOp(Op):
     def __init__(self, name):
         super(MultinomialOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
 
@@ -26,7 +26,8 @@ class MultinomialOp(Op):
         out_shape = []
         out_shape.append(self._inputs[0].shape.getDimension(0))
         out_shape.append(num_samples)
-        self._outputs[0].shape.mergeShape(out_shape)
+        self._outputs[0].shape.mergeShape(out_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)

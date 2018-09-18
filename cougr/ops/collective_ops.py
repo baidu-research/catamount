@@ -9,7 +9,7 @@ class AllgatherOp(Op):
     def __init__(self, name):
         super(AllgatherOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
         # Assume that there are multiple workers contributing to this
@@ -36,7 +36,8 @@ class AllgatherOp(Op):
                 final_shape.append(new_dim)
             else:
                 final_shape.append(dim)
-        self._outputs[0].shape.mergeShape(final_shape)
+        self._outputs[0].shape.mergeShape(final_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Allgathers are only communication and no Flops

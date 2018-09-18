@@ -6,6 +6,11 @@ def getIntSymbolFromString(sym_name):
     # Integer symbols should specify explicitly (e.g., Dimensions)
     return sympy.Symbol(sym_name, integer=True)
 
+def getPositiveIntSymbolFromString(sym_name):
+    assert isinstance(sym_name, str)
+    # Integer symbols should specify explicitly (e.g., Dimensions)
+    return sympy.Symbol(sym_name, integer=True, positive=True)
+
 def getSymbolicMaximum(expr_0, expr_1, symbol_subs=None):
     if symbol_subs is not None:
         if isinstance(expr_0, sympy.Expr):

@@ -6,11 +6,13 @@ class VariableOp(Op):
     def __init__(self, name):
         super(VariableOp, self).__init__(name)
 
-    def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol):
+    def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol,
+                                 make_symbolic=False):
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.setDimension(dim_index, dim_name_or_symbol)
+        self._outputs[0].shape.setDimension(dim_index, dim_name_or_symbol,
+                                            make_symbolic)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Variables have no inputs to propagate
         self.debugAssert(len(self._inputs) == 0)
 
@@ -37,7 +39,7 @@ class AssignOp(Op):
     def __init__(self, name):
         super(AssignOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Assign must propagate input size to output size
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 1)
@@ -66,12 +68,16 @@ class CastOp(Op):
     def __init__(self, name):
         super(CastOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Output is same shape as input, propagate if necessary
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
+            # TODO: Loosen this or clear the values if required
+            #       (MAYBE IN setValue?!)
+            self.debugAssert(self._outputs[0].shape.isFullyNumeric())
             out_val = DataType.cast(self._inputs[0].value,
                                     self._outputs[0].dtype)
             self._outputs[0].setValue(out_val)

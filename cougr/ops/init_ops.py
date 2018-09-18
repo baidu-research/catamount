@@ -5,14 +5,15 @@ class IdentityOp(Op):
     def __init__(self, name):
         super(IdentityOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Identity must propagate input size to output size
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         self.debugAssert(self._inputs[0].shape.isUnknown() or
                          self._inputs[0].shape == self._outputs[0].shape)
         if not self._inputs[0].shape.isUnknown():
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                              make_symbolic=make_symbolic)
 
         if self._inputs[0].value is not None:
             self._outputs[0].setValue(self._inputs[0].value)
@@ -48,9 +49,9 @@ class RandomInitializerOp(Op):
     def __init__(self, name):
         super(RandomInitializerOp, self).__init__(name)
 
-    def propagateShapes(self):
-        # Intializers have no inputs to propagate
-        pass
+    def propagateShapes(self, make_symbolic=False):
+        # Intializers have input[0] as shape to propagate
+        self.debugAssert(len(self._inputs) == 1)
 
     def calcAlgFlops(self):
         # Intializers have no Flops

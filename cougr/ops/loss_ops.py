@@ -5,7 +5,7 @@ class InTopKOp(Op):
     def __init__(self, name):
         super(InTopKOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         pred_shape = self._inputs[0].shape
@@ -13,7 +13,8 @@ class InTopKOp(Op):
         target_shape = self._inputs[1].shape
         target_batch = target_shape.getDimension(0)
         self.debugAssert(pred_batch.symbol - target_batch.symbol == 0)
-        self._outputs[0].shape.mergeShape(target_shape)
+        self._outputs[0].shape.mergeShape(target_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -33,7 +34,7 @@ class SparseSoftmaxCrossEntropyWithLogitsOp(Op):
     def __init__(self, name):
         super(SparseSoftmaxCrossEntropyWithLogitsOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
         self.debugAssert(len(self._outputs) == 2)
 
@@ -44,8 +45,10 @@ class SparseSoftmaxCrossEntropyWithLogitsOp(Op):
         in_0_batch_dim = in_0_shape.getDimension(0)
         in_1_batch_dim = in_1_shape.getDimension(0)
         self.debugAssert(in_0_batch_dim == in_1_batch_dim)
-        self._outputs[0].shape.mergeShape([in_0_batch_dim])
-        self._outputs[1].shape.mergeShape(in_0_shape)
+        self._outputs[0].shape.mergeShape([in_0_batch_dim],
+                                          make_symbolic=make_symbolic)
+        self._outputs[1].shape.mergeShape(in_0_shape,
+                                          make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)

@@ -11,7 +11,7 @@ class NoOp(Op):
     def __init__(self, name):
         super(NoOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # NoOps should be ignored when propagating shapes
         pass
 
@@ -36,7 +36,7 @@ class ConstantOp(Op):
     def __init__(self, name):
         super(ConstantOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Constants must have outputs fully specified. Nothing to propagate
         pass
 

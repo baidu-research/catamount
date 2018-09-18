@@ -82,7 +82,12 @@ class Op:
                 return False
         return True
 
-    def propagateShapes(self):
+    def bindTensorShapeDimension(self, dim_index, dim_name_or_symbol,
+                                 make_symbolic=False):
+        self.notImplemented('BaseOp bindTensorShapeDim not implemented!\n' \
+                            '  Consider only binding Placeholder or Variable')
+
+    def propagateShapes(self, make_symbolic=False):
         self.notImplemented('Op propagateShapes not implemented! {}'
                             .format(type(self)))
 

@@ -13,11 +13,10 @@ class UnknownOp(Op):
                   '0 bytes accessed, 0 memory footprint for all unknown!')
             UnknownOp._warned_once = True
 
-    def propagateShapes(self):
-        if not UnknownOp._warned_once:
-            print('WARN: Graph contains unknown ops. ' \
-                  'Not sure how to propagate shapes!')
-            UnknownOp._warned_once = True
+    def propagateShapes(self, make_symbolic=False):
+        self.checkAndWarn()
+        # Here, ignore make_symbolic: UnknownOps do not propagate input shapes
+        # to output shapes, so the outputs should not need to be made symbolic
 
     def calcAlgFlops(self):
         self.checkAndWarn()

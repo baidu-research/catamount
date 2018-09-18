@@ -166,7 +166,7 @@ class SubgraphOp(Op):
                 if is_sink:
                     self._sinks[op.name] = op
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # Propagating shapes is a flattened operation, so subgraphs
         # do not need to do any work for them
         pass

@@ -96,19 +96,20 @@ class EnterOp(Op):
     def __init__(self, name):
         super(EnterOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # EnterOps should forward their inputs to their outputs
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
-                raise NotImplementedError('EnterOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+                self.notImplemented('EnterOp propagateShapes {}'
+                                    .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                              make_symbolic=make_symbolic)
         else:
-            fail_str = 'EnterOp {} propagateShapes unknown input shape' \
-                       .format(self._name)
-            raise NotImplementedError(fail_str)
+            self.notImplemented(
+                'EnterOp {} propagateShapes unknown input shape'
+                .format(self._name))
         if self._inputs[0].value is not None:
             self._outputs[0].setValue(self._inputs[0].value)
 
@@ -136,19 +137,20 @@ class ExitOp(Op):
     def __init__(self, name):
         super(ExitOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # ExitOps have no outputs to propagate to
         self.debugAssert(len(self._inputs) == 1, 'Op: {}'.format(self._name))
         self.debugAssert(len(self._outputs) == 1, 'Op: {}'.format(self._name))
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
-                raise NotImplementedError('ExitOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+                self.notImplemented('ExitOp propagateShapes {}'
+                                    .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                              make_symbolic=make_symbolic)
         else:
-            fail_str = 'ExitOp {} propagateShapes unknown input shape' \
-                       .format(self._name)
-            raise NotImplementedError(fail_str)
+            self.notImplemented(
+                'ExitOp {} propagateShapes unknown input shape'
+                .format(self._name))
 
     def calcAlgFlops(self):
         # ExitOps perform no calculations
@@ -176,7 +178,7 @@ class LoopConditionOp(Op):
     def isControlOp(self):
         return True
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # LoopConditionOps forward their input to their output
         # [_] TODO (Joel): If shapes are unspecified, bind them
         self.debugAssert(len(self._inputs) == 1)
@@ -222,7 +224,7 @@ class MergeOp(Op):
         # If at least one input tensor is ready, then can visit
         return len(ready_in_tensors) > 0
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # MergeOps forward their input to their output for the
         # next iteration of a loop
         self.debugAssert(len(self._inputs) >= 1)
@@ -245,13 +247,14 @@ class MergeOp(Op):
                 in_index = idx
         if not in_shape.isUnknown():
             if in_shape != self._outputs[0].shape:
-                raise NotImplementedError('MergeOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[0].shape.mergeShape(in_shape)
+                self.notImplemented('MergeOp propagateShapes {}'
+                                    .format(self._name))
+            self._outputs[0].shape.mergeShape(in_shape,
+                                              make_symbolic=make_symbolic)
         else:
-            fail_str = 'MergeOp {} propagateShapes unknown input shape' \
-                       .format(self._name)
-            raise NotImplementedError(fail_str)
+            self.notImplemented(
+                'MergeOp {} propagateShapes unknown input shape'
+                .format(self._name))
 
         # If any of the inputs is ready, propagate it to the outputs
         if in_value is not None:
@@ -279,20 +282,20 @@ class NextIterationOp(Op):
     def __init__(self, name):
         super(NextIterationOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # NextIterationOps forward their input to their output for the
         # next iteration of a loop
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         if not self._inputs[0].shape.isUnknown():
             if self._inputs[0].shape != self._outputs[0].shape:
-                raise NotImplementedError('NextIterationOp propagateShapes {}'
-                                          .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+                self.notImplemented('NextIterationOp propagateShapes {}'
+                                    .format(self._name))
+            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                              make_symbolic=make_symbolic)
         else:
-            fail_str = 'NextIterationOp {} propagateShapes unknown input '\
-                       ' shape'.format(self._name)
-            raise NotImplementedError(fail_str)
+            self.notImplemented('NextIterationOp {} propagateShapes unknown ' \
+                       'input shape'.format(self._name))
 
     def calcAlgFlops(self):
         # NextIterationOps perform no calculations
@@ -319,7 +322,7 @@ class SwitchOp(Op):
     def __init__(self, name):
         super(SwitchOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         # SwitchOps have two inputs and two outputs, and they conditionally
         # propagate the first input either to the first or second output
         # depending on whether the second input is true or false, resp.
@@ -331,13 +334,15 @@ class SwitchOp(Op):
 
         if self._inputs[0].shape != self._outputs[0].shape:
             self.notImplemented('SwitchOp propagateShapes output 0')
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
             self._outputs[0].setValue(self._inputs[0].value)
 
         if self._inputs[0].shape != self._outputs[1].shape:
             self.notImplemented('SwitchOp propagateShapes output 1')
-        self._outputs[1].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[1].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
             self._outputs[1].setValue(self._inputs[0].value)
 

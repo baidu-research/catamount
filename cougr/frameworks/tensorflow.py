@@ -77,6 +77,8 @@ TF_OP_TO_COUGR = {
     'FusedBatchNorm': FusedBatchNormOp,
     'FusedBatchNormGrad': FusedBatchNormGradOp,
     'Gather': GatherOp,
+    # Same as TF Gather, but adds additional input[2] = axis of gather
+    'GatherV2': GatherOp,
     'Greater': GreaterOp,
     'GreaterEqual': GreaterEqualOp,
     'Identity': IdentityOp,
@@ -160,14 +162,14 @@ TF_OP_TO_COUGR = {
 }
 
 # TODO (Joel): Prioritize these ops:
-# -- CharLMs and WorLMs (LAST OP!)
+# -- CharLM, NMT, and WordLM
+# ScatterSub
+# MPIAllreduce
 # UnsortedSegmentSum
 # -- NMT
-# GatherV2
+# Implement ReduceOp value prop: Prod, Sum, All, Min, Max, ArgMax, BiasAddGrad???
 # -- Speech
 # -- Others
-# MPIAllreduce
-# ScatterSub
 
 # TODO (Joel): These are required for accurate counts, but we can hack
 # TensorArrayGatherV3 # Same shape output as TensorArray input
@@ -442,7 +444,7 @@ def construct_cougr_graph(tf_sess, tf_graph):
         op = cougr_type(tf_op.name)
 
         if cougr_type == ReduceOp:
-            if tf_op.name == 'BiasAddGrad':
+            if tf_op.type == 'BiasAddGrad':
                 op.setAxes(0)
             print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
 

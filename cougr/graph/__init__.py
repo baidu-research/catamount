@@ -49,10 +49,18 @@ class Graph(SubgraphOp):
         return to_return
 
     def propagateTensorShapeNames(self, warn_if_ill_defined=False,
-                                  verbose=False):
+                                  make_symbolic=False, verbose=False):
 
         ''' Propagate bound tensor shape names through the network to bind
-        downstream shapes.
+            downstream shapes.
+
+            Args:
+              warn_if_ill_defined (bool): Whether to warn the user if a tensor
+                  shape is ill-defined (no value or symbol) after propagation
+              make_symbolic (bool): Whether to clear a tensor's dimension
+                  values (ints) if it has a valid symbolic representation.
+              verbose (bool): Whether to print debugging information about the
+                  propagation process
         '''
         # Topologically traverse from sources to sinks. This can be a
         # flattened topological traversal from all sources to all sinks
@@ -61,7 +69,7 @@ class Graph(SubgraphOp):
         for op in self.getTopologicalOpOrder():
             if verbose:
                 print('Before prop: {}'.format(op.debugString()))
-            op.propagateShapes()
+            op.propagateShapes(make_symbolic=make_symbolic)
             if verbose:
                 print('After prop: {}'.format(op.debugString()))
 
@@ -88,16 +96,36 @@ class Graph(SubgraphOp):
             print('  Symbol to value table: {}'.format(symbol_to_value_table))
 
 
-    def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False):
+    def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False,
+                                  make_symbolic=False):
+        ''' Bind the tensor dimensions as defined in the bind_dict, and then
+            propagate those dimensions through the graph.
+
+            Args:
+              bind_dict: A dictionary of tensor_name -> dimension to bind.
+                  Dimensions can be integers, strings (which will be converted
+                  to symbols), or symbols.
+              warn_if_ill_defined (bool): Whether the propagation process
+                  should warn the user when unable to fully resolve the output
+                  tensor shapes.
+              make_symbolic (bool): Whether to make all possible dimensions
+                  symbolic during shape propagation. If so, any tensor that
+                  has shape specified symbolically but also with numeric
+                  values, the numeric values will be cleared in favor of
+                  only propagating the symbols instead.
+        '''
         for name in bind_dict.keys():
-            assert name in self._ops_by_name.keys()
+            assert name in self._ops_by_name.keys(), \
+                 'Binding error: Tensor not found: {}'.format(name)
             op = self._ops_by_name[name]
             assert type(op) == PlaceholderOp or \
                    type(op) == VariableOp
             for dim_idx, dim_name_or_symbol in enumerate(bind_dict[name]):
                 if dim_name_or_symbol is not None:
-                    op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol)
-        self.propagateTensorShapeNames(warn_if_ill_defined)
+                    op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol,
+                                                make_symbolic=make_symbolic)
+        self.propagateTensorShapeNames(warn_if_ill_defined,
+                                       make_symbolic=make_symbolic)
 
 
 # The CouGr default graph is used throughout the API

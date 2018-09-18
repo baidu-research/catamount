@@ -25,11 +25,12 @@ class FusedBatchNormOp(FusedBatchNormBaseOp):
     def __init__(self, name):
         super(FusedBatchNormOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 5)
         self.debugAssert(len(self._outputs) == 5)
         # Input 0 is the batch values and should propagate to output 0
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
         # Input 1 is the scale factor and input 2 is the offset, which
         # must have the same dimension
         scale_shape = self._inputs[1].shape
@@ -42,7 +43,8 @@ class FusedBatchNormOp(FusedBatchNormBaseOp):
         # represent the batch mean and variance for running values, and
         # batch mean and variance for the gradient
         for idx in range(1, 5):
-            self._outputs[idx].shape.mergeShape(scale_shape)
+            self._outputs[idx].shape.mergeShape(scale_shape,
+                                                make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 5)
@@ -77,7 +79,7 @@ class FusedBatchNormGradOp(FusedBatchNormBaseOp):
     def __init__(self, name):
         super(FusedBatchNormGradOp, self).__init__(name)
 
-    def propagateShapes(self):
+    def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 5)
         self.debugAssert(len(self._outputs) == 5)
         # Input 0 is the gradient values. Should match the input 1 values,
@@ -86,11 +88,14 @@ class FusedBatchNormGradOp(FusedBatchNormBaseOp):
         grad_shape = self._inputs[0].shape
         x_shape = self._inputs[1].shape
         self.debugAssert(grad_shape == x_shape)
-        self._outputs[0].shape.mergeShape(x_shape)
+        self._outputs[0].shape.mergeShape(x_shape,
+                                          make_symbolic=make_symbolic)
         # Input 2 is the input scaling factor, which should propagate shape
         # to outputs 1 and 2, the scale and offset gradients
-        self._outputs[1].shape.mergeShape(self._inputs[2].shape)
-        self._outputs[2].shape.mergeShape(self._inputs[2].shape)
+        self._outputs[1].shape.mergeShape(self._inputs[2].shape,
+                                          make_symbolic=make_symbolic)
+        self._outputs[2].shape.mergeShape(self._inputs[2].shape,
+                                          make_symbolic=make_symbolic)
         # TODO (Joel): May need to check shape of inputs 3, 4 for training
 
     def calcAlgFlops(self):
