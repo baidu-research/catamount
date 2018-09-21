@@ -53,3 +53,28 @@ class AllgatherOp(Op):
         # Return the size of the output tensor, which must be accessed
         return self.bytesAccessOutput()
 
+
+class AllreduceOp(Op):
+    def __init__(self, name):
+        super(AllreduceOp, self).__init__(name)
+        num_workers_str = '{}::num_workers'.format(self.name)
+        self._workers_symbol = utils.getIntSymbolFromString(num_workers_str)
+
+    def propagateShapes(self, make_symbolic=False):
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
+
+    def calcAlgFlops(self):
+        # Assume one Flop per data element (this is the minimum)
+        return self._inputs[0].shape.numElements()
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Must allocate a second tensor for partial sums (but could be
+        # smaller than the input, depending on workers)
+        return self.bytesAccessOutput()
+

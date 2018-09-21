@@ -72,6 +72,7 @@ TF_OP_TO_COUGR = {
     'Exp': ExpOp,
     'ExpandDims': ExpandDimsOp,
     'Fill': FillOp,
+    'Floor': FloorOp,
     'FloorDiv': FloorDivOp,
     'FloorMod': FloorModOp,
     'FusedBatchNorm': FusedBatchNormOp,
@@ -101,6 +102,7 @@ TF_OP_TO_COUGR = {
     'Merge': MergeOp,
     'Minimum': MinimumOp,
     'MPIAllgather': AllgatherOp,
+    'MPIAllreduce': AllreduceOp,
     # tf.contrib.mpi_collectives.MPIInit has no compute graph function
     'MPIInit': NoOp,
     # tf.contrib.mpi_collectives.MPISize behaves like a placeholder
@@ -119,6 +121,7 @@ TF_OP_TO_COUGR = {
     'Prod': ReduceOp,
     'Pow': PowOp,
     'RandomUniform': RandomInitializerOp,
+    'RandomStandardNormal': RandomInitializerOp,
     'Range': RangeOp,
     'Rank': RankOp,
     'RealDiv': BasePointwiseOp,
@@ -132,6 +135,7 @@ TF_OP_TO_COUGR = {
     'Rsqrt': RsqrtOp,
     'SaveV2': TFSaveOp, # Identify Saver ops for removal
     'Scatter': ScatterOp,
+    'ScatterSub': ScatterUpdateOp,
     'Select': SelectOp,
     'Shape': ShapeOp,
     'ShapeN': ShapeOp, # ShapeOp takes multiple inputs like TF ShapeN
@@ -156,18 +160,29 @@ TF_OP_TO_COUGR = {
     'Tile': TileOp,
     'Transpose': TransposeOp,
     'Unpack': UnpackOp,
+    'UnsortedSegmentSum': UnsortedSegmentSumOp,
     'VariableV2': VariableOp,
     'Where': WhereOp,
     'ZerosLike': NumLikeOp,
 }
 
+TF_OP_TO_COUGR_REDUCE = {
+    # 'All': None,
+    # 'ArgMax': None,
+    # 'Any': None,
+    'BiasAddGrad': 'sum',
+    # 'Max': ReduceOp,
+    # 'Min': ReduceOp,
+    # 'Mean': ReduceOp,
+    'Prod': 'product',
+    # 'Reduce': ReduceOp,
+    'Sum': 'sum',
+}
+
 # TODO (Joel): Prioritize these ops:
-# -- CharLM, NMT, and WordLM
-# ScatterSub
-# MPIAllreduce
-# UnsortedSegmentSum
 # -- NMT
-# Implement ReduceOp value prop: Prod, Sum, All, Min, Max, ArgMax, BiasAddGrad???
+# BatchMatMul
+# L2Loss
 # -- Speech
 # -- Others
 
@@ -189,18 +204,14 @@ TF_OP_TO_COUGR = {
 
 # TODO (Joel): Low priority. Counts are accurate without
 # Assert
-# BatchMatMul
 # FIFOQueueV2
 # FilterDataset
-# Floor
 # GroupByWindowDataset
 # HashTableV2
 # InitializeTableFromTextFileV2
 # Iterator
 # IteratorGetNext
 # IteratorToStringHandle
-# L2Loss
-# Log
 # LookupTableFindV2
 # MakeIterator
 # MapDataset
@@ -210,13 +221,11 @@ TF_OP_TO_COUGR = {
 # PrefetchDataset
 # QueueCloseV2
 # QueueSizeV2
-# RandomStandardNormal
 # RangeDataset
 # Round
 # ScalarSummary
 # ShuffleDataset
 # SkipDataset
-# Squeeze
 # Stage
 # TextLineDataset
 # TruncatedNormal
@@ -444,9 +453,18 @@ def construct_cougr_graph(tf_sess, tf_graph):
         op = cougr_type(tf_op.name)
 
         if cougr_type == ReduceOp:
+            reduce_op = None
+            if tf_op.type in TF_OP_TO_COUGR_REDUCE:
+                reduce_op = TF_OP_TO_COUGR_REDUCE[tf_op.type]
+            else:
+                print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
+            if reduce_op is not None:
+                op.setReductionOp(reduce_op)
             if tf_op.type == 'BiasAddGrad':
                 op.setAxes(0)
-            print('WARN: Reduce may set reduction op: {}'.format(tf_op.type))
+
+        if cougr_type == ScatterUpdateOp:
+            print('WARN: ScatterUpdate may set update op: {}'.format(tf_op.type))
 
         # Create the output tensors for this op
         for i in range(len(tf_op.outputs)):

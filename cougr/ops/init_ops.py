@@ -52,6 +52,10 @@ class RandomInitializerOp(Op):
     def propagateShapes(self, make_symbolic=False):
         # Intializers have input[0] as shape to propagate
         self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
+        if self._inputs[0].value is not None:
+            self._outputs[0].shape.mergeShape(self._inputs[0].value,
+                                              make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Intializers have no Flops

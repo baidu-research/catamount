@@ -1002,38 +1002,39 @@ class StridedSliceOp(Op):
 
         # Check input to output tensor shape propagation
         input_shape = self._inputs[0].shape
-        if not self._outputs[0].shape.isFullyNumeric():
-            out_dims = []
-            for idx in range(input_shape.rank):
-                if idx < len(begin):
-                    # Slice this dimension
-                    if (begin[idx] is not None or \
-                        self.isIndexSet(self._begin_mask, idx)) and \
-                       (end[idx] is not None or \
-                        self.isIndexSet(self._end_mask, idx)) and \
-                       stride[idx] is not None:
-                        if (self._begin_mask >> idx % 2) == 1:
-                            dim_begin = 0
-                        else:
-                            dim_begin = begin[idx]
-                        if (self._end_mask >> idx % 2) == 1:
-                            dim_end = input_shape.dims[idx].symbol
-                        else:
-                            dim_end = end[idx]
-                        dim_size = (dim_end - dim_begin + stride[idx] - 1)
-                        dim_size //= stride[idx]
-                        if self.isIndexSet(self._shrink_axis_mask, idx):
-                            self.debugAssert(dim_size == 1)
-                        else:
-                            out_dims.append(dim_size)
+        out_dims = []
+        for idx in range(input_shape.rank):
+            if idx < len(begin):
+                # Slice this dimension
+                if (begin[idx] is not None or \
+                    self.isIndexSet(self._begin_mask, idx)) and \
+                   (end[idx] is not None or \
+                    self.isIndexSet(self._end_mask, idx)) and \
+                   stride[idx] is not None:
+                    if self.isIndexSet(self._begin_mask, idx):
+                        dim_begin = 0
                     else:
-                        self.notImplemented('Unspecified slice config')
+                        dim_begin = begin[idx]
+                    if self.isIndexSet(self._end_mask, idx):
+                        dim_end = input_shape.dims[idx].symbol
+                    else:
+                        dim_end = end[idx]
+                    dim_size = (dim_end - dim_begin + stride[idx] - 1)
+                    dim_size //= stride[idx]
+                    if self.isIndexSet(self._shrink_axis_mask, idx):
+                        self.debugAssert(dim_size == 1)
+                    else:
+                        if dim_size == -1:
+                            dim_size += input_shape.dims[idx].value
+                        out_dims.append(dim_size)
                 else:
-                    # If the ranges to not specify these dimensions, then
-                    # the input dimension gets preserved to the output
-                    out_dims.append(self._inputs[0].shape.getDimension(idx))
-            self._outputs[0].shape.mergeShape(out_dims,
-                                              make_symbolic=make_symbolic)
+                    self.notImplemented('Unspecified slice config')
+            else:
+                # If the ranges do not specify these dimensions, then
+                # the input dimension gets preserved to the output
+                out_dims.append(self._inputs[0].shape.getDimension(idx))
+        self._outputs[0].shape.mergeShape(out_dims,
+                                          make_symbolic=make_symbolic)
 
         # Check if values can be resolved
         if not self._outputs[0].shape.isFullyNumeric() or tensor_vals is None:

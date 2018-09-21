@@ -124,6 +124,17 @@ class ExpOp(BasePointwiseOp):
         super(ExpOp, self).__init__(name)
 
 
+class FloorOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(FloorOp, self).__init__(name)
+
+    def propagateShapes(self, make_symbolic=False):
+        super(FloorOp, self).propagateShapes(make_symbolic=make_symbolic)
+        self.debugAssert(len(self._inputs) == 1)
+        if self._inputs[0].value is not None:
+            self._outputs[0].setValue(np.floor(self._inputs[0].value))
+
+
 class FloorDivOp(BasePointwiseOp):
     def __init__(self, name):
         super(FloorDivOp, self).__init__(name)
@@ -881,21 +892,32 @@ class RangeOp(Op):
 
 
 class ReduceOp(Op):
-    def __init__(self, name, reduction_op='sum', axes=None):
+
+    # Use numpy reduce ufuncs to do actual reductions
+    OpTypes = { 'sum': np.add.reduce,
+                'product': np.multiply.reduce,
+                'min': None,
+                'max': None
+              }
+
+    def __init__(self, name, reduction_op=None, axes=None):
         super(ReduceOp, self).__init__(name)
         if isinstance(axes, int):
             axes = [axes]
         self._axes = axes
         self._flops_per_element = 1
+        self._reduction_op = reduction_op
 
     def setAxes(self, axes):
         if isinstance(axes, int):
             axes = [axes]
         self._axes = axes
 
+    def setReductionOp(self, reduction_op):
+        self.debugAssert(reduction_op in self.OpTypes)
+        self._reduction_op = reduction_op
+
     def propagateShapes(self, make_symbolic=False):
-        if self.name == 'tower0/gradients/tower0/linear/BiasAdd_grad/BiasAddGrad':
-            print('Before: {}'.format(self.debugString()))
         # First input is always the tensor to be reduced, and the optional
         # second tensor describes the dimensions to be reduced.
         self.debugAssert(len(self._inputs) == 1 or len(self._inputs) == 2)
@@ -919,9 +941,13 @@ class ReduceOp(Op):
                     out_shape.append(dim)
             self._outputs[0].shape.mergeShape(out_shape,
                                               make_symbolic=make_symbolic)
-            # TODO (Joel): Also calculate value? Depends on the reduction_op!
-        if self.name == 'tower0/gradients/tower0/linear/BiasAdd_grad/BiasAddGrad':
-            print('After: {}\n  out_shape: {}, axes: {}'.format(self.debugString(), out_shape, self._axes))
+
+            if self._inputs[0].value is not None:
+                if self._reduction_op is not None:
+                    op_functor = self.OpTypes[self._reduction_op]
+                    out_val = op_functor(self._inputs[0].value,
+                                         axis=tuple(axes))
+                    self._outputs[0].setValue(out_val)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1 or len(self._inputs) == 2,
@@ -939,6 +965,42 @@ class ReduceOp(Op):
     def calcAlgFootprint(self):
         # Return the size of the output tensor, which must be accessed
         return self.bytesAccessOutput()
+
+
+class ScatterUpdateOp(Op):
+    ''' Scatter values (input[2]) associated with indices (input[1]) to
+        locations in data (input[0]) using the associated update functor.
+        NOTE: This is an update op that updates the data tensor (input[0])
+        in-place, so the output is the same tensor as the input.
+    '''
+    def __init__(self, name):
+        super(ScatterUpdateOp, self).__init__(name)
+        # TODO: Set functor if we need variable flops per operation type
+        self._functor = None
+
+    def propagateShapes(self, make_symbolic=False):
+        self.debugAssert(len(self._inputs) == 3)
+        self.debugAssert(len(self._outputs) == 1)
+        # Output is same as input[0]
+        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
+
+    def calcAlgFlops(self):
+        self.debugAssert(len(self._inputs) == 3)
+        self.debugAssert(len(self._outputs) == 1)
+        # ScatterUpdateOps have one Flop per element of input[2]
+        return self._inputs[2].shape.numElements()
+
+    def calcAlgBytes(self):
+        # Read input[1] for indices, and then read input[2] and the same
+        # amount of data from the data tensor (input[0]). Finally, write back
+        # values to the data tensor (size input[2])
+        return self._inputs[1].size + 3 * self._inputs[2].size
+
+    def calcAlgFootprint(self):
+        # This op is in-place, so it does not increase the size of the
+        # total memory footprint.
+        return 0
 
 
 class SelectOp(Op):
@@ -1015,3 +1077,37 @@ class SoftmaxOp(Op):
         # Assume intermediate exponentiated results contribute to footprint
         return self.bytesAccessInput() + self.bytesAccessOutput()
 
+
+class UnsortedSegmentSumOp(Op):
+    ''' Sum all values from data (input[0]) whose indices are specified
+        by segment IDs (input[1]). The number of segments (input[2]) must
+        be equal to the number of distinct segment IDs.
+    '''
+    def __init__(self, name):
+        super(UnsortedSegmentSumOp, self).__init__(name)
+
+    def propagateShapes(self, make_symbolic=False):
+        self.debugAssert(len(self._inputs) == 3)
+        self.debugAssert(len(self._outputs) == 1)
+        self.debugAssert(self._inputs[0].shape.rank > \
+                         self._inputs[1].shape.rank)
+        self.debugAssert(self._inputs[2].shape.rank == 0)
+
+        out_shape = [self._inputs[2].value]
+        for dim_idx in range(self._inputs[1].shape.rank,
+                             self._inputs[0].shape.rank):
+            out_shape.append(self._inputs[0].shape.getDimension(dim_idx))
+        self._outputs[0].shape.mergeShape(out_shape,
+                                          make_symbolic=make_symbolic)
+
+    def calcAlgFlops(self):
+        self.debugAssert(len(self._inputs) == 3)
+        self.debugAssert(len(self._outputs) == 1)
+        return self._inputs[0].shape.numElements()
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()

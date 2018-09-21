@@ -195,7 +195,9 @@ class Tensor:
         np_string_types = ( 'U', 'S' )
         if DataType.isNumber(self._dtype) or DataType.isString(self._dtype):
             if self._shape.rank == 0:
-                if isinstance(value, list) or isinstance(value, np.ndarray):
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                if isinstance(value, list):
                     assert len(value) == 1
                     value = value[0]
                 if isinstance(value, (sympy.boolalg.BooleanTrue,
