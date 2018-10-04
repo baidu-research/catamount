@@ -20,5 +20,13 @@ if [[ ! -z "$LOCAL_VIRTUAL_ENV" ]]; then
     echo "WARN:"
     source $LOCAL_VIRTUAL_ENV/bin/activate_and_save
 else
-    source /tools/lm-venv/py3.6.1-tf-1.5.0rc0-svail/bin/activate_and_save
+    if [ "`hostname | sed 's/.svail.baidu.com//' | grep -o svail`" == "svail" ]
+    then
+        source /tools/lm-venv/py3.6.1-tf-1.5.0rc0-svail/bin/activate_and_save
+    elif [ "`hostname | sed 's/.svail.baidu.com//' | grep -o asimov`" == "asimov" ]
+    then
+        source /tools/lm-venv/py3.6.5-tf-1.7.0-cuda-9.2-asimov/bin/activate_and_save
+    else
+        echo "ERROR: Unknown hostname (`hostname`). Unable to find virtual environment"
+    fi
 fi
