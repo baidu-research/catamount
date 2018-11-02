@@ -353,6 +353,13 @@ class SqrtOp(BasePointwiseOp):
         super(SqrtOp, self).__init__(name)
 
 
+class SqrtGradOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(SqrtGradOp, self).__init__(name)
+        # Assume multiply by 0.5 and divide by sqrt output
+        self._flops_per_element = 2
+
+
 class SubOp(BasePointwiseOp):
     def __init__(self, name):
         super(SubOp, self).__init__(name)

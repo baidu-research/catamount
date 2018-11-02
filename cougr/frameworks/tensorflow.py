@@ -148,6 +148,7 @@ TF_OP_TO_COUGR = {
     'Split': SplitOp,
     'SplitV': SplitOp,
     'Sqrt': SqrtOp,
+    'SqrtGrad': SqrtGradOp,
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
     'Sum': ReduceOp,

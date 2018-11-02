@@ -65,7 +65,7 @@ class Dimension(object):
         if isinstance(symbol_or_name, str):
             self.setSymbolName(symbol_or_name)
         elif isinstance(symbol_or_name, int):
-            self._value = symbol_or_name         
+            self._value = symbol_or_name
         elif isinstance(symbol_or_name, (sympy.Symbol, sympy.Expr)):
             self._symbol = symbol_or_name
         elif isinstance(symbol_or_name, Dimension):
@@ -302,7 +302,13 @@ class TensorShape(object):
     def isScalar(self):
         if self._dims is None:
             return False
-        return len(self._dims) == 0
+        if len(self._dims) == 0:
+            return True
+        else:
+            for dim in self._dims:
+                if dim.value != 1:
+                    return False
+            return True
 
     def isFullyNumeric(self):
         # Return whether the shape has all dimension values set
@@ -382,7 +388,8 @@ class TensorShape(object):
 
     def mergeShape(self, other, make_symbolic=False):
         other = as_tensor_shape(other)
-        assert self.rank is None or self.rank == other.rank, \
+        assert self.rank is None or self.rank == other.rank or \
+            (self.isScalar() and other.isScalar()), \
             'Ranks: {} != {}'.format(self, other)
         assert other.dims is not None
         # Now perform merging
