@@ -534,6 +534,46 @@ class NumLikeOp(Op):
         return self.bytesAccessOutput()
 
 
+class PadOp(Op):
+    def __init__(self, name):
+        super(PadOp, self).__init__(name)
+        # TODO: Need to set the configuration of the padding. Paddings can be
+        # constants, reflections across axes, or symmetric (etc.?).
+        # TODO: Write a test for this op
+
+    def propagateShapes(self, make_symbolic=False):
+        # Input 0 is the tensor to be padded, and input 1 is the padding
+        # configuration. The padding configuration is dimension [n, 2], where
+        # n is the rank of input[0], and the second dimension is how many
+        # elements to add in that dimension above and below the data.
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
+
+        in_shape = self._inputs[0].shape
+        out_shape = []
+        pad_cfg = self._inputs[1].value
+        self.debugAssert(in_shape.rank == len(pad_cfg))
+        for idx, dim in enumerate(in_shape.dims):
+            new_dim = Dimension(dim)
+            new_dim += pad_cfg[idx][0]
+            new_dim += pad_cfg[idx][1]
+            out_shape.append(new_dim)
+        self._outputs[0].shape.mergeShape(out_shape)
+
+        # TODO: Propagate values if desired
+
+    def calcAlgFlops(self):
+        # All handling here is for memory accesses to the tensors
+        return 0
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+
+
 class RankOp(Op):
     def __init__(self, name):
         super(RankOp, self).__init__(name)
@@ -574,7 +614,7 @@ class ReshapeOp(Op):
 
         num_elts = self._inputs[0].shape.numElements()
         if self._inputs[1].shape.isScalar():
-            self._outputs[0].shape.mergeShape(num_elts,
+            self._outputs[0].shape.mergeShape([num_elts],
                                               make_symbolic=make_symbolic)
         else:
             if self._inputs[1].value is None:

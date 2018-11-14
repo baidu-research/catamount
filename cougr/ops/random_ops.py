@@ -53,3 +53,52 @@ class MultinomialOp(Op):
 
     def calcAlgFootprint(self):
         return self.bytesAccessOutput()
+
+
+class CandidateSamplerOp(Op):
+    def __init__(self, name):
+        super(CandidateSamplerOp, self).__init__(name)
+        # TODO (Joel): Read these from compute graph op attributes
+        self.setNumTrue(1)
+        self.setNumSampled(None)
+        # TODO: Depending on the generator, there should be some small number
+        # of Flops per sampled element. Using (incorrect) 1 for now...
+        self._flops_per_element = 1
+
+    def setNumTrue(self, num_true):
+        self._num_true = num_true
+
+    def setNumSampled(self, num_sampled):
+        self._num_sampled = num_sampled
+
+    def propagateShapes(self, make_symbolic=False):
+        self.debugAssert(len(self._inputs) == 1)
+        # First output (output[1]) is the true expected count and has shape
+        # equal to the input tensor unless num_true attribute is changed
+        self.debugAssert(len(self._outputs) == 3)
+
+        if self._num_true != 1:
+            self.notImplemented('CandidateSamplerOp propagateShapes ' \
+                                'num_true != 1')
+        self._outputs[1].shape.mergeShape(self._inputs[0].shape,
+                                          make_symbolic=make_symbolic)
+        num_samples = None
+        if self._num_sampled is None:
+            samps_name = '{}::rand_samps'.format(self.name)
+            num_samples = utils.getIntSymbolFromString(samps_name)
+        else:
+            self.notImplemented('CandidateSamplerOp: propagateShapes '\
+                                'num_sampled != None')
+        self._outputs[0].shape.mergeShape([num_samples])
+        self._outputs[2].shape.mergeShape([num_samples])
+
+    def calcAlgFlops(self):
+        # TODO: This is a very conservative estimate that there is one Flop to
+        # generate each of the output sample values
+        return self._flops_per_element * self._outputs[1].shape.numElements()
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        return self.bytesAccessOutput()

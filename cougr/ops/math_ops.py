@@ -204,6 +204,13 @@ class LogOp(BasePointwiseOp):
         super(LogOp, self).__init__(name)
 
 
+class Log1pOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(Log1pOp, self).__init__(name)
+        # Assume 1 addition and 1 log
+        self._flops_per_element = 2
+
+
 class LogicalAndOp(BasePointwiseOp):
     def __init__(self, name):
         super(LogicalAndOp, self).__init__(name)
@@ -271,6 +278,11 @@ class NotEqualOp(BasePointwiseOp):
 class PowOp(BasePointwiseOp):
     def __init__(self, name):
         super(PowOp, self).__init__(name)
+
+
+class ReciprocalOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(ReciprocalOp, self).__init__(name)
 
 
 class ReluOp(BasePointwiseOp):
@@ -346,6 +358,11 @@ class SigmoidGradOp(Op):
     def calcAlgFootprint(self):
         # Return the size of the output tensor, which must be accessed
         return self.bytesAccessOutput()
+
+
+class SquareOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(SquareOp, self).__init__(name)
 
 
 class SqrtOp(BasePointwiseOp):

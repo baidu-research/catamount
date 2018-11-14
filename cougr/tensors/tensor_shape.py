@@ -120,7 +120,7 @@ class Dimension(object):
         return False
 
     def __iadd__(self, other):
-        assert isinstance(other, Dimension)
+        other = as_dimension(other)
         my_new_dim = Dimension()
         if self._value is None or other._value is None:
             # If either values is None, then cannot calculate an integer
@@ -389,6 +389,7 @@ class TensorShape(object):
     def mergeShape(self, other, make_symbolic=False):
         other = as_tensor_shape(other)
         assert self.rank is None or self.rank == other.rank or \
+            self.canBroadcastTogether(other) or \
             (self.isScalar() and other.isScalar()), \
             'Ranks: {} != {}'.format(self, other)
         assert other.dims is not None
