@@ -494,15 +494,15 @@ def construct_cougr_graph(tf_sess, tf_graph):
         if tf_op.type == 'Split':
             # TF Split op has different interface than CouGr. Need to add the
             # size_splits tensor to match the CouGr interface (input[1])
-            assert len(tf_op._inputs) == 2
-            op_inputs[op.name].append(tf_op._inputs[1].name)
+            assert len(tf_op.inputs) == 2
+            op_inputs[op.name].append(tf_op.inputs[1].name)
             # Signal to CouGr to use the num_split attribute by setting
             # size_splits equal to a scalar constant of value 0
             size_splits = cougr.constant('{}_size_splits'.format(op.name),
                                          out_shape=[], value=0, graph=graph)
             tensors[size_splits.name] = size_splits
             op_inputs[op.name].append(size_splits.name)
-            op_inputs[op.name].append(tf_op._inputs[0].name)
+            op_inputs[op.name].append(tf_op.inputs[0].name)
         else:
             for i in range(len(tf_op.inputs)):
                 op_inputs[op.name].append(tf_op.inputs[i].name)
