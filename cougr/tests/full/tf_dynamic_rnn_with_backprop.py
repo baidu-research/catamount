@@ -4,7 +4,7 @@ from cougr.api import utils
 from cougr.tensors.tensor_shape import TensorShape
 
 
-tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_dynamic_rnn_with_backprop/tf_graph.meta'
+tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow/rnn/output_dynamic_rnn_with_backprop/tf_graph.meta'
 
 def test_tf_dynamic_rnn():
     graph = cougr.frameworks.tensorflow.import_graph(tf_example_filename)

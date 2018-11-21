@@ -3,7 +3,7 @@ import cougr.frameworks.tensorflow
 from cougr.api import utils
 
 
-tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_simple_while/tf_graph.meta'
+tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow/rnn/output_simple_while/tf_graph.meta'
 
 def test_tf_simple_while_loop():
     graph = cougr.frameworks.tensorflow.import_graph(tf_example_filename)

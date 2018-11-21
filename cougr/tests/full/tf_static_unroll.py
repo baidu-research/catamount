@@ -3,7 +3,7 @@ import cougr.frameworks.tensorflow
 from cougr.api import utils
 
 
-tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow_rnn/output_static_unroll/tf_graph.meta'
+tf_example_filename = 'cougr/frameworks/example_graphs/tensorflow/rnn/output_static_unroll/tf_graph.meta'
 
 def test_tf_static_unroll_rnn():
     graph = cougr.frameworks.tensorflow.import_graph(tf_example_filename)
