@@ -1,4 +1,5 @@
 from .base_op import Op
+from ..api import utils
 
 
 class SubgraphOp(Op):
@@ -344,4 +345,89 @@ class SubgraphOp(Op):
                 print('alg_foot {}: {}'.format(op.name, op_alg_foot))
             total_alg_foot += op_alg_foot
         return total_alg_foot
+
+    # [_] TODO (Joel): Only traverse feeds to fetches and count along path
+    def calcMinimalFootprint(self, feed_dict=None, fetches_dict=None,
+                             verbose=False, symbol_subs=None):
+        ''' Calculate the minimal memory footprint accessed during a
+        traversal of the compute graph.
+        '''
+        max_footprint = 0
+        curr_footprint = 0
+        # A scoreboard to track the consumption of tensors during traversal
+        tensors_to_consume = {}
+        visited_ops = set()
+        max_footprint, curr_footprint = self.calcMinimalFootprintSub(
+                                            max_footprint, curr_footprint,
+                                            tensors_to_consume, visited_ops,
+                                            symbol_subs)
+        return max_footprint
+
+    def calcMinimalFootprintSub(self, max_footprint, curr_footprint,
+                                tensors_to_consume, visited_ops,
+                                symbol_subs=None):
+        # NOTE: This function is currently an approximation for subgraphs!
+        # TODO (Joel): Figure out how to pass feeds and fetches?
+        # TODO (Joel): Move this out to the loop control block op!
+        # The maximum footprint size for a subgraph is approximately equal
+        # to the maximum of the following footprints:
+        #   1) The maximum footprint while executing any single iteration
+        #   2) The maximum footprint before the start of the subgraph plus
+        #      (Number of iterations) * (Change in footprint from the
+        #      start to the end of a single iteration)
+        #   3) For If-blocks, the maximum footprint of either the True or
+        #      False paths, multipled by an indicator for whether the If
+        #      statement evaluated to True or False, respectively.
+        # print('Starting traversal: {}'.format(self.name))
+        ops_to_execute = self.getTopologicalOpOrder(hierarchical=True)
+        my_visited_ops = set()
+        for op in self._sources.values():
+            for in_tensor in op.inputs:
+                if in_tensor.producer.parent != self:
+                    assert in_tensor.producer not in self._ops_by_name.keys()
+                    my_visited_ops.add(in_tensor.producer)
+        my_max_footprint = max_footprint
+        my_curr_footprint = curr_footprint
+        for op in ops_to_execute:
+            self.debugAssert(op.canVisit(my_visited_ops),
+                             'Unable to visit op {}, visited_ops: {}'
+                             .format(op.name,
+                                     [v_op.name for v_op in my_visited_ops]))
+            self.debugAssert(op.canVisit(visited_ops),
+                             'Cannot visit {}!'.format(op.name))
+            my_max_footprint, my_curr_footprint = op.calcMinimalFootprintSub(
+                                                      my_max_footprint,
+                                                      my_curr_footprint,
+                                                      tensors_to_consume,
+                                                      visited_ops,
+                                                      symbol_subs)
+            if op.calcAlgFootprint() != 0:
+                # If the op receives some inputs from outside the subgraph,
+                # restore those inputs into the footprint to ensure that they
+                # will not incorrectly negatively impact the min footprint
+                readd_input_sizes = 0
+                for in_tensor in op.inputs:
+                    if in_tensor.producer.parent != self:
+                        readd_input_sizes += in_tensor.size
+                if readd_input_sizes != 0:
+                    my_curr_footprint += readd_input_sizes
+                    my_max_footprint = utils.getSymbolicMaximum(
+                                           my_curr_footprint,
+                                           my_max_footprint,
+                                           symbol_subs)
+            my_visited_ops.add(op)
+            if isinstance(op, SubgraphOp):
+                for out_tensor in op.outputs:
+                    my_visited_ops.add(out_tensor.producer)
+        # TODO (Joel): THIS IS THE CALCULATION FOR A LOOP SUBGRAPH. MUST
+        # MOVE TO LOOP CONDITION OP AND CHANGE THIS FUNCTION TO A
+        # NOTIMPLEMENTED ERROR
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
+        my_curr_footprint = curr_footprint + \
+                            (my_curr_footprint - curr_footprint) * loop_iters
+        my_max_footprint = utils.getSymbolicMaximum(my_max_footprint,
+                                                    my_curr_footprint,
+                                                    symbol_subs)
+        return my_max_footprint, my_curr_footprint
 

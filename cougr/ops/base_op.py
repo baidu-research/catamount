@@ -1,5 +1,5 @@
 from ..tensors.tensor import *
-
+from ..api import utils
 
 
 class Op:
@@ -110,6 +110,13 @@ class Op:
         self.notImplemented('Op calcAlgFootprint not implemented! {}'
                             .format(type(self)))
 
+    def calcMinimalFootprint(self, feed_dict=None, fetches_dict=None,
+                             verbose=False, symbol_subs=None):
+        # NOTE: Maybe take argument for training vs. inference (to decide
+        # whether or not to save activations, respectively)
+        self.notImplemented('Op calcMinimalFootprint not implemented! {}'
+                            .format(type(self)))
+
     @property
     def name(self):
         return self._name
@@ -149,3 +156,49 @@ class Op:
         for out_tensor in self.outputs:
             total_bytes_output += out_tensor.size
         return total_bytes_output
+
+    def calcMinimalFootprintSub(self, max_footprint, curr_footprint,
+                                tensors_to_consume, visited_ops,
+                                symbol_subs=None):
+        # print('  Traversing {}, starting foot {}, max foot {}'
+        #       .format(self.name, curr_footprint, max_footprint))
+        if self.calcAlgFootprint() == 0:
+            visited_ops.add(self)
+            return max_footprint, curr_footprint
+        # Calculate the size of additional tensors that must be allocated
+        # to execute this op
+        my_added_footprint = 0
+        for out_tensor in self.outputs:
+            self.debugAssert(out_tensor not in tensors_to_consume.keys())
+            tensors_to_consume[out_tensor] = out_tensor
+            my_added_footprint += out_tensor.size
+
+        # The maximum footprint grows if the current footprint plus the
+        # additional footprint for this op exceed the maximum
+        my_curr_footprint = curr_footprint + my_added_footprint
+        # print('    My added foot {} -> {}'.format(my_added_footprint,
+        #       my_curr_footprint))
+        max_footprint = utils.getSymbolicMaximum(my_curr_footprint,
+                                                 max_footprint,
+                                                 symbol_subs)
+
+        # Execute the op: This op has now been visited
+        visited_ops.add(self)
+
+        # Now remove any input tensors that can be freed
+        for in_tensor in self.inputs:
+            tensor_can_be_freed = True
+            for consumer in in_tensor.consumers.values():
+                if consumer not in visited_ops:
+                    tensor_can_be_freed = False
+                    break
+            if tensor_can_be_freed:
+                tensors_to_consume.pop(in_tensor, None)
+                my_curr_footprint -= in_tensor.size
+        if symbol_subs is not None and \
+           isinstance(my_curr_footprint, sympy.Expr):
+            my_curr_footprint = my_curr_footprint.subs(symbol_subs)
+        # print('    My final foot {}, max foot {}'.format(my_curr_footprint,
+        #       max_footprint))
+        return max_footprint, my_curr_footprint
+
