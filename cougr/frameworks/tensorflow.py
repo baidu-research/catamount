@@ -54,6 +54,7 @@ TF_OP_TO_COUGR = {
     'Assign': AssignOp,
     'AssignAdd': AddOp, # Here, TF reuses the input tensor for output
     'AssignSub': SubOp, # Here, TF reuses the input tensor for output
+    'BatchMatMul': BatchMatMulOp,
     'BiasAdd': AddOp, # Here, TF special-case for 1D bias input
     'BiasAddGrad': ReduceOp, # Here, TF special-case to backprop bias
     'BroadcastGradientArgs': BroadcastGradientArgsOp,
@@ -187,7 +188,6 @@ TF_OP_TO_COUGR_REDUCE = {
 
 # TODO (Joel): Prioritize these ops:
 # -- NMT
-# BatchMatMul
 # L2Loss
 # -- Speech
 # -- Others
@@ -406,6 +406,10 @@ def get_pool_attributes_from_op(tf_sess, tf_op, op):
 def get_axis_attribute_from_op(tf_sess, tf_op, op):
     op.setAxis(tf_op.get_attr('axis'))
 
+def get_batch_matmul_attributes_from_op(tf_sess, tf_op, op):
+    op.setAdjointX(tf_op.get_attr('adj_x'))
+    op.setAdjointY(tf_op.get_attr('adj_y'))
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -438,6 +442,9 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
 
     elif isinstance(op, (PackOp, UnpackOp)):
         get_axis_attribute_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, BatchMatMulOp):
+        get_batch_matmul_attributes_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)

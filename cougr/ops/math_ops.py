@@ -696,7 +696,7 @@ class MatMulOp(Op):
 
     def propagateShapes(self, make_symbolic=False):
         # Verify that shapes can be correctly resolved
-        assert len(self._inputs) == 2
+        self.debugAssert(len(self._inputs) == 2)
         tensor_a = self._inputs[0]
         tensor_b = self._inputs[1]
         if not self._transpose_a:
@@ -712,7 +712,6 @@ class MatMulOp(Op):
             b_in_dim = tensor_b.shape.getDimension(1)
             last_dim = tensor_b.shape.getDimension(0)
         # [_] TODO (Joel): This assert will be too strict at some point
-        import sympy
         assert (isinstance(inner_dim, sympy.Symbol) or \
                 isinstance(b_in_dim, sympy.Symbol) or \
                 inner_dim == b_in_dim), \
@@ -741,7 +740,6 @@ class MatMulOp(Op):
         else:
             b_in_dim = tensor_b.shape.getDimension(1)
         # [_] TODO (Joel): This assert will be too strict at some point
-        import sympy
         assert (isinstance(inner_dim, sympy.Symbol) or \
                 isinstance(b_in_dim, sympy.Symbol) or \
                 inner_dim == b_in_dim), \
@@ -753,6 +751,107 @@ class MatMulOp(Op):
         if self._transpose_c:
             raise NotImplementedError('Handle transposed output')
         assert len(self._outputs) == 1
+        out_shape = self._outputs[0].shape
+        out_elts = out_shape.numElements()
+        return (2 * inner_dim.symbol * out_elts)
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+
+
+class BatchMatMulOp(Op):
+    def __init__(self, name):
+        super(BatchMatMulOp, self).__init__(name)
+        # To adjoint a matrix means to transpose and conjugate it
+        self._adjoint_x = False
+        self._adjoint_y = False
+
+    def setAdjointX(self, adjoint_x):
+        self._adjoint_x = adjoint_x
+
+    def setAdjointY(self, adjoint_y):
+        self._adjoint_y = adjoint_y
+
+    def propagateShapes(self, make_symbolic=False):
+        # Verify that shapes can be correctly resolved
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
+
+        tensor_x = self._inputs[0]
+        tensor_y = self._inputs[1]
+        self.debugAssert(tensor_x.shape.rank == tensor_y.shape.rank)
+        if not self._adjoint_x:
+            first_dim = tensor_x.shape.getDimension(-2)
+            inner_dim = tensor_x.shape.getDimension(-1)
+        else:
+            first_dim = tensor_x.shape.getDimension(-1)
+            inner_dim = tensor_x.shape.getDimension(-2)
+        if not self._adjoint_y:
+            b_in_dim = tensor_y.shape.getDimension(-2)
+            last_dim = tensor_y.shape.getDimension(-1)
+        else:
+            b_in_dim = tensor_y.shape.getDimension(-1)
+            last_dim = tensor_y.shape.getDimension(-2)
+        # TODO (Joel): This assertion may be too strict
+        self.debugAssert((isinstance(inner_dim, sympy.Symbol) or
+                          isinstance(b_in_dim, sympy.Symbol) or
+                          inner_dim == b_in_dim),
+                          'Dimension check failed in op {} with inputs {} ' \
+                          'and {}, and output {}'.format(self._name,
+                              self._inputs[0].shape, self._inputs[1].shape,
+                              self._outputs[0].shape))
+        # Verify matching batch dimensions
+        batch_dims_x = tensor_x.shape.dims[:-2]
+        batch_dims_y = tensor_y.shape.dims[:-2]
+        out_dims = []
+        for idx in range(len(batch_dims_x)):
+            dim_x = batch_dims_x[idx]
+            dim_y = batch_dims_y[idx]
+            self.debugAssert((isinstance(dim_x, sympy.Expr) or
+                              isinstance(dim_y, sympy.Expr) or
+                              dim_x == dim_y))
+            out_dims.append(dim_x)
+        out_dims.append(first_dim)
+        out_dims.append(last_dim)
+        self._outputs[0].shape.mergeShape(out_dims, make_symbolic=True)
+
+    def calcAlgFlops(self):
+        self.debugAssert(len(self._inputs) == 2)
+        self.debugAssert(len(self._outputs) == 1)
+
+        # Verify matching inner dimensions
+        tensor_x = self._inputs[0]
+        tensor_y = self._inputs[1]
+        self.debugAssert(tensor_x.shape.rank == tensor_y.shape.rank)
+        if not self._adjoint_x:
+            inner_dim = tensor_x.shape.getDimension(-1)
+        else:
+            inner_dim = tensor_x.shape.getDimension(-2)
+        if not self._adjoint_y:
+            b_in_dim = tensor_y.shape.getDimension(-2)
+        else:
+            b_in_dim = tensor_y.shape.getDimension(-1)
+        # TODO (Joel): This assertion may be too strict
+        self.debugAssert((isinstance(inner_dim, sympy.Symbol) or
+                          isinstance(b_in_dim, sympy.Symbol) or
+                          inner_dim == b_in_dim),
+                          'Dimension check failed in op {} with inputs {} ' \
+                          'and {}, and output {}'.format(self._name,
+                              self._inputs[0].shape, self._inputs[1].shape,
+                              self._outputs[0].shape))
+        # Verify matching batch dimensions
+        batch_dims_x = tensor_x.shape.dims[:-2]
+        batch_dims_y = tensor_y.shape.dims[:-2]
+        for idx in range(len(batch_dims_x)):
+            dim_x = batch_dims_x[idx]
+            dim_y = batch_dims_y[idx]
+            self.debugAssert((isinstance(dim_x, sympy.Expr) or
+                              isinstance(dim_y, sympy.Expr) or
+                              dim_x == dim_y))
         out_shape = self._outputs[0].shape
         out_elts = out_shape.numElements()
         return (2 * inner_dim.symbol * out_elts)
