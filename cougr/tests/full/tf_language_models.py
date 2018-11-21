@@ -84,17 +84,11 @@ def run_tf_language_model(domain=None, build_projection=False):
                 'Model/Mask_1/' in op.name:
                  graph.removeOp(op)
              elif op.name == 'Model/Sum_1' or \
-                  op.name == 'Model/Const_1' or \
-                  op.name == 'Model/truediv_1' or \
-                  op.name == 'Model/MPIAllreduce_2' or \
-                  op.name == 'Model/MPIAllreduce_3' or \
-                  op.name == 'Model/div_2' or \
-                  op.name == 'Model/div_3' or \
-                  op.name == 'Model/MPISize_2' or \
-                  op.name == 'Model/MPISize_3' or \
                   op.name == 'Model/Cast_3' or \
-                  op.name == 'Model/Cast_4' or \
-                  op.name == 'Model/Cast_5' or \
+                  op.name == 'Model/Cast_2' or \
+                  op.name == 'Model/Size_1' or \
+                  op.name == 'Model/truediv_2' or \
+                  op.name == 'Model/truediv_3' or \
                   op.name == 'Model/Exp_1':
                  graph.removeOp(op)
     elif domain == 'charlm':
@@ -108,24 +102,11 @@ def run_tf_language_model(domain=None, build_projection=False):
                 'Model/Labels_1/' in op.name or \
                 'Model/Mask_1/' in op.name:
                  graph.removeOp(op)
-             elif op.name == 'Model/Sum_1' or \
-                  op.name == 'Model/Const_1' or \
+             elif op.name == 'Model/Cast_1' or \
+                  op.name == 'Model/Sum_1' or \
                   op.name == 'Model/Size_1' or \
-                  op.name == 'Model/Cast_5' or \
-                  op.name == 'Model/Cast_8' or \
-                  op.name == 'Model/Cast_9' or \
                   op.name == 'Model/truediv_2' or \
                   op.name == 'Model/truediv_3' or \
-                  op.name == 'Model/MPIAllreduce_4' or \
-                  op.name == 'Model/MPIAllreduce_5' or \
-                  op.name == 'Model/MPIAllreduce_6' or \
-                  op.name == 'Model/MPIAllreduce_7' or \
-                  op.name == 'Model/div_4' or \
-                  op.name == 'Model/div_5' or \
-                  op.name == 'Model/div_6' or \
-                  op.name == 'Model/div_7' or \
-                  op.name == 'Model/MPISize_6' or \
-                  op.name == 'Model/MPISize_7' or \
                   op.name == 'Model/Exp_1':
                  graph.removeOp(op)
     elif domain == 'nmt':
@@ -541,7 +522,6 @@ def run_tf_language_model(domain=None, build_projection=False):
     graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
 
-    num_workers_symbol = utils.getIntSymbolFromString('num_workers')
     num_sampled_vocab_symbol = subbatch_size_symbol * sequence_length_symbol
     if domain == 'wordlm':
         base_sequence_length = 80
@@ -552,10 +532,6 @@ def run_tf_language_model(domain=None, build_projection=False):
             'Model/Collapse/boolean_mask/Reshape_1:0::num_true': sequence_length_symbol * subbatch_size_symbol,
             'Model/Labels_1/boolean_mask/Reshape_1:0::num_true': sequence_length_symbol * subbatch_size_symbol,
             'Model/Labels/boolean_mask/Reshape_1:0::num_true': sequence_length_symbol * subbatch_size_symbol,
-            'Model/Gradient/Compute/allgather_1::num_workers': num_workers_symbol,
-            'Model/Gradient/Compute/allgather::num_workers': num_workers_symbol,
-            'Model/Gradient/Compute/allgather_sizing_1::num_workers': num_workers_symbol,
-            'Model/Gradient/Compute/allgather_sizing::num_workers': num_workers_symbol,
             'Model/Gradient/Compute/gradients/b_count_2_block::iters': sequence_length_symbol,
             'Model/Gradient/Compute/gradients/b_count_6_block::iters': sequence_length_symbol,
             'Model/Recurrent_1_lstm_1/rnn/while/LoopCond_block::iters': sequence_length_symbol,
@@ -595,7 +571,6 @@ def run_tf_language_model(domain=None, build_projection=False):
         sequence_length_symbol: base_sequence_length,
         subbatch_size_symbol: base_subbatch_size,
         vocab_size_symbol: base_vocab_size,
-        num_workers_symbol: 1,
     }
     var_refs_table = {}
     for var_name, sub_val in bind_str_subs.items():
@@ -610,20 +585,20 @@ def run_tf_language_model(domain=None, build_projection=False):
         correct_symbolic_params = 16 * hidden_dim_symbol**2 + \
                                   2 * hidden_dim_symbol * vocab_size_symbol + \
                                   8 * hidden_dim_symbol + \
-                                  vocab_size_symbol + 1
-        correct_params = 104378325
-        correct_flops = 2597237004851
-        correct_bytes = 144787880084
-        correct_total_footprint = 50417112588
+                                  vocab_size_symbol + 2
+        correct_params = 104378326
+        correct_flops = 2597058084236
+        correct_bytes = 143274390368
+        correct_total_footprint = 49660366844
     elif domain == 'charlm':
         correct_symbolic_params = 22 * hidden_dim_symbol**2 + \
                                   2 * hidden_dim_symbol * vocab_size_symbol + \
                                   20 * hidden_dim_symbol + \
                                   vocab_size_symbol + 2
         correct_params = 88785316
-        correct_flops = 10228050930588
-        correct_bytes = 444794005700
-        correct_total_footprint = 156135666724
+        correct_flops = 10228050930582
+        correct_bytes = 444794006008
+        correct_total_footprint = 156135667088
     elif domain == 'nmt':
         correct_symbolic_params = 33 * hidden_dim_symbol**2 + \
                                   3 * hidden_dim_symbol * vocab_size_symbol + \
