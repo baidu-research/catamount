@@ -1,0 +1,3 @@
+numpy
+sympy
+tensorflow>=1.7
