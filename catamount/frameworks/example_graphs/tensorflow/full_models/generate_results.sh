@@ -55,5 +55,4 @@ echo ""
 
 
 # Gather results
-
-
+bash catamount/frameworks/example_graphs/tensorflow/full_models/gather_results.sh
