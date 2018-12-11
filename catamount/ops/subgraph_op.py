@@ -73,12 +73,19 @@ class SubgraphOp(Op):
         return True
 
     def isEqual(self, other, verbose=False):
+        if len(self.opsByName) != len(other.opsByName):
+            if verbose:
+                print('Graph equality: Different op count: self: {} other: {}'
+                      .format(len(self.opsByName), len(other.opsByName)))
+            return False
         for my_op in self.opsByName.values():
             if my_op.name not in other.opsByName.keys():
                 if verbose:
                     print('Graph equality: Op not found in other!: {}'
                           .format(my_op.debugString()))
                 return False
+            if isinstance(my_op, SubgraphOp):
+                continue
             other_op = other.opsByName[my_op.name]
             # Check op type
             if type(my_op) != type(other_op):
@@ -123,7 +130,7 @@ class SubgraphOp(Op):
                                   '{}\n{}'.format(my_consumer.debugString(),
                                   other_consumer.debugString()))
                         return False
-            return True
+        return True
 
     def addOp(self, op):
         self.debugAssert(isinstance(op, Op))
