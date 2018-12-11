@@ -80,6 +80,13 @@ class SubgraphOp(Op):
                           .format(my_op.debugString()))
                 return False
             other_op = other.opsByName[my_op.name]
+            # Check op type
+            if type(my_op) != type(other_op):
+                if verbose:
+                    print('Graph equality: Op not same type: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
             # Check inputs
             if len(my_op.inputs) != len(other_op.inputs):
                 if verbose:
@@ -93,7 +100,7 @@ class SubgraphOp(Op):
                         print('Graph equality: In shapes do not match: {}\n{}'
                               .format(my_op.debugString(),
                                       other_op.debugString()))
-                        return False
+                    return False
             # Check outputs
             if len(my_op.outputs) != len(other_op.outputs):
                 if verbose:
@@ -101,12 +108,20 @@ class SubgraphOp(Op):
                           .format(my_op.debugString(),
                                   other_op.debugString()))
                 return False
-            for idx, in_tensor in enumerate(my_op.outputs):
-                if in_tensor.shape != other_op.outputs[idx].shape:
+            for idx, out_tensor in enumerate(my_op.outputs):
+                if out_tensor.shape != other_op.outputs[idx].shape:
                     if verbose:
                         print('Graph equality: Out shapes do not match: {}\n{}'
                               .format(my_op.debugString(),
                                       other_op.debugString()))
+                    return False
+                for cons_name, my_consumer in out_tensor.consumers.items():
+                    other_consumer = other_op.outputs[idx].consumers[cons_name]
+                    if type(my_consumer) != type(other_consumer):
+                        if verbose:
+                            print('Graph equality: Out types do not match: '\
+                                  '{}\n{}'.format(my_consumer.debugString(),
+                                  other_consumer.debugString()))
                         return False
             return True
 
