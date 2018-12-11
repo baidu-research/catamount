@@ -29,3 +29,6 @@ var/
 *.index
 *checkpoint
 *events.out.tfevents.*
+
+# Catamount generated files
+*.p
