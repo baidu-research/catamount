@@ -72,6 +72,44 @@ class SubgraphOp(Op):
                     return False
         return True
 
+    def isEqual(self, other, verbose=False):
+        for my_op in self.opsByName.values():
+            if my_op.name not in other.opsByName.keys():
+                if verbose:
+                    print('Graph equality: Op not found in other!: {}'
+                          .format(my_op.debugString()))
+                return False
+            other_op = other.opsByName[my_op.name]
+            # Check inputs
+            if len(my_op.inputs) != len(other_op.inputs):
+                if verbose:
+                    print('Graph equality: Inputs do not match: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
+            for idx, in_tensor in enumerate(my_op.inputs):
+                if in_tensor.shape != other_op.inputs[idx].shape:
+                    if verbose:
+                        print('Graph equality: In shapes do not match: {}\n{}'
+                              .format(my_op.debugString(),
+                                      other_op.debugString()))
+                        return False
+            # Check outputs
+            if len(my_op.outputs) != len(other_op.outputs):
+                if verbose:
+                    print('Graph equality: Outputs do not match: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
+            for idx, in_tensor in enumerate(my_op.outputs):
+                if in_tensor.shape != other_op.outputs[idx].shape:
+                    if verbose:
+                        print('Graph equality: Out shapes do not match: {}\n{}'
+                              .format(my_op.debugString(),
+                                      other_op.debugString()))
+                        return False
+            return True
+
     def addOp(self, op):
         self.debugAssert(isinstance(op, Op))
         self.debugAssert(op.name not in self._ops_by_name.keys())
