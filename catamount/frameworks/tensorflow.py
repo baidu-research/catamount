@@ -244,6 +244,7 @@ TF_DTYPE_TO_CATAMOUNT = {
     tf.int64: DataType.int64,
     tf.uint8: DataType.uint8,
     tf.float32: DataType.float32,
+    tf.float64: DataType.float64,
     tf.string: DataType.string,
 }
 
@@ -303,6 +304,8 @@ def get_value_from_proto(tf_op, value_proto):
         return value_proto.int64_val
     elif value_proto.dtype == types_pb2.DT_FLOAT:
         return value_proto.float_val
+    elif value_proto.dtype == types_pb2.DT_DOUBLE:
+        return value_proto.double_val
     elif value_proto.dtype == types_pb2.DT_STRING:
         return value_proto.string_val
     else:
@@ -331,10 +334,11 @@ def get_const_value_from_op(tf_sess, tf_op):
             value = np.array([x[0] for x in it])
             assert len(value) == tf_op.outputs[0].shape.num_elements(), \
                 'Op: {}, value: {}'.format(tf_op.name, value)
-    elif value_proto.dtype == types_pb2.DT_FLOAT:
+    elif value_proto.dtype == types_pb2.DT_FLOAT or \
+         value_proto.dtype == types_pb2.DT_DOUBLE:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:
-            value = value_proto.float_val
+            value = get_value_from_proto(tf_op, value_proto)
             assert len(value) == 1, \
                 'Op: {} value: {}'.format(tf_op.name, value)
             value = value[0]

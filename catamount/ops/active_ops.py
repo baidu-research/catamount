@@ -7,7 +7,7 @@ class FusedBatchNormBaseOp(Op):
         self._format = None
 
     def setDataFormat(self, format):
-        if format != 'NCHW':
+        if format != 'NCHW' and format != 'NHWC':
             self.notImplemented('Unknown data format: {}'.format(format))
         self._format = format
 
