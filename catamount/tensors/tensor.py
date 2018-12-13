@@ -48,7 +48,7 @@ class DataType(Enum):
         return (type == DataType.string)
 
     def sizeof(type):
-        sizeof = { 
+        sizeof = {
                    DataType.bool: 1,
                    DataType.int8: 1,
                    DataType.int16: 2,
