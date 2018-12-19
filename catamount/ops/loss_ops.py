@@ -51,6 +51,13 @@ class L2LossOp(Op):
         total_flops = 2 * self._outputs[0].shape.numElements() + 1
         return total_flops
 
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+
 
 class SparseSoftmaxCrossEntropyWithLogitsOp(Op):
     def __init__(self, name):
