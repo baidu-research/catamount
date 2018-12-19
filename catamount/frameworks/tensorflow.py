@@ -95,6 +95,7 @@ TF_OP_TO_CATAMOUNT = {
     'LogicalOr': LogicalOrOp,
     'LogicalNot': LogicalNotOp,
     'LoopCond': LoopConditionOp,
+    'L2Loss': L2LossOp,
     'MatMul': MatMulOp,
     'Max': ReduceOp,
     'Maximum': MaximumOp,
@@ -188,7 +189,6 @@ TF_OP_TO_CATAMOUNT_REDUCE = {
 
 # TODO (Joel): Prioritize these ops:
 # -- NMT
-# L2Loss
 # -- Speech
 # -- Others
 
