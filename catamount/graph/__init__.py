@@ -1,3 +1,4 @@
+import re
 from catamount.ops.base_op import Op
 from catamount.ops.subgraph_op import SubgraphOp
 from catamount.ops.placeholder import PlaceholderOp
@@ -95,6 +96,44 @@ class Graph(SubgraphOp):
             print('  Value to symbol table: {}'.format(value_to_symbol_table))
             print('  Symbol to value table: {}'.format(symbol_to_value_table))
 
+    def makeOpSearchRegex(self, op_key):
+        if op_key[0] != '^':
+            op_key = '^' + op_key
+        if op_key[-1] != '$':
+            op_key = op_key + '$'
+        return op_key
+
+    def bindOpShapeDimensions(self, bind_dict, make_symbolic=False):
+        ''' Bind the tensor dimensions as defined in the bind_dict. Binds the
+            shapes for constants, placeholders, and variables only.
+
+            Args:
+              bind_dict: A dictionary of tensor_name -> dimension to bind.
+                  Tensor names can be Python regular expression strings.
+                  Dimensions can be integers, strings (which will be converted
+                  to symbols), or symbols.
+              make_symbolic (bool): Whether to make all possible dimensions
+                  symbolic during shape propagation. If so, any tensor that
+                  has shape specified symbolically but also with numeric
+                  values, the numeric values will be cleared in favor of
+                  only propagating the symbols instead.
+        '''
+        for op_search_str, op_out_shape in bind_dict.items():
+            op_search_re = \
+                re.compile(self.makeOpSearchRegex(op_search_str)).match
+            op_name_found = False
+            for op in self._ops_by_name.values():
+                if op_search_re(op.name):
+                    assert isinstance(op,
+                               (ConstantOp, PlaceholderOp, VariableOp)), \
+                           'Tried to bind unsupported op: {}' \
+                           .format(op.debugString())
+                    op._outputs[0].mergeShape(op_out_shape,
+                        make_symbolic=make_symbolic)
+                    op_name_found = True
+            if not op_name_found:
+                print('WARN: During bind, op not found: {}'
+                      .format(op_search_str))
 
     def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False,
                                   make_symbolic=False):
@@ -103,6 +142,7 @@ class Graph(SubgraphOp):
 
             Args:
               bind_dict: A dictionary of tensor_name -> dimension to bind.
+                  Tensor names can be Python regular expression strings.
                   Dimensions can be integers, strings (which will be converted
                   to symbols), or symbols.
               warn_if_ill_defined (bool): Whether the propagation process
@@ -114,16 +154,7 @@ class Graph(SubgraphOp):
                   values, the numeric values will be cleared in favor of
                   only propagating the symbols instead.
         '''
-        for name in bind_dict.keys():
-            assert name in self._ops_by_name.keys(), \
-                 'Binding error: Tensor not found: {}'.format(name)
-            op = self._ops_by_name[name]
-            assert type(op) == PlaceholderOp or \
-                   type(op) == VariableOp
-            for dim_idx, dim_name_or_symbol in enumerate(bind_dict[name]):
-                if dim_name_or_symbol is not None:
-                    op.bindTensorShapeDimension(dim_idx, dim_name_or_symbol,
-                                                make_symbolic=make_symbolic)
+        self.bindOpShapeDimensions(bind_dict, make_symbolic=make_symbolic)
         self.propagateTensorShapeNames(warn_if_ill_defined,
                                        make_symbolic=make_symbolic)
 

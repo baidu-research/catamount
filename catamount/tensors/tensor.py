@@ -188,6 +188,13 @@ class Tensor:
         cons_op = self._consumers.pop(op.name, None)
         assert cons_op is None or cons_op == op
 
+    def mergeShape(self, other, make_symbolic=False):
+        self.shape.mergeShape(other, make_symbolic=make_symbolic)
+        # If the new shape is under-specified, the tensor cannot track
+        # a fully-specified value. In that case, clear the value.
+        if not self.shape.isFullyNumeric() and self._value is not None:
+            self._value = None
+
     def setValue(self, value):
         supported_python_types = ( bool, int, float, sympy.Symbol,
                                    sympy.Expr, str, np.int64, np.int32,
