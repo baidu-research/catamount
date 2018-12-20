@@ -1,5 +1,6 @@
 import re
 from catamount.ops.base_op import Op
+from catamount.ops.constant import ConstantOp
 from catamount.ops.subgraph_op import SubgraphOp
 from catamount.ops.placeholder import PlaceholderOp
 from catamount.ops.variable import VariableOp

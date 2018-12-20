@@ -9,7 +9,9 @@ def as_dimension(value):
         return value
     elif isinstance(value, (int, np.int64)):
         return Dimension(int(value))
-    elif isinstance(value, (sympy.Symbol, sympy.Expr)):
+    elif isinstance(value, (str, sympy.Symbol, sympy.Expr)):
+        if isinstance(value, str):
+            value = utils.getIntSymbolFromString(value)
         to_return = Dimension(None)
         to_return.setSymbolOrName(value.simplify())
         return to_return
