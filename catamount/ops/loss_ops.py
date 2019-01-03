@@ -42,7 +42,7 @@ class L2LossOp(Op):
         self.debugAssert(len(self._outputs) == 1)
         # Output shape should be a scalar value. No need for make_symbolic
         # since shape cannot be symbolic
-        self._outputs[0].shape.mergeShape([])
+        self._outputs[0].mergeShape([])
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1)
