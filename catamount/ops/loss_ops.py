@@ -30,6 +30,35 @@ class InTopKOp(Op):
         return self.bytesAccessOutput()
 
 
+class L2LossOp(Op):
+    ''' Computes half the L2 norm of a tensor without the sqrt:
+        output = sum(t ** 2) / 2
+    '''
+    def __init__(self, name):
+        super(L2LossOp, self).__init__(name)
+
+    def propagateShapes(self, make_symbolic=False):
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
+        # Output shape should be a scalar value. No need for make_symbolic
+        # since shape cannot be symbolic
+        self._outputs[0].shape.mergeShape([])
+
+    def calcAlgFlops(self):
+        self.debugAssert(len(self._inputs) == 1)
+        self.debugAssert(len(self._outputs) == 1)
+        # 2 Flops per element (square and accumulate) and a final divide
+        total_flops = 2 * self._outputs[0].shape.numElements() + 1
+        return total_flops
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+
+
 class SparseSoftmaxCrossEntropyWithLogitsOp(Op):
     def __init__(self, name):
         super(SparseSoftmaxCrossEntropyWithLogitsOp, self).__init__(name)

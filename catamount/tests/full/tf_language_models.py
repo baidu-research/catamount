@@ -587,26 +587,26 @@ def run_tf_language_model(domain=None, build_projection=False):
                                   8 * hidden_dim_symbol + \
                                   vocab_size_symbol + 2
         correct_params = 104378326
-        correct_flops = 2597058084236
-        correct_bytes = 143274390368
-        correct_total_footprint = 49660366844
+        correct_flops = 2597058084257
+        correct_bytes = 143652753548
+        correct_total_footprint = 49660366872
     elif domain == 'charlm':
         correct_symbolic_params = 22 * hidden_dim_symbol**2 + \
                                   2 * hidden_dim_symbol * vocab_size_symbol + \
                                   20 * hidden_dim_symbol + \
                                   vocab_size_symbol + 2
         correct_params = 88785316
-        correct_flops = 10228050930582
-        correct_bytes = 444794006008
-        correct_total_footprint = 156135667088
+        correct_flops = 10228050930711
+        correct_bytes = 445302269068
+        correct_total_footprint = 156135667260
     elif domain == 'nmt':
         correct_symbolic_params = 33 * hidden_dim_symbol**2 + \
                                   3 * hidden_dim_symbol * vocab_size_symbol + \
                                   12 * hidden_dim_symbol + 1
         correct_params = 146890753
-        correct_flops = 1053956094363
-        correct_bytes = 35992083787
-        correct_total_footprint = 14372109278
+        correct_flops = 1053956094429
+        correct_bytes = 36608253347
+        correct_total_footprint = 14372109366
     else:
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
     assert sympy.simplify(parameters - correct_symbolic_params) == 0, \
