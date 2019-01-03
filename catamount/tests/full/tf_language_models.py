@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import pickle
+import re
 import sympy
 import sys
 sys.setrecursionlimit(50000)
@@ -184,7 +185,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                                          base_subbatch_size,
                                          base_hidden_dim]
                             # Verify that the shape is clearly specified
-                            op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                            op._outputs[0].mergeShape(out_shape, make_symbolic=True)
                             gather_shape = [sequence_length_symbol,
                                             subbatch_size_symbol,
                                             hidden_dim_symbol]
@@ -192,9 +193,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                             # This TAGather is known to be unused, so who cares?!
                             assert len(op._outputs[0].consumers) == 0
                             continue
-                op._outputs[0].shape.mergeShape(gather_shape, make_symbolic=True)
-                for idx in range(op._outputs[0].shape.rank):
-                    op._outputs[0].shape.dims[idx]._value = None
+                op._outputs[0].mergeShape(gather_shape, make_symbolic=True)
             elif 'TensorArraySize' in op_name_suffix:
                 assert isinstance(op, UnknownOp)
                 assert len(op._inputs) == 2
@@ -211,9 +210,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                 if not op._outputs[0].shape.isUnknown():
                     assert op._outputs[0].shape.dims[1].value == base_hidden_dim
                 read_shape = [subbatch_size_symbol, hidden_dim_symbol]
-                op._outputs[0].shape.mergeShape(read_shape, make_symbolic=True)
-                for idx in range(op._outputs[0].shape.rank):
-                    op._outputs[0].shape.dims[idx]._value = None
+                op._outputs[0].mergeShape(read_shape, make_symbolic=True)
     else:
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
 
@@ -221,114 +218,12 @@ def run_tf_language_model(domain=None, build_projection=False):
 
     if domain == 'wordlm':
         const_dict = {
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_lstm_1/rnn/while/rnn/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_lstm_1/rnn/while/rnn/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_2_lstm_1/rnn/while/rnn/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_2_lstm_1/rnn/while/rnn/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_lstm_1/rnn/while/rnn/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_lstm_1/rnn/while/rnn/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_2_lstm_1/rnn/while/rnn/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_2_lstm_1/rnn/while/rnn/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                    }
-    elif domain == 'charlm':
-        const_dict = {
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_0/h_0/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_0/h_0/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_1/h_1/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_1/h_1/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_2/h_2/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_2/h_2/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_3/h_3/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_3/h_3/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_4/h_4/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_4/h_4/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_5/h_5/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_5/h_5/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_6/h_6/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_6/h_6/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_7/h_7/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_7/h_7/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_8/h_8/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_8/h_8/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_9/h_9/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/h_9/h_9/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_0/t_0/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_0/t_0/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_1/t_1/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_1/t_1/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_2/t_2/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_2/t_2/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_3/t_3/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_3/t_3/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_4/t_4/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_4/t_4/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_5/t_5/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_5/t_5/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_6/t_6/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_6/t_6/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_7/t_7/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_7/t_7/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_8/t_8/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_8/t_8/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_9/t_9/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
-                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/t_9/t_9/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_0/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_1/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_2/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_3/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_4/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_5/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_6/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_7/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_8/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_9/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_0/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_1/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_2/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_3/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_4/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_5/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_6/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_7/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_8/Bias/Initializer/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_9/Bias/Initializer/Const': [hidden_dim_symbol],
-                    }
-    elif domain == 'nmt':
-        const_dict = {
-                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/attention_layer/MatMul/Enter_grad/b_acc': [3 * hidden_dim_symbol, hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
-                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                    }
-    else:
-        raise NotImplementedError('Manually set constant op shapes for domain {}'.format(domain))
-
-    for const_key, const_shape in const_dict.items():
-        try:
-            if const_key in graph.opsByName.keys():
-                const_op = graph.opsByName[const_key]
-                assert isinstance(const_op, ConstantOp)
-                const_op._outputs[0].shape.mergeShape(const_shape, make_symbolic=True)
-                if const_op._outputs[0].value is not None:
-                    const_op._outputs[0]._value = None
-            else:
-                print('WARN: ConstantOp not found: {}'.format(const_key))
-        except Exception as exc:
-            print('WARN: ConstantOp unknown problem: {}: {}'.format(const_key, exc))
-
-    if domain == 'wordlm':
-        const_dict = {
                       'Model/Collapse/Reshape/shape': [-1, hidden_dim_symbol],
-                      'Model/Recurrent_1_lstm_1/rnn/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_1_lstm_1/rnn/Const_1': [hidden_dim_symbol],
-                      'Model/Recurrent_2_lstm_1/rnn/Const': [hidden_dim_symbol],
-                      'Model/Recurrent_2_lstm_1/rnn/Const_1': [hidden_dim_symbol],
+                      'Model/Recurrent_\d_lstm_1/rnn/Const': [hidden_dim_symbol],
+                      'Model/Recurrent_\d_lstm_1/rnn/Const_1': [hidden_dim_symbol],
                       'Model/Gradient/Compute/gradients/Model/Embedding_1_1/Gather_grad/Shape': [vocab_size_symbol, hidden_dim_symbol],
                       'Model/Gradient/Compute/gradients/Model/FullSoftmaxLoss_1_1/add_grad/Shape_1': [1, vocab_size_symbol],
-                    }
+                     }
     elif domain == 'charlm':
         const_dict = {
                       'Model/Collapse/Reshape/shape': [-1, hidden_dim_symbol],
@@ -343,18 +238,10 @@ def run_tf_language_model(domain=None, build_projection=False):
                        'gradients/dynamic_seq2seq/decoder/embedding_lookup_grad/Shape': [vocab_size_symbol, hidden_dim_symbol],
                        'gradients/dynamic_seq2seq/encoder/embedding_lookup_grad/Shape': [vocab_size_symbol, hidden_dim_symbol],
                        'gradients/dynamic_seq2seq/decoder/LuongAttention/memory_layer/Tensordot/Reshape_1_grad/Shape': [2 * hidden_dim_symbol, hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/Const_1': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/Const_4': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_1': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_2': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/fw/fw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_3': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/Const_1': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/Const_4': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_1': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_2': [hidden_dim_symbol],
-                       'dynamic_seq2seq/encoder/bidirectional_rnn/bw/bw/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_3': [hidden_dim_symbol],
+                       'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/Const_1': [hidden_dim_symbol],
+                       'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/Const_4': [hidden_dim_symbol],
+                       'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const': [hidden_dim_symbol],
+                       'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_\d': [hidden_dim_symbol],
                        'dynamic_seq2seq/decoder/output_projection/Tensordot/Reshape_1/shape': [hidden_dim_symbol, vocab_size_symbol],
                        'dynamic_seq2seq/decoder/output_projection/Tensordot/Const_2': [vocab_size_symbol],
                        'dynamic_seq2seq/decoder/decoder/Const': [hidden_dim_symbol],
@@ -364,59 +251,58 @@ def run_tf_language_model(domain=None, build_projection=False):
                        'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/Const': [hidden_dim_symbol],
                        'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/Const_1': [hidden_dim_symbol],
                        'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const': [hidden_dim_symbol],
-                       'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_1': [hidden_dim_symbol],
-                       'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_2': [hidden_dim_symbol],
-                       'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_3': [hidden_dim_symbol],
+                       'dynamic_seq2seq/decoder/DeviceWrapperZeroState/AttentionWrapperZeroState/DeviceWrapperZeroState/DropoutWrapperZeroState/BasicLSTMCellZeroState/Const_\d': [hidden_dim_symbol],
                        'buffer_size': 256 * hidden_dim_symbol,
                        'buffer_size_1': 256 * hidden_dim_symbol,
-                       'buffer_size_2': 125 * hidden_dim_symbol,
-                       'buffer_size_3': 125 * hidden_dim_symbol,
-                       'buffer_size_4': 125 * hidden_dim_symbol,
-                       'buffer_size_5': 125 * hidden_dim_symbol,
-                       'buffer_size_6': 125 * hidden_dim_symbol,
-                       'buffer_size_7': 125 * hidden_dim_symbol,
-                       'buffer_size_8': 125 * hidden_dim_symbol,
-
+                       'buffer_size_[2-8]': 125 * hidden_dim_symbol,
                      }
     else:
         raise NotImplementedError('Manually set constant op values for domain {}'.format(domain))
 
     for const_key, const_val in const_dict.items():
         try:
-            if const_key in graph.opsByName.keys():
-                const_op = graph.opsByName[const_key]
-                assert isinstance(const_op, ConstantOp)
-                const_op._outputs[0].setValue(const_val)
-            else:
-                print('WARN: ConstantOp not found: {}'.format(const_key))
+            const_key_str = '^{}$'.format(const_key)
+            key_found = False
+            for op_key in graph.opsByName.keys():
+                if re.match(const_key_str, op_key):
+                    const_op = graph.opsByName[op_key]
+                    assert isinstance(const_op, ConstantOp), \
+                           'Matched non-const op!: {}' \
+                           .format(const_op.debugString())
+                    const_op._outputs[0].setValue(const_val)
+                    key_found = True
+            if not key_found:
+                print('WARN: ConstantOp not found: {}'.format(const_key_str))
         except Exception as exc:
-            print('WARN: ConstantOp unknown problem: {}: {}'.format(const_key, exc))
+            print('WARN: ConstantOp unknown problem: {}: {}'
+                  .format(const_key_str, exc))
 
 
-    # Next, bind the placeholders and propagate shapes
+    # Next, bind the constant, placeholder, and variable shapes and propagate
     if domain == 'wordlm':
-        bind_dict = { # Placeholders
+        bind_dict = { # Constants
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_\d_lstm_1/rnn/while/rnn/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_\d_lstm_1/rnn/while/rnn/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
+                      # Placeholders
                       'Input/Input': [subbatch_size_symbol, sequence_length_symbol],
                       'Labels/Labels': [subbatch_size_symbol, sequence_length_symbol],
                       'Model/Placeholder': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_1': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_2': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_3': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_4': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_5': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_6': [subbatch_size_symbol, hidden_dim_symbol],
-                      'Model/Placeholder_7': [subbatch_size_symbol, hidden_dim_symbol],
+                      'Model/Placeholder_\d': [subbatch_size_symbol, hidden_dim_symbol],
                       # Variables
                       'Model/Embedding_1/EmbeddingWeights': [vocab_size_symbol, hidden_dim_symbol],
                       'Model/FullSoftmaxLoss_1/W_Softmax': [vocab_size_symbol, hidden_dim_symbol],
                       'Model/FullSoftmaxLoss_1/b_Softmax': [1, vocab_size_symbol],
-                      'Model/Recurrent_1_lstm/rnn/Bias': [4 * hidden_dim_symbol],
-                      'Model/Recurrent_1_lstm/rnn/Matrix': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'Model/Recurrent_2_lstm/rnn/Bias': [4 * hidden_dim_symbol],
-                      'Model/Recurrent_2_lstm/rnn/Matrix': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
+                      'Model/Recurrent_\d_lstm/rnn/Bias': [4 * hidden_dim_symbol],
+                      'Model/Recurrent_\d_lstm/rnn/Matrix': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
                     }
     elif domain == 'charlm':
-        bind_dict = { # Placeholders
+        bind_dict = { # Constants
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/[ht]_0/[ht]_0/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/[ht]_0/[ht]_0/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, hidden_dim_symbol],
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/[ht]_[1-9]/[ht]_[1-9]/BiasAdd/Enter_grad/b_acc': [hidden_dim_symbol],
+                      'Model/Gradient/Compute/gradients/Model/Recurrent_1_rhn_1/rnn/while/[ht]_[1-9]/[ht]_[1-9]/MatMul/Enter_grad/b_acc': [hidden_dim_symbol, hidden_dim_symbol],
+                      'Model/Recurrent_1_rhn/rnn/[ht]_[0-9]/Bias/Initializer/Const': [hidden_dim_symbol],
+                      # Placeholders
                       'Input/Input': [subbatch_size_symbol, sequence_length_symbol],
                       'Labels/Labels': [subbatch_size_symbol, sequence_length_symbol],
                       'Model/Placeholder': [subbatch_size_symbol, hidden_dim_symbol],
@@ -427,65 +313,37 @@ def run_tf_language_model(domain=None, build_projection=False):
                       'Model/FullSoftmaxLoss_1/b_Softmax': [1, vocab_size_symbol],
                       'Model/Recurrent_1_rhn/rnn/h_0/Bias': [hidden_dim_symbol],
                       'Model/Recurrent_1_rhn/rnn/h_0/Matrix': [2 * hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_1/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_1/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_2/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_2/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_3/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_3/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_4/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_4/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_5/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_5/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_6/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_6/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_7/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_7/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_8/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_8/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_9/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/h_9/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
+                      'Model/Recurrent_1_rhn/rnn/h_[1-9]/Bias': [hidden_dim_symbol],
+                      'Model/Recurrent_1_rhn/rnn/h_[1-9]/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
                       'Model/Recurrent_1_rhn/rnn/t_0/Bias': [hidden_dim_symbol],
                       'Model/Recurrent_1_rhn/rnn/t_0/Matrix': [2 * hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_1/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_1/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_2/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_2/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_3/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_3/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_4/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_4/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_5/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_5/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_6/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_6/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_7/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_7/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_8/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_8/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_9/Bias': [hidden_dim_symbol],
-                      'Model/Recurrent_1_rhn/rnn/t_9/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
+                      'Model/Recurrent_1_rhn/rnn/t_[1-9]/Bias': [hidden_dim_symbol],
+                      'Model/Recurrent_1_rhn/rnn/t_[1-9]/Matrix': [hidden_dim_symbol, hidden_dim_symbol],
                     }
     elif domain == 'nmt':
         # HAX: Manually hack the iterator op
         it_op = graph.opsByName['IteratorGetNext']
-        it_op._outputs[0].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[1].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[2].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[3].shape.mergeShape([subbatch_size_symbol], make_symbolic=True)
-        it_op._outputs[4].shape.mergeShape([subbatch_size_symbol], make_symbolic=True)
+        it_op._outputs[0].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[1].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[2].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[3].mergeShape([subbatch_size_symbol], make_symbolic=True)
+        it_op._outputs[4].mergeShape([subbatch_size_symbol], make_symbolic=True)
 
-        bind_dict = { # Placeholders
+        bind_dict = { # Constants
+                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/attention_layer/MatMul/Enter_grad/b_acc': [3 * hidden_dim_symbol, hidden_dim_symbol],
+                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
+                      'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * hidden_dim_symbol, 4 * hidden_dim_symbol],
+                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim_symbol],
+                      'gradients/dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/[bf]w/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
+                      # Placeholders
                       # Variables
                       'dynamic_seq2seq/decoder/attention/attention_layer/kernel': [3 * hidden_dim_symbol, hidden_dim_symbol],
                       'dynamic_seq2seq/decoder/attention/basic_lstm_cell/bias': [4 * hidden_dim_symbol],
                       'dynamic_seq2seq/decoder/attention/basic_lstm_cell/kernel': [3 * hidden_dim_symbol, 4 * hidden_dim_symbol],
                       'dynamic_seq2seq/decoder/memory_layer/kernel': [2 * hidden_dim_symbol, hidden_dim_symbol],
                       'dynamic_seq2seq/decoder/output_projection/kernel': [hidden_dim_symbol, vocab_size_symbol],
-                      'dynamic_seq2seq/encoder/bidirectional_rnn/bw/basic_lstm_cell/bias': [4 * hidden_dim_symbol],
-                      'dynamic_seq2seq/encoder/bidirectional_rnn/bw/basic_lstm_cell/kernel': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
-                      'dynamic_seq2seq/encoder/bidirectional_rnn/fw/basic_lstm_cell/bias': [4 * hidden_dim_symbol],
-                      'dynamic_seq2seq/encoder/bidirectional_rnn/fw/basic_lstm_cell/kernel': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
+                      'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/basic_lstm_cell/bias': [4 * hidden_dim_symbol],
+                      'dynamic_seq2seq/encoder/bidirectional_rnn/[bf]w/basic_lstm_cell/kernel': [2 * hidden_dim_symbol, 4 * hidden_dim_symbol],
                       'embeddings/decoder/embedding_decoder': [vocab_size_symbol, hidden_dim_symbol],
                       'embeddings/encoder/embedding_encoder': [vocab_size_symbol, hidden_dim_symbol],
                     }
@@ -515,7 +373,7 @@ def run_tf_language_model(domain=None, build_projection=False):
             push_op = graph._ops_by_name[push_name]
             # Verify StackPush input[1].shape == StackPop output[0].shape
             assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].shape.mergeShape(push_op._inputs[1].shape, make_symbolic=True)
+            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
             if push_op._inputs[1].value is not None:
                 op._outputs[0].setValue(push_op._inputs[1].value)
 
@@ -929,7 +787,7 @@ if __name__ == "__main__":
     parser.add_argument('--domain', choices=domain_choices, required=True,
                         help='The domain to test ({})'.format(domain_choices))
     parser.add_argument('--build_projection', action="store_true",
-                    help='Add a projection layer to the model')
+                        help='Add a projection layer to the model')
     args = parser.parse_args()
 
     run_tf_language_model(domain=args.domain,

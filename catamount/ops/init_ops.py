@@ -12,8 +12,8 @@ class IdentityOp(Op):
         self.debugAssert(self._inputs[0].shape.isUnknown() or
                          self._inputs[0].shape == self._outputs[0].shape)
         if not self._inputs[0].shape.isUnknown():
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].shape,
+                                        make_symbolic=make_symbolic)
 
         if self._inputs[0].value is not None:
             self._outputs[0].setValue(self._inputs[0].value)
@@ -54,8 +54,8 @@ class RandomInitializerOp(Op):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         if self._inputs[0].value is not None:
-            self._outputs[0].shape.mergeShape(self._inputs[0].value,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].value,
+                                        make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Intializers have no Flops

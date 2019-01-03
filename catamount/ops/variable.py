@@ -72,8 +72,8 @@ class CastOp(Op):
         # Output is same shape as input, propagate if necessary
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
             # TODO: Loosen this or clear the values if required
             #       (MAYBE IN setValue?!)

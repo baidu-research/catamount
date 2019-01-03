@@ -36,8 +36,8 @@ class AllgatherOp(Op):
                 final_shape.append(new_dim)
             else:
                 final_shape.append(dim)
-        self._outputs[0].shape.mergeShape(final_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(final_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Allgathers are only communication and no Flops
@@ -63,8 +63,8 @@ class AllreduceOp(Op):
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Assume one Flop per data element (this is the minimum)

@@ -104,8 +104,8 @@ class EnterOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 self.notImplemented('EnterOp propagateShapes {}'
                                     .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].shape,
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented(
                 'EnterOp {} propagateShapes unknown input shape'
@@ -145,8 +145,8 @@ class ExitOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 self.notImplemented('ExitOp propagateShapes {}'
                                     .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].shape,
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented(
                 'ExitOp {} propagateShapes unknown input shape'
@@ -249,8 +249,8 @@ class MergeOp(Op):
             if in_shape != self._outputs[0].shape:
                 self.notImplemented('MergeOp propagateShapes {}'
                                     .format(self._name))
-            self._outputs[0].shape.mergeShape(in_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(in_shape,
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented(
                 'MergeOp {} propagateShapes unknown input shape'
@@ -291,8 +291,8 @@ class NextIterationOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 self.notImplemented('NextIterationOp propagateShapes {}'
                                     .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].shape,
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented('NextIterationOp {} propagateShapes unknown ' \
                        'input shape'.format(self._name))
@@ -334,15 +334,15 @@ class SwitchOp(Op):
 
         if self._inputs[0].shape != self._outputs[0].shape:
             self.notImplemented('SwitchOp propagateShapes output 0')
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
             self._outputs[0].setValue(self._inputs[0].value)
 
         if self._inputs[0].shape != self._outputs[1].shape:
             self.notImplemented('SwitchOp propagateShapes output 1')
-        self._outputs[1].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[1].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
         if self._inputs[0].value is not None:
             self._outputs[1].setValue(self._inputs[0].value)
 
