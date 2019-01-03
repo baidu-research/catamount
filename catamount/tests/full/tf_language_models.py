@@ -185,7 +185,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                                          base_subbatch_size,
                                          base_hidden_dim]
                             # Verify that the shape is clearly specified
-                            op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                            op._outputs[0].mergeShape(out_shape, make_symbolic=True)
                             gather_shape = [sequence_length_symbol,
                                             subbatch_size_symbol,
                                             hidden_dim_symbol]
@@ -193,7 +193,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                             # This TAGather is known to be unused, so who cares?!
                             assert len(op._outputs[0].consumers) == 0
                             continue
-                op._outputs[0].shape.mergeShape(gather_shape, make_symbolic=True)
+                op._outputs[0].mergeShape(gather_shape, make_symbolic=True)
             elif 'TensorArraySize' in op_name_suffix:
                 assert isinstance(op, UnknownOp)
                 assert len(op._inputs) == 2
@@ -210,7 +210,7 @@ def run_tf_language_model(domain=None, build_projection=False):
                 if not op._outputs[0].shape.isUnknown():
                     assert op._outputs[0].shape.dims[1].value == base_hidden_dim
                 read_shape = [subbatch_size_symbol, hidden_dim_symbol]
-                op._outputs[0].shape.mergeShape(read_shape, make_symbolic=True)
+                op._outputs[0].mergeShape(read_shape, make_symbolic=True)
     else:
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
 
@@ -323,11 +323,11 @@ def run_tf_language_model(domain=None, build_projection=False):
     elif domain == 'nmt':
         # HAX: Manually hack the iterator op
         it_op = graph.opsByName['IteratorGetNext']
-        it_op._outputs[0].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[1].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[2].shape.mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
-        it_op._outputs[3].shape.mergeShape([subbatch_size_symbol], make_symbolic=True)
-        it_op._outputs[4].shape.mergeShape([subbatch_size_symbol], make_symbolic=True)
+        it_op._outputs[0].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[1].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[2].mergeShape([subbatch_size_symbol, sequence_length_symbol], make_symbolic=True)
+        it_op._outputs[3].mergeShape([subbatch_size_symbol], make_symbolic=True)
+        it_op._outputs[4].mergeShape([subbatch_size_symbol], make_symbolic=True)
 
         bind_dict = { # Constants
                       'gradients/dynamic_seq2seq/decoder/decoder/while/BasicDecoderStep/decoder/attention/attention_layer/MatMul/Enter_grad/b_acc': [3 * hidden_dim_symbol, hidden_dim_symbol],
@@ -373,7 +373,7 @@ def run_tf_language_model(domain=None, build_projection=False):
             push_op = graph._ops_by_name[push_name]
             # Verify StackPush input[1].shape == StackPop output[0].shape
             assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].shape.mergeShape(push_op._inputs[1].shape, make_symbolic=True)
+            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
             if push_op._inputs[1].value is not None:
                 op._outputs[0].setValue(push_op._inputs[1].value)
 

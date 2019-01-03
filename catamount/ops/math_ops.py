@@ -45,8 +45,8 @@ class BasePointwiseOp(Op):
 
         # Set the output dimensions
         if not final_shape.isUnknown():
-            self._outputs[0].shape.mergeShape(final_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(final_shape,
+                                        make_symbolic=make_symbolic)
 
     def flopsPointwise(self):
         self.debugAssert(len(self._outputs) == 1)
@@ -92,8 +92,8 @@ class AddNOp(Op):
                 if not in_tensor.shape.isUnknown():
                     self.debugAssert(in_shape == in_tensor.shape)
         if in_shape is not None:
-            self._outputs[0].shape.mergeShape(in_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(in_shape,
+                                        make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._outputs) == 1)
@@ -331,8 +331,8 @@ class SigmoidGradOp(Op):
                 in_shape = self._inputs[1].shape
             else:
                 self.debugAssert(in_shape == self._inputs[1].shape)
-        self._outputs[0].shape.mergeShape(in_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(in_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -420,8 +420,8 @@ class TanhGradOp(Op):
                 in_shape = self._inputs[1].shape
             else:
                 self.debugAssert(in_shape == self._inputs[1].shape)
-        self._outputs[0].shape.mergeShape(in_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(in_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -505,8 +505,8 @@ class Conv2DGradFilterOp(Conv2DBaseOp):
 
         self.debugAssert(self._inputs[1].value is not None)
         filter_shape = self._inputs[1].value.tolist()
-        self._outputs[0].shape.mergeShape(filter_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(filter_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -583,8 +583,8 @@ class Conv2DGradInputOp(Conv2DBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -656,8 +656,8 @@ class Conv2DOp(Conv2DBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -723,8 +723,8 @@ class MatMulOp(Op):
         if self._transpose_c:
             raise NotImplementedError('Handle transposed output')
         tensor_c = self._outputs[0]
-        tensor_c.shape.mergeShape([first_dim, last_dim],
-                                  make_symbolic=make_symbolic)
+        tensor_c.mergeShape([first_dim, last_dim],
+                            make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Get matrix inner dimension
@@ -817,7 +817,7 @@ class BatchMatMulOp(Op):
             out_dims.append(dim_x)
         out_dims.append(first_dim)
         out_dims.append(last_dim)
-        self._outputs[0].shape.mergeShape(out_dims, make_symbolic=True)
+        self._outputs[0].mergeShape(out_dims, make_symbolic=True)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -922,8 +922,8 @@ class MaxPoolOp(PoolBaseOp):
         else:
             self.notImplemented('Unknown data format: {}'
                                 .format(self._format))
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1)
@@ -950,8 +950,8 @@ class MaxPoolGradOp(PoolBaseOp):
 
         # Simply propagate the input 0 (x) shape to the output, since
         # output is the gradient with respect to x
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -987,8 +987,8 @@ class RangeOp(Op):
             limit = as_int(limit)
             delta = as_int(delta)
             num_elts = (limit - start + delta - 1) // delta
-            self._outputs[0].shape.mergeShape([num_elts],
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape([num_elts],
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented('RangeOp other data type {}'
                                 .format(self._outputs[0].dtype))
@@ -1062,8 +1062,8 @@ class ReduceOp(Op):
                 if dim_index not in axes:
                     dim = self._inputs[0].shape.getDimension(dim_index)
                     out_shape.append(dim)
-            self._outputs[0].shape.mergeShape(out_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(out_shape,
+                                        make_symbolic=make_symbolic)
 
             if self._inputs[0].value is not None:
                 if self._reduction_op is not None:
@@ -1105,8 +1105,8 @@ class ScatterUpdateOp(Op):
         self.debugAssert(len(self._inputs) == 3)
         self.debugAssert(len(self._outputs) == 1)
         # Output is same as input[0]
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -1145,8 +1145,8 @@ class SelectOp(Op):
                 in_shape = self._inputs[2].shape
         # Output is same shape as inputs
         if in_shape is not None:
-            self._outputs[0].shape.mergeShape(in_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(in_shape,
+                                        make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)
@@ -1176,8 +1176,8 @@ class SoftmaxOp(Op):
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 1)
@@ -1220,8 +1220,8 @@ class UnsortedSegmentSumOp(Op):
         for dim_idx in range(self._inputs[1].shape.rank,
                              self._inputs[0].shape.rank):
             out_shape.append(self._inputs[0].shape.getDimension(dim_idx))
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 3)

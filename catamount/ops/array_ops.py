@@ -44,11 +44,11 @@ class BroadcastGradientArgsOp(Op):
                     print('WARN: BroadcastGradientArgs op {}: Dimension[{}]' \
                           ' mismatch: {} {}'.format(self.name, idx,
                           in_0_val[idx], in_1_val[idx]))
-        self._outputs[0].shape.mergeShape([len(out_0_val)],
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape([len(out_0_val)],
+                                    make_symbolic=make_symbolic)
         self._outputs[0].setValue(out_0_val)
-        self._outputs[1].shape.mergeShape([len(out_1_val)],
-                                          make_symbolic=make_symbolic)
+        self._outputs[1].mergeShape([len(out_1_val)],
+                                    make_symbolic=make_symbolic)
         self._outputs[1].setValue(out_1_val)
 
     def calcAlgFlops(self):
@@ -85,8 +85,8 @@ class ConcatOp(Op):
             in_c_dim = in_shape.dims[axis]
             out_shape_c_dim += in_c_dim
             in_shape.dims[axis] = Dimension(None)
-            self._outputs[0].shape.mergeShape(in_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(in_shape,
+                                        make_symbolic=make_symbolic)
         self._outputs[0].shape.setDimension(axis, out_shape_c_dim,
                                             make_symbolic=make_symbolic)
 
@@ -142,8 +142,8 @@ class ConcatOffsetOp(Op):
             return
         curr_axis_offset = 0
         for idx in range(len(self._outputs)):
-            self._outputs[idx].shape.mergeShape([inputs_rank],
-                                                make_symbolic=make_symbolic)
+            self._outputs[idx].mergeShape([inputs_rank],
+                                          make_symbolic=make_symbolic)
             curr_in_shape = self._inputs[idx + 1].value
             if curr_in_shape is None:
                 self.notImplemented('ConcatOffset: Continue resolving?')
@@ -221,8 +221,8 @@ class DynamicStitchOp(Op):
             out_shape = [max_index + 1]
             for rank_id in range(extra_rank):
                 out_shape.append(Dimension(extra_dims[rank_id]))
-            self._outputs[0].shape.mergeShape(out_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(out_shape,
+                                        make_symbolic=make_symbolic)
 
         if can_prop_values:
             # Migrate values from data_arrs to output
@@ -272,8 +272,8 @@ class ExpandDimsOp(Op):
             if axis < 0:
                 axis += len(out_shape) + 1
             out_shape.insert(axis, 1)
-            self._outputs[0].shape.mergeShape(out_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(out_shape,
+                                        make_symbolic=make_symbolic)
             if self._inputs[0].value is not None:
                 self.notImplemented('ExpandDimsOp propagate vals rank 1+')
 
@@ -311,8 +311,8 @@ class FillOp(Op):
         if out_shape is None:
             print('WARN: FillOp {} shape undetermined'.format(self._name))
             return
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
         if self._outputs[0].shape.isFullyNumeric():
             if self._outputs[0].shape.isScalar():
                 self._outputs[0].setValue(self._inputs[1].value)
@@ -353,8 +353,8 @@ class GatherOp(Op):
                 out_dims.append(self._inputs[1].shape.getDimension(dim_idx))
             for dim_idx in range(1, self._inputs[0].shape.rank):
                 out_dims.append(self._inputs[0].shape.getDimension(dim_idx))
-            self._outputs[0].shape.mergeShape(out_dims,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(out_dims,
+                                        make_symbolic=make_symbolic)
         else:
            self.notImplemented('GatherOp propagateShapes: Non-zero axis')
 
@@ -394,8 +394,8 @@ class InvertPermutationOp(Op):
         if self._inputs[0].shape.isUnknown():
             # Cannot propagate unknown shape
             return
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
         if self._inputs[0].value is None:
             # Cannot propagate unknown value
@@ -438,16 +438,16 @@ class ListDiffOp(Op):
         in_1_val = np.array(self._inputs[1].value)
         out_val = np.setdiff1d(in_0_val, in_1_val)
         out_shape = [len(out_val)]
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
         self._outputs[0].setValue(out_val)
         indices = []
         for idx in range(len(in_0_val)):
             if in_0_val[idx] in out_val:
                 indices.append(idx)
         self.debugAssert(len(indices) == len(out_val))
-        self._outputs[1].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[1].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
         self._outputs[1].setValue(indices)
 
     def calcAlgFlops(self):
@@ -483,8 +483,8 @@ class OneHotOp(Op):
             self.debugAssert(isinstance(self._inputs[1].value,
                                         (int, sympy.Expr)))
             out_shape.append(self._inputs[1].value)
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # One-hot representations have no Flops
@@ -518,8 +518,8 @@ class NumLikeOp(Op):
             if self._inputs[0].shape != self._outputs[0].shape:
                 self.notImplemented('NumLikeOp propagateShapes {}'
                                     .format(self._name))
-            self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(self._inputs[0].shape,
+                                        make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # NumLikeOps have no Flops
@@ -558,7 +558,7 @@ class PadOp(Op):
             new_dim += pad_cfg[idx][0]
             new_dim += pad_cfg[idx][1]
             out_shape.append(new_dim)
-        self._outputs[0].shape.mergeShape(out_shape)
+        self._outputs[0].mergeShape(out_shape)
 
         # TODO: Propagate values if desired
 
@@ -582,7 +582,7 @@ class RankOp(Op):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         # Output must be a scalar (no need for make_symbolic, since scalar)
-        self._outputs[0].shape.mergeShape([])
+        self._outputs[0].mergeShape([])
         if not self._inputs[0].shape.isUnknown():
             self._outputs[0].setValue(self._inputs[0].shape.rank)
 
@@ -614,8 +614,8 @@ class ReshapeOp(Op):
 
         num_elts = self._inputs[0].shape.numElements()
         if self._inputs[1].shape.isScalar():
-            self._outputs[0].shape.mergeShape([num_elts],
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape([num_elts],
+                                        make_symbolic=make_symbolic)
         else:
             if self._inputs[1].value is None:
                 if self._inputs[1].shape.isUnknown():
@@ -628,13 +628,13 @@ class ReshapeOp(Op):
                         # Assume that the output must be the flattened
                         # input[0] values, so the shape is the same as the
                         # number of input[0] values.
-                        self._outputs[0].shape.mergeShape([num_elts],
-                                                   make_symbolic=make_symbolic)
+                        self._outputs[0].mergeShape([num_elts],
+                                                    make_symbolic=make_symbolic)
                     elif self._inputs[0].shape.rank == \
                          self._inputs[1].shape.dims[0].value:
                         # Try merging input and output shapes
-                        self._outputs[0].shape.mergeShape(
-                            self._inputs[0].shape, make_symbolic=make_symbolic)
+                        self._outputs[0].mergeShape(self._inputs[0].shape,
+                            make_symbolic=make_symbolic)
                     else:
                         # TODO: Cannot resolve shapes (unknown input[1] value)
                         print('WARN: Reshape {} impl: in1 val {} shape {}'
@@ -671,8 +671,8 @@ class ReshapeOp(Op):
                               .format(self.name, prod_dims, num_elts))
                         return
                     self.debugAssert(prod_dims == num_elts)
-                self._outputs[0].shape.mergeShape(out_shape,
-                                                  make_symbolic=make_symbolic)
+                self._outputs[0].mergeShape(out_shape,
+                                            make_symbolic=make_symbolic)
 
         if self._outputs[0].shape.isFullyNumeric() and \
            self._inputs[0].value is not None:
@@ -705,8 +705,8 @@ class ReverseSequenceOp(Op):
         self.debugAssert(len(self._outputs) == 1)
         # For now, assume reversing sequence dimension does not change
         # the size from input to output tensor.
-        self._outputs[0].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Reversing a sequence does not require Flops
@@ -745,8 +745,8 @@ class ShapeOp(Op):
             out_dim_0 = self._inputs[idx].shape.rank
             # Currently, rank of a tensor is always defined, so do not allow
             # the output shape to be set to a symbol
-            self._outputs[idx].shape.mergeShape([out_dim_0],
-                                                make_symbolic=False)
+            self._outputs[idx].mergeShape([out_dim_0],
+                                          make_symbolic=False)
 
         # Can set some output values if the input shape is known
         for idx in range(len(self._inputs)):
@@ -810,8 +810,8 @@ class SliceOp(Op):
                 self.debugAssert(end_val <= dim.symbol)
             end_vals.append(end_val)
             out_shape.append(size_val)
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
         # Finally, if possible, propagate values
         if self._inputs[0].value is not None and \
@@ -843,8 +843,7 @@ class SizeOp(Op):
         self.debugAssert(len(self._inputs) == 1)
         self.debugAssert(len(self._outputs) == 1)
         if self._outputs[0].shape.isUnknown():
-            self._outputs[0].shape.mergeShape([],
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape([], make_symbolic=make_symbolic)
         else:
             self.debugAssert(self._outputs[0].shape.isScalar())
         self._outputs[0].setValue(self._inputs[0].shape.numElements())
@@ -903,8 +902,8 @@ class SplitOp(Op):
             out_dims = list(in_tensor.shape.asList())
             for idx, axis_val in enumerate(size_splits.value):
                 out_dims[axis] = axis_val
-                self._outputs[idx].shape.mergeShape(out_dims,
-                                             make_symbolic=make_symbolic)
+                self._outputs[idx].mergeShape(out_dims,
+                                              make_symbolic=make_symbolic)
         else:
             # Case where op should split evenly according to num_splits
             # as indicated by size_splits == 0
@@ -924,8 +923,8 @@ class SplitOp(Op):
                 out_dim._symbol = -(-out_dim._symbol // num_split)
             out_shape.dims[axis] = out_dim
             for out_tensor in self.outputs:
-                out_tensor.shape.mergeShape(out_shape,
-                                            make_symbolic=make_symbolic)
+                out_tensor.mergeShape(out_shape,
+                                      make_symbolic=make_symbolic)
 
         # TODO (Joel): Can split if input is specified
 
@@ -958,8 +957,8 @@ class SqueezeOp(Op):
             for dim in in_shape:
                 if dim.value is None or dim.value > 1:
                     out_shape.append(dim)
-            self._outputs[0].shape.mergeShape(out_shape,
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape(out_shape,
+                                        make_symbolic=make_symbolic)
         else:
             self.notImplemented('Squeeze propagateShapes multi-input')
 
@@ -1073,8 +1072,8 @@ class StridedSliceOp(Op):
                 # If the ranges do not specify these dimensions, then
                 # the input dimension gets preserved to the output
                 out_dims.append(self._inputs[0].shape.getDimension(idx))
-        self._outputs[0].shape.mergeShape(out_dims,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_dims,
+                                    make_symbolic=make_symbolic)
 
         # Check if values can be resolved
         if not self._outputs[0].shape.isFullyNumeric() or tensor_vals is None:
@@ -1130,8 +1129,8 @@ class TileOp(Op):
         out_shape = []
         for idx, dim in enumerate(in_shape.dims):
             out_shape.append(dim * multiples_val[idx])
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # TileOps have no Flops
@@ -1164,8 +1163,8 @@ class TransposeOp(Op):
         out_dims = []
         for idx in permutation:
             out_dims.append(in_dims[idx])
-        self._outputs[0].shape.mergeShape(out_dims,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_dims,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # TransposeOps have no Flops
@@ -1188,8 +1187,8 @@ class WhereOp(Op):
         if len(self._inputs) == 1:
             first_dim = utils.getIntSymbolFromString('{}::num_true'
                             .format(self._inputs[0].name))
-            self._outputs[0].shape.mergeShape([first_dim, 1],
-                                              make_symbolic=make_symbolic)
+            self._outputs[0].mergeShape([first_dim, 1],
+                                        make_symbolic=make_symbolic)
         else:
             self.debugAssert(len(self._inputs) == 3)
             self.notImplemented('Where with 2 inputs')
@@ -1254,8 +1253,8 @@ class PackOp(PackingOp):
         out_shape = list(in_shape.dims)
         num_ins = len(self._inputs)
         out_shape.insert(self._axis, Dimension(num_ins))
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
         # If all input values exist, propagate them
         out_value = []
@@ -1286,8 +1285,8 @@ class UnpackOp(PackingOp):
         out_shape = list(in_shape.dims)
         out_shape.pop(self._axis)
         for out_tensor in self._outputs:
-            out_tensor.shape.mergeShape(out_shape,
-                                        make_symbolic=make_symbolic)
+            out_tensor.mergeShape(out_shape,
+                                  make_symbolic=make_symbolic)
 
         # If values exist in input, propagate them
         if self._inputs[0].value is not None:

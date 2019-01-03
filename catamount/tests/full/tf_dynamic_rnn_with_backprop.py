@@ -81,9 +81,9 @@ def test_tf_dynamic_rnn():
     ta_op = graph.opsByName['rnn/TensorArrayStack/TensorArraySizeV3']
     ta_op._outputs[0].setValue(seq_length)
     ta_op = graph.opsByName['rnn/TensorArrayStack/TensorArrayGatherV3']
-    ta_op._outputs[0].shape.mergeShape([seq_length, batch_size, hidden_dim])
+    ta_op._outputs[0].mergeShape([seq_length, batch_size, hidden_dim])
     ta_op = graph.opsByName['rnn/while/TensorArrayReadV3']
-    ta_op._outputs[0].shape.mergeShape([batch_size, hidden_dim])
+    ta_op._outputs[0].mergeShape([batch_size, hidden_dim])
 
     # TODO (Joel): Fix this up when all stack ops work!
     find_stack_shape = TensorShape([None, 24])
@@ -92,9 +92,9 @@ def test_tf_dynamic_rnn():
        op_name_suffix = op.name.split('/')[-1]
        if 'StackPopV2' in op_name_suffix:
            if op._outputs[0].shape == find_stack_shape:
-               op._outputs[0].shape.mergeShape([batch_size, hidden_dim])
+               op._outputs[0].mergeShape([batch_size, hidden_dim])
            elif op._outputs[0].shape == find_stack_shape_2:
-               op._outputs[0].shape.mergeShape([batch_size, 2 * hidden_dim])
+               op._outputs[0].mergeShape([batch_size, 2 * hidden_dim])
 
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size

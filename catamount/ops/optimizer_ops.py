@@ -14,8 +14,8 @@ class ApplyGradientDescentOp(Op):
         self.debugAssert(self._inputs[0].shape == self._inputs[2].shape)
         self.debugAssert(len(self._outputs) == 1)
         out_shape = self._inputs[0].shape
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None and \
            self._inputs[2].value is not None:
@@ -61,8 +61,8 @@ class ApplyMomentumOp(Op):
         self.debugAssert(self._inputs[0].shape == self._inputs[3].shape)
         self.debugAssert(len(self._outputs) == 1)
         out_shape = self._inputs[0].shape
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
         if self._inputs[0].value is not None and \
            self._inputs[1].value is not None and \
            self._inputs[2].value is not None and \

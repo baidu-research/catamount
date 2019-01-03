@@ -26,8 +26,8 @@ class MultinomialOp(Op):
         out_shape = []
         out_shape.append(self._inputs[0].shape.getDimension(0))
         out_shape.append(num_samples)
-        self._outputs[0].shape.mergeShape(out_shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[0].mergeShape(out_shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         self.debugAssert(len(self._inputs) == 2)
@@ -80,8 +80,8 @@ class CandidateSamplerOp(Op):
         if self._num_true != 1:
             self.notImplemented('CandidateSamplerOp propagateShapes ' \
                                 'num_true != 1')
-        self._outputs[1].shape.mergeShape(self._inputs[0].shape,
-                                          make_symbolic=make_symbolic)
+        self._outputs[1].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
         num_samples = None
         if self._num_sampled is None:
             samps_name = '{}::rand_samps'.format(self.name)
@@ -89,8 +89,8 @@ class CandidateSamplerOp(Op):
         else:
             self.notImplemented('CandidateSamplerOp: propagateShapes '\
                                 'num_sampled != None')
-        self._outputs[0].shape.mergeShape([num_samples])
-        self._outputs[2].shape.mergeShape([num_samples])
+        self._outputs[0].mergeShape([num_samples])
+        self._outputs[2].mergeShape([num_samples])
 
     def calcAlgFlops(self):
         # TODO: This is a very conservative estimate that there is one Flop to

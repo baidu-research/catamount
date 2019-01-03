@@ -181,9 +181,7 @@ def run_tf_speech_attention():
             if const_key in graph.opsByName.keys():
                 const_op = graph.opsByName[const_key]
                 assert isinstance(const_op, ConstantOp)
-                const_op._outputs[0].shape.mergeShape(const_shape, make_symbolic=True)
-                if const_op._outputs[0].value is not None:
-                    const_op._outputs[0]._value = None
+                const_op._outputs[0].mergeShape(const_shape, make_symbolic=True)
             else:
                 print('WARN: ConstantOp not found: {}'.format(const_key))
         except Exception as exc:
@@ -268,7 +266,7 @@ def run_tf_speech_attention():
                              (encoder_steps_symbol // 2) // 2,
                              num_conv_filters_symbol]
             if out_shape is not None:
-                op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                op._outputs[0].mergeShape(out_shape, make_symbolic=True)
         elif 'StackPop' in op_name_suffix:
             # StackPop ops are handled below by pulling shapes from the resolved
             # dimensions of StackPush ops. Just verify inputs and outputs
@@ -291,7 +289,7 @@ def run_tf_speech_attention():
                         print('TODO: Unknown TensorArrayGather {}'
                               .format(op.debugString()))
                     if out_shape is not None:
-                        op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
             elif op._outputs[0].shape.rank == 3:
                 if len(op._outputs[0].consumers) > 0:
                     # If output rank is 3, then appears to be:
@@ -336,13 +334,13 @@ def run_tf_speech_attention():
                         print('TODO: Unknown TensorArrayGather {}'
                               .format(op.debugString()))
                     if out_shape is not None:
-                        op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
             elif op._outputs[0].shape.rank == 2:
                 if len(op._outputs[0].consumers) > 0:
                     out_shape = None
                     print('TODO: Unknown TensorArrayGather (rank 2): {}'.format(op.debugString()))
                     if out_shape is not None:
-                        op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
             else:
                 print('TODO: Unknown TensorArrayGather {}'
                       .format(op.debugString()))
@@ -392,7 +390,7 @@ def run_tf_speech_attention():
                         print('WARN: Unknown TensorArrayReadV3 out shape: {}'
                               .format(op.debugString()))
                     if out_shape is not None:
-                        op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
             else:
                 # NOTES: Many are (?, 40 "features"), (?, 1051 "enc_hid"), or (?, 2102 "2*enc_hid")
                 dim_1_val = op._outputs[0].shape.getDimension(1).value
@@ -409,7 +407,7 @@ def run_tf_speech_attention():
                 else:
                     print('Unhandled TensorArrayRead: {}'.format(op.debugString()))
                 if out_shape is not None:
-                    op._outputs[0].shape.mergeShape(out_shape, make_symbolic=True)
+                    op._outputs[0].mergeShape(out_shape, make_symbolic=True)
 
 
 
@@ -418,17 +416,17 @@ def run_tf_speech_attention():
     # Manually set a couple shapes for max ops that can't yet resolve
     # maximums of 1 vs. positive symbols:
     max_op = graph._ops_by_name['attn_model/AttentionModel/gradients/attn_model/AttentionEncoderDecoder/Sum_grad/Maximum']
-    max_op._outputs[0].shape.mergeShape([2])
+    max_op._outputs[0].mergeShape([2])
     max_op._outputs[0].setValue([1, subbatch_size_symbol])
 
     max_op = graph._ops_by_name['attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/Sum_grad/Maximum']
-    max_op._outputs[0].shape.mergeShape([3])
+    max_op._outputs[0].mergeShape([3])
     # [floor(floor(encoder_steps/2)/2) subbatch_size 1]
     max_op._outputs[0].setValue([(encoder_steps_symbol // 2) // 2,
                                  subbatch_size_symbol, 1])
 
     max_op = graph._ops_by_name['attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/Sum_1_grad/Maximum']
-    max_op._outputs[0].shape.mergeShape([3])
+    max_op._outputs[0].mergeShape([3])
     # [1 subbatch_size 2*enc_hidden_dim]
     max_op._outputs[0].setValue([1, subbatch_size_symbol,
                                  2 * enc_hidden_dim_symbol])
@@ -451,7 +449,7 @@ def run_tf_speech_attention():
             push_op = graph._ops_by_name[push_name]
             # Verify StackPush input[1].shape == StackPop output[0].shape
             assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].shape.mergeShape(push_op._inputs[1].shape, make_symbolic=True)
+            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
             if push_op._inputs[1].value is not None:
                 op._outputs[0].setValue(push_op._inputs[1].value)
 
