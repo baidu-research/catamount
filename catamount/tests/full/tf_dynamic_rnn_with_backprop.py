@@ -102,7 +102,7 @@ def test_tf_dynamic_rnn():
                   'c_init_state': [batch_size, hidden_dim],
                   'h_init_state': [batch_size, hidden_dim],
                   'out_correct': [batch_size, seq_length] }
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=True)
+    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=True)
 
     algorithmic_flops = graph.calcAlgFlops()
 

@@ -45,8 +45,8 @@ def test_dynamic_stitch_op():
                                         data_consts)
 
             bind_dict = {}
-            graph.bindTensorShapeDimensions(bind_dict,
-                                            warn_if_ill_defined=True)
+            graph.bindShapesAndPropagate(bind_dict,
+                                         warn_if_ill_defined=True)
 
             # Check that out_tensor shape and value is correct!
             out_value = out_tensor.value

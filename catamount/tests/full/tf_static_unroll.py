@@ -44,7 +44,7 @@ def test_tf_static_unroll_rnn():
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': ['seq_length', 'batch_size', 'hidden_dim'],
                   'init_state': ['batch_size', 'hidden_dim'] }
-    graph.bindTensorShapeDimensions(bind_dict)
+    graph.bindShapesAndPropagate(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()
 

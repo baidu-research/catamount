@@ -136,8 +136,32 @@ class Graph(SubgraphOp):
                 print('WARN: During bind, op not found: {}'
                       .format(op_search_str))
 
-    def bindTensorShapeDimensions(self, bind_dict, warn_if_ill_defined=False,
-                                  make_symbolic=False):
+    def bindConstantValues(self, const_dict):
+        ''' Bind the ConstantOp values as defined in the bind_dict
+
+            Args:
+              const_dict: A dictionary of tensor_name -> value to bind. Tensor
+                  names can be Python regular expression strings. Values can
+                  be any type that matches the op's types or symbols (as
+                  lists). Value lists must match the shape of the ConstantOp.
+        '''
+        for op_search_str, op_out_value in const_dict.items():
+            op_search_re = \
+                re.compile(self.makeOpSearchRegex(op_search_str)).match
+            op_name_found = False
+            for op in self._ops_by_name.values():
+                if op_search_re(op.name):
+                    assert isinstance(op, ConstantOp), \
+                           'Tried to bind value in unsupported op: {}' \
+                           .format(op.debugString())
+                    op._outputs[0].setValue(op_out_value)
+                    op_name_found = True
+            if not op_name_found:
+                print('WARN: During value bind, ConstantOp not found: {}'
+                      .format(op_search_str))
+
+    def bindShapesAndPropagate(self, bind_dict, warn_if_ill_defined=False,
+                               make_symbolic=False):
         ''' Bind the tensor dimensions as defined in the bind_dict, and then
             propagate those dimensions through the graph.
 

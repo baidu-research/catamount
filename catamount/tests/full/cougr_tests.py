@@ -161,7 +161,7 @@ def test_manual_graph_build():
             [batch_size_str, hidden_dim_str]
         feed_dict['{}_h_state'.format(lstm_layer_name)] = \
             [batch_size_str, hidden_dim_str]
-    graph.bindTensorShapeDimensions(feed_dict)
+    graph.bindShapesAndPropagate(feed_dict)
 
     assert graph.isValid()
 

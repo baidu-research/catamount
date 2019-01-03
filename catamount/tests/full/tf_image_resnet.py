@@ -147,12 +147,22 @@ def run_tf_image_resnet(depth, filter_scale=1.0):
     base_small_im_width = 7
     small_im_width_symbol = ((((image_width_symbol // 2) // 2) // 2) // 2) // 2
 
+    # TODO (Joel): Add InputQueue ops to avoid manually setting dimensions
+    in_deque_op = graph.opsByName['QueueInput/input_deque']
+    # print(in_deque_op.debugString())
+    out_tensor = in_deque_op._outputs[0]
+    for idx, sym in enumerate([subbatch_size_symbol, image_height_symbol, image_width_symbol, num_in_channels_symbol]):
+        out_tensor.shape.setDimension(idx, sym)
+        out_tensor.shape.dims[idx]._value = None
+    out_tensor = in_deque_op._outputs[1]
+    out_tensor.shape.setDimension(0, subbatch_size_symbol)
+
     # Set up a dictionary of placeholders and variables for which we want
     # to make dimensions symbolic. Sift out their dimensions
     bind_dict = { # Placeholders
-                      'label': [subbatch_size_symbol],
-                      'input': [subbatch_size_symbol, image_height_symbol, image_width_symbol, num_in_channels_symbol],
-                    }
+                  'label': [subbatch_size_symbol],
+                  'input': [subbatch_size_symbol, image_height_symbol, image_width_symbol, num_in_channels_symbol],
+                }
     # Parameterize all variable tensor dimensions
     for op in graph._ops_by_name.values():
         if isinstance(op, VariableOp):
@@ -245,28 +255,10 @@ def run_tf_image_resnet(depth, filter_scale=1.0):
                 new_values[2] = num_in_channels_symbol
             if changed:
                 const_dict[op.name] = new_values
-    for const_key, const_val in const_dict.items():
-        try:
-            if const_key in graph.opsByName.keys():
-                const_op = graph.opsByName[const_key]
-                assert isinstance(const_op, ConstantOp)
-                const_op._outputs[0].setValue(const_val)
-            else:
-                print('WARN: ConstantOp not found: {}'.format(const_key))
-        except Exception as exc:
-            print('WARN: ConstantOp unknown problem: {}: {}'.format(const_key, exc))
 
-    # TODO (Joel): Add InputQueue ops to avoid manually setting dimensions
-    in_deque_op = graph.opsByName['QueueInput/input_deque']
-    # print(in_deque_op.debugString())
-    out_tensor = in_deque_op._outputs[0]
-    for idx, sym in enumerate([subbatch_size_symbol, image_height_symbol, image_width_symbol, num_in_channels_symbol]):
-        out_tensor.shape.setDimension(idx, sym)
-        out_tensor.shape.dims[idx]._value = None
-    out_tensor = in_deque_op._outputs[1]
-    out_tensor.shape.setDimension(0, subbatch_size_symbol)
+    graph.bindConstantValues(const_dict)
 
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
+    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
 
     # Nice little hack to actually propagate MaximumOp values to outputs
     for op in graph._ops_by_name.values():
@@ -277,7 +269,7 @@ def run_tf_image_resnet(depth, filter_scale=1.0):
                 out_val = vmax(op._inputs[0].value, op._inputs[1].value)
                 op._outputs[0].setValue(out_val)
 
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
+    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
 
     print('Bound values')
 
