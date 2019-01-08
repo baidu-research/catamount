@@ -528,7 +528,7 @@ def run_tf_speech_attention():
     except:
         print('ERROR: resolved_flops should be int, but is {} = {}'.format(
               type(resolved_flops), resolved_flops))
-    correct_flops = 568344682852
+    correct_flops = 568878183032
     assert resolved_flops == correct_flops, \
            'Incorrect algorithmic flops: {}'.format(resolved_flops)
     print('Algorithmic Flops: {}\nWith specified dims: {}\n'.format(alg_flops, resolved_flops))
@@ -541,7 +541,7 @@ def run_tf_speech_attention():
     except:
         print('ERROR: resolved_bytes should be int, but is {} = {}'.format(
               type(resolved_bytes), resolved_bytes))
-    correct_bytes = 86766445577
+    correct_bytes = 92231419797
     assert resolved_bytes == correct_bytes, \
            'Incorrect algorithmic bytes: {}'.format(resolved_bytes)
     print('Alg bytes accessed: {}\nWith specified dims: {}\n'.format(alg_bytes, resolved_bytes))
@@ -554,7 +554,7 @@ def run_tf_speech_attention():
     except:
         print('ERROR: resolved_footprint should be int, but is {} = {}'.format(
               type(resolved_footprint), resolved_footprint))
-    correct_footprint = 30361128578
+    correct_footprint = 32624988214
     assert resolved_footprint == correct_footprint, \
            'Incorrect algorithmic footprint: {}'.format(resolved_footprint)
     print('Alg mem footprint: {}\nWith specified dims: {}\n'.format(alg_footprint, resolved_footprint))
