@@ -3,6 +3,21 @@ from .subgraph_op import SubgraphOp
 from ..api import utils
 
 
+class ContextFrame:
+    def __init__(self, name):
+        self._name = name
+        self._enter_ops = {}
+
+    def __str__(self):
+        to_return = 'ContextFrame(name: {}):'.format(self._name)
+        for enter_op in self._enter_ops.values():
+            to_return += '\n  Enter: {}'.format(enter_op.name)
+        return to_return
+
+    def addEnterOp(self, enter_op):
+        self._enter_ops[enter_op.name] = enter_op
+
+
 class ControlBlockOp(SubgraphOp):
     ''' A ControlBlockOp designates a subgraph that manages some form of
         dynamic control flow for a compute graph (e.g., if-conditionals or
@@ -95,6 +110,14 @@ class EnterOp(Op):
     '''
     def __init__(self, name):
         super(EnterOp, self).__init__(name)
+        self._frame_name = None
+
+    def setFrameName(self, frame_name):
+        self.debugAssert(self._frame_name is None)
+        self._frame_name = frame_name
+
+    def getFrameName(self):
+        return self._frame_name
 
     def propagateShapes(self, make_symbolic=False):
         # EnterOps should forward their inputs to their outputs
