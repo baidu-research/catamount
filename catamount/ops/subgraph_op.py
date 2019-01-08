@@ -24,7 +24,7 @@ class SubgraphOp(Op):
         self.findAllSourcesSinks()
 
     def debugString(self):
-        to_return = 'In op {} of type {}:'.format(self._name, type(self))
+        to_return = 'Op(name: {}, type: {}):'.format(self._name, type(self))
         for op_name in sorted(self._ops_by_name.keys()):
             to_return += '\n Subop: {}'.format(op_name)
         return to_return
