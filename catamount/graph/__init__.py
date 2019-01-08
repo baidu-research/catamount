@@ -30,11 +30,7 @@ class Graph(SubgraphOp):
         out_str = ''
         for op_name in sorted(self._ops_by_name.keys()):
             op = self._ops_by_name[op_name]
-            out_str += '{} {}\n'.format(op.name, op)
-            for in_tensor in op._inputs:
-                out_str += '  In tensor: {}\n'.format(in_tensor)
-            for out_tensor in op._outputs:
-                out_str += '  Out tensor: {}\n'.format(out_tensor)
+            out_str += '{}\n'.format(op.debugString())
         return out_str
 
     def asDefault(self):
