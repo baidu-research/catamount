@@ -249,12 +249,6 @@ def run_tf_speech_attention():
                              num_conv_filters_symbol]
             if out_shape is not None:
                 op._outputs[0].mergeShape(out_shape, make_symbolic=True)
-        elif 'StackPop' in op_name_suffix:
-            # StackPop ops are handled below by pulling shapes from the resolved
-            # dimensions of StackPush ops. Just verify inputs and outputs
-            assert isinstance(op, UnknownOp)
-            assert len(op._inputs) == 1
-            assert len(op._outputs) == 1
         elif 'TensorArrayGather' in op_name_suffix:
             assert isinstance(op, UnknownOp)
             assert len(op._inputs) == 3

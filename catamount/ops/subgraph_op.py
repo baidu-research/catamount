@@ -2,6 +2,9 @@ import sympy
 from .base_op import Op
 from ..api import utils
 
+# HACK: Remove me later
+from .stack_ops import StackPushOp
+
 
 class SubgraphOp(Op):
     ''' A SubgraphOp designates a subgraph that manages a collection of ops.
@@ -274,6 +277,7 @@ class SubgraphOp(Op):
         # Continually visit frontier ops until none left
         while len(frontier_ops) > 0:
             next_op = frontier_ops.pop()
+            print('VISITING: {}'.format(next_op.debugString()))
             self.debugAssert(next_op.canVisit(visited_ops),
                              'Next op {} cannot visit. Visited: {}'
                              .format(next_op.name, visited_ops))
@@ -291,13 +295,16 @@ class SubgraphOp(Op):
                     # producer needs to be added to visited_ops.
                     producer_op = next_op
                     if next_op != out_tensor.producer:
-                        self.debugAssert(next_op, SubgraphOp)
+                        self.debugAssert(isinstance(next_op, SubgraphOp))
                         if hierarchical:
                             producer_op = out_tensor.producer
                             visited_ops.add(producer_op)
                     op_inputs_visited[consumer].add(producer_op)
                     # Check if the consumer can now be visited, and if so,
                     # add it to the frontier
+                    from .ctrl_ops import EnterOp
+                    if isinstance(consumer, (StackPushOp, EnterOp)):
+                        print('TRYING TO VISIT STACKPUSH OR ENTER: {}'.format(consumer.debugString()))
                     if consumer.canVisit(op_inputs_visited[consumer]):
                         if not hierarchical or consumer.parent == self:
                             frontier_ops.add(consumer)
@@ -307,6 +314,25 @@ class SubgraphOp(Op):
                        consumer.parent not in visited_ops:
                         if consumer.parent.canVisit(visited_ops):
                             frontier_ops.add(consumer.parent)
+            # ----------------------------------------------------------------
+            # HACK! StackPushOps need to signal that the corresponding
+            # StackPopOp may now be ready to visit. If so, add it to the
+            # frontier.
+            # TODO: REPLACE THIS CHECK WITH CONTROL DEPENDENCIES?
+            if isinstance(next_op, StackPushOp):
+                import pdb
+                pdb.set_trace()
+                stack_pop_op = next_op._stack._pop
+                self.debugAssert(stack_pop_op not in visited_ops)
+                if stack_pop_op not in op_inputs_visited:
+                    op_inputs_visited[stack_pop_op] = set()
+                # Signal that the stack has been visited by adding the
+                # StackPushOp to the StackPopOp's visited inputs
+                op_inputs_visited[stack_pop_op].add(next_op)
+                if stack_pop_op.canVisit(op_inputs_visited[stack_pop_op]):
+                    if not hierarchical or stack_pop_op.parent == self:
+                        frontier_ops.add(stack_pop_op)
+            # ----------------------------------------------------------------
         # print('Subgraph: {}'.format(self.name))
         # print('All ops: {}'.format(len(self._ops_by_name.keys())))
         children_ops = set()

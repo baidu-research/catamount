@@ -152,18 +152,11 @@ def run_tf_language_model(domain=None, build_projection=False):
     else:
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
 
-    # HAXXX: Manually setting TensorArray and StackPop shapes!
+    # HAXXX: Manually setting TensorArray shapes!
     if domain == 'wordlm' or domain == 'charlm' or domain == 'nmt':
         for op in graph._ops_by_name.values():
             op_name_suffix = op.name.split('/')[-1]
-            if 'StackPop' in op_name_suffix:
-                # HAXXXX: Just verify op structure. Pull shapes and values
-                # from corresponding StackPush ops below
-                assert isinstance(op, UnknownOp)
-                assert len(op._inputs) == 1
-                assert len(op._outputs) == 1
-                continue
-            elif 'TensorArrayGather' in op_name_suffix:
+            if 'TensorArrayGather' in op_name_suffix:
                 assert isinstance(op, UnknownOp)
                 assert len(op._inputs) == 3
                 assert len(op._outputs) == 1
