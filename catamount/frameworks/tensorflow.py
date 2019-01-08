@@ -415,6 +415,9 @@ def get_batch_matmul_attributes_from_op(tf_sess, tf_op, op):
     op.setAdjointX(tf_op.get_attr('adj_x'))
     op.setAdjointY(tf_op.get_attr('adj_y'))
 
+def get_enter_frame_name_from_op(tf_sess, tf_op, op):
+    op.setFrameName(tf_op.get_attr('frame_name').decode('utf-8'))
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -451,6 +454,9 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     elif isinstance(op, BatchMatMulOp):
         get_batch_matmul_attributes_from_op(tf_sess, tf_op, op)
 
+    elif isinstance(op, EnterOp):
+        get_enter_frame_name_from_op(tf_sess, tf_op, op)
+
     # print(tf_op.op_def)
     # print(tf_op.node_def)
 
@@ -458,6 +464,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
     graph = Graph()
     tensors = {}
     op_inputs = {}
+    ctrl_frames = {}
     for tf_op in tf_graph._nodes_by_name.values():
         if tf_op.type in TF_OP_TO_CATAMOUNT.keys():
             # Map to Catamount op type
@@ -521,6 +528,12 @@ def construct_catamount_graph(tf_sess, tf_graph):
 
         # Get the tf_op's attributes and set them as necessary
         parse_tf_op_attributes_into_op(tf_sess, tf_op, op)
+
+        if catamount_type == EnterOp:
+            frame_name = op.getFrameName()
+            if frame_name not in ctrl_frames:
+                ctrl_frames[frame_name] = ContextFrame(frame_name)
+            ctrl_frames[frame_name].addEnterOp(op)
 
         graph.addOp(op)
 
