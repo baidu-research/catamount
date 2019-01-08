@@ -631,6 +631,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
     for op_name, op in graph.opsByName.items():
         if op.isControlOp():
             control_ops.append(op)
+    assert len(control_ops) == len(ctrl_frames)
     for ctrl_op in control_ops:
         # Get all ops for the loop condition value calculation (1 and 2),
         # the variable contexts (3), and the loop body (4). Extract these
@@ -655,11 +656,21 @@ def construct_catamount_graph(tf_sess, tf_graph):
             assert not next_op.isControlOp(), \
                 'Catamount Framework(TF): Should be no up-stream control blocks!'
             visited_ops.add(next_op)
-            if isinstance(next_op, EnterOp) or \
-               isinstance(next_op, NextIterationOp):
-                # Do not traverse past EnterOps, NextIterationOps
+            if isinstance(next_op, EnterOp):
+                # Add EnterOps to the frontier and visited by looking up all
+                # the EnterOps associated with their context frame. Will
+                # traverse forward from them to ExitOps or MergeOps
+                ctx_frame = next_op._context_frame
+                for enter_op in ctx_frame._enter_ops.values():
+                    if enter_op not in frontier_ops:
+                        frontier_ops.append(enter_op)
+                        visited_ops.add(enter_op)
+                # Do not traverse past EnterOps
                 continue
-            if isinstance(next_op, MergeOp):
+            elif isinstance(next_op, NextIterationOp):
+                # Do not traverse past NextIterationOps
+                continue
+            elif isinstance(next_op, MergeOp):
                 frontier_ops.append(next_op)
             for in_tensor in next_op.inputs:
                 bwd_frontier_ops.append(in_tensor.producer)
