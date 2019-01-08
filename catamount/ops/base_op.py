@@ -10,7 +10,7 @@ class Op:
         self._parent = None
 
     def debugString(self):
-        to_return = 'In op {} of type {}:'.format(self._name, type(self))
+        to_return = 'Op(name: {} of type {}):'.format(self._name, type(self))
         for in_tensor in self._inputs:
             to_return += '\n  In:  {}'.format(in_tensor)
         for out_tensor in self._outputs:
