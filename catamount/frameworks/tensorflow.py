@@ -635,6 +635,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
         # Get all ops for the loop condition value calculation (1 and 2),
         # the variable contexts (3), and the loop body (4). Extract these
         # into a subgraph.
+        ctrl_block_frame = None
         subgraph_ops = [ctrl_op]
         visited_ops = set(subgraph_ops)
         frontier_ops = []
@@ -659,7 +660,10 @@ def construct_catamount_graph(tf_sess, tf_graph):
                 # Add EnterOps to the frontier and visited by looking up all
                 # the EnterOps associated with their context frame. Will
                 # traverse forward from them to ExitOps or MergeOps
-                ctx_frame = next_op._context_frame
+                if ctrl_block_frame is None:
+                    ctx_frame = next_op._context_frame
+                else:
+                    assert ctrl_block_frame == next_op._context_frame
                 for enter_op in ctx_frame._enter_ops.values():
                     if enter_op not in frontier_ops:
                         frontier_ops.append(enter_op)
@@ -702,6 +706,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
         # (which will move the graph ops into the subgraph)
         ctrl_block_op = ControlBlockOp('{}_block'.format(ctrl_op.name),
                                        ctrl_op, visited_ops)
+        ctrl_block_op.setContextFrame(ctrl_block_frame)
         graph.addOp(ctrl_block_op)
 
     return graph

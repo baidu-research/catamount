@@ -18,6 +18,10 @@ class SubgraphOp(Op):
         # (i.e., terminal node) or they are consumed by other ops outside
         # the graph, then it is a sink op.
         self._sinks = {}
+        # The ContextFrame that is associated with this subgraph. The
+        # ContextFrame tracks the ops that gate the flow of tensors into
+        # the subgraph.
+        self._context_frame = None
 
         for op in ops_list:
             self.addOp(op)
@@ -138,6 +142,10 @@ class SubgraphOp(Op):
                 for consumer in out_tensor.consumers.values():
                     to_return.add(out_tensor)
         return list(to_return)
+
+    def setContextFrame(self, context_frame):
+        self.debugAssert(self._context_frame is None)
+        self._context_frame = context_frame
 
     def outputShapeIllDefined(self):
         # Subgraph ops are collections of other ops. Ignore whether subgraph
