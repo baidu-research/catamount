@@ -1,3 +1,4 @@
+import re
 import sympy
 import catamount.frameworks.tensorflow
 from catamount.api import utils
@@ -9,12 +10,40 @@ tf_example_filename = 'catamount/frameworks/example_graphs/tensorflow/rnn/output
 def test_tf_dynamic_rnn():
     graph = catamount.frameworks.tensorflow.import_graph(tf_example_filename)
 
+    # ============ TO REMOVE INITIALIZATION OPS! =============
+    # NOTE: This code is pretty general and is likely to be migrated into
+    # Catamount code for removing TF-specific initialization ops
+    from catamount.ops import AssignOp
+    from catamount.ops import VariableOp
+    assign_ops = set()
+    for op in graph.opsByName.values():
+        if isinstance(op, AssignOp):
+            assign_ops.add(op)
+    for assign_op in assign_ops:
+        my_ancestors = set()
+        my_frontier = set()
+        my_frontier.add(assign_op)
+        while len(my_frontier) > 0:
+            next_op = my_frontier.pop()
+            for in_tensor in next_op.inputs:
+                if not isinstance(in_tensor.producer, VariableOp):
+                    my_frontier.add(in_tensor.producer)
+            my_ancestors.add(next_op)
+        for next_op in my_ancestors:
+            graph.removeOp(next_op)
+
     print('INITIAL GRAPH: {}\n\n'.format(graph))
 
     assert graph.isValid()
 
     algorithmic_flops = graph.calcAlgFlops()
 
+    # Symbols we will use
+    batch_size = utils.getIntSymbolFromString('batch_size')
+    seq_length = utils.getIntSymbolFromString('seq_length')
+    hidden_dim = utils.getIntSymbolFromString('hidden_dim')
+
+    graph_iters = utils.getIntSymbolFromString('graph::iters')
     rwb_iters = utils.getIntSymbolFromString('rnn/while/LoopCond_block::iters')
     a_0 =    utils.getIntSymbolFromString('rnn/while/basic_lstm_cell/Add:0::dim_0')
     a1_0 =   utils.getIntSymbolFromString('rnn/while/basic_lstm_cell/Add_1:0::dim_0')
@@ -30,11 +59,11 @@ def test_tf_dynamic_rnn():
     sm_r_1 = utils.getIntSymbolFromString('softmax/Reshape:0::dim_1')
     th_0 =   utils.getIntSymbolFromString('rnn/while/basic_lstm_cell/Tanh:0::dim_0')
     th1_0 =  utils.getIntSymbolFromString('rnn/while/basic_lstm_cell/Tanh_1:0::dim_0')
-    forward_flops = rwb_iters * (24 * a_0 + 24 * a1_0 + 96 * ba_0 + 9216 * mm_0 + \
-                                 24 * m_0 + 24 * m1_0 + 24 * m2_0 + 96 * s_0 + \
-                                 96 * s1_0 + 96 * s2_0 + 144 * th_0 + 144 * th1_0 + 6) + \
+    forward_flops = rwb_iters * (hidden_dim * a_0 + hidden_dim * a1_0 + 4 * hidden_dim * ba_0 + 16 * hidden_dim**2 * mm_0 + \
+                                 hidden_dim * m_0 + hidden_dim * m1_0 + hidden_dim * m2_0 + 4 * hidden_dim * s_0 + \
+                                 4 * hidden_dim * s1_0 + 4 * hidden_dim * s2_0 + 6 * hidden_dim * th_0 + 6 * hidden_dim * th1_0 + 6) + \
                     3 * sm_r_0 * sm_r_1 + \
-                    18628
+                    16 * hidden_dim**2 + 8 * hidden_dim + 3
     grad_iters = utils.getIntSymbolFromString('Gradient/Compute/gradients/b_count_2_block::iters')
     g_an_0 =   utils.getIntSymbolFromString('Gradient/Compute/gradients/AddN:0::dim_0')
     g_an1_0 =  utils.getIntSymbolFromString('Gradient/Compute/gradients/AddN_1:0::dim_0')
@@ -55,14 +84,17 @@ def test_tf_dynamic_rnn():
     g_c_0 =    utils.getIntSymbolFromString('Gradient/Compute/gradients/rnn/while/basic_lstm_cell/split_grad/concat:0::dim_0')
     g_sm_m_0 = utils.getIntSymbolFromString('Gradient/Compute/gradients/softmax/softmax_grad/mul:0::dim_0')
     g_sm_m_1 = utils.getIntSymbolFromString('Gradient/Compute/gradients/softmax/softmax_grad/mul:0::dim_1')
-    backward_flops = grad_iters * (24 * g_an_0 + 72 * g_an1_0 + 9216 * g_mm_0 + 9216 * g_mms_0 + \
-                                   72 * g_ms_0 + 48 * g_m_0 + 72 * g_ms1_0 + 48 * g_m1_0 + \
-                                   72 * g_ms2_0 + 48 * g_m2_0 + 72 * g_ms21_0 + 48 * g_m21_0 + \
-                                   72 * g_mus_0 + 48 * g_mu_0 + 48 * g_mu1_0 + 48 * g_s_0 + \
-                                   96 * g_c_0 + 4706) + \
+    backward_flops = grad_iters * (hidden_dim * g_an_0 + 3 * hidden_dim * g_an1_0 + 16 * hidden_dim**2 * g_mm_0 + 16 * hidden_dim**2 * g_mms_0 + \
+                                   3 * hidden_dim * g_ms_0 + 2 * hidden_dim * g_m_0 + 3 * hidden_dim * g_ms1_0 + 2 * hidden_dim * g_m1_0 + \
+                                   3 * hidden_dim * g_ms2_0 + 2 * hidden_dim * g_m2_0 + 3 * hidden_dim * g_ms21_0 + 2 * hidden_dim * g_m21_0 + \
+                                   3 * hidden_dim * g_mus_0 + 2 * hidden_dim * g_mu_0 + 2 * hidden_dim * g_mu1_0 + 2 * hidden_dim * g_s_0 + \
+                                   4 * hidden_dim * g_c_0 + 8 * hidden_dim**2 + 4 * hidden_dim + 2) + \
                      g_sm_m_0 * g_sm_m_1
-    correct_alg_flops = forward_flops + backward_flops
+    general_correct_alg_flops = forward_flops + backward_flops
+    correct_alg_flops = general_correct_alg_flops.subs({hidden_dim: 24})
 
+    # Now, bind tensor names in the graph and verify that the algorithmic
+    # Flop counts reflect the new name bindings
     print('Loaded Flops test:')
     print('    Catamount:   {}'.format(algorithmic_flops))
     print('    Correct: {}'.format(correct_alg_flops))
@@ -70,45 +102,83 @@ def test_tf_dynamic_rnn():
         'Initial alg flops incorrect!\n  Expecting: {}\n  Calculated: {}' \
         .format(correct_alg_flops, algorithmic_flops)
 
-    # Now, bind tensor names in the graph and verify that the algorithmic
-    # Flop counts reflect the new name bindings
-    batch_size = utils.getIntSymbolFromString('batch_size')
-    seq_length = utils.getIntSymbolFromString('seq_length')
-    hidden_dim = utils.getIntSymbolFromString('hidden_dim')
-
     # Manually set some variables
     # TODO (Joel): Fix this up when all tensor arrays work!
     ta_op = graph.opsByName['rnn/TensorArrayStack/TensorArraySizeV3']
     ta_op._outputs[0].setValue(seq_length)
     ta_op = graph.opsByName['rnn/TensorArrayStack/TensorArrayGatherV3']
-    ta_op._outputs[0].mergeShape([seq_length, batch_size, hidden_dim])
+    ta_op._outputs[0].mergeShape([seq_length, batch_size, hidden_dim], make_symbolic=True)
     ta_op = graph.opsByName['rnn/while/TensorArrayReadV3']
-    ta_op._outputs[0].mergeShape([batch_size, hidden_dim])
+    ta_op._outputs[0].mergeShape([batch_size, hidden_dim], make_symbolic=True)
 
+    ta_op = graph.opsByName['Gradient/Compute/gradients/rnn/while/TensorArrayWrite/TensorArrayWriteV3_grad/TensorArrayReadV3']
+    ta_op._outputs[0].mergeShape([batch_size, hidden_dim], make_symbolic=True)
+
+    # Bind constant values first
+    const_dict = { # Store the shapes of certain tensors as constants
+                   'rnn/Const': [hidden_dim],
+                   'rnn/Const_1': [hidden_dim],
+                 }
+    # TODO: This will be removed for a function that handles constants
+    for op_search_str, op_out_value in const_dict.items():
+        op_search_re = \
+            re.compile('^' + op_search_str + '$').match
+        op_name_found = False
+        for op in graph._ops_by_name.values():
+            if op_search_re(op.name):
+                op._outputs[0].setValue(op_out_value)
+                op_name_found = True
+        if not op_name_found:
+            print('WARN: During value bind, ConstantOp not found: {}'
+                  .format(op_search_str))
+
+    # Bind first to get StackPush inputs
     # TODO (Joel): Fix this up when all stack ops work!
-    find_stack_shape = TensorShape([None, 24])
-    find_stack_shape_2 = TensorShape([None, 48])
-    for op in graph.opsByName.values():
-       op_name_suffix = op.name.split('/')[-1]
-       if 'StackPopV2' in op_name_suffix:
-           if op._outputs[0].shape == find_stack_shape:
-               op._outputs[0].mergeShape([batch_size, hidden_dim])
-           elif op._outputs[0].shape == find_stack_shape_2:
-               op._outputs[0].mergeShape([batch_size, 2 * hidden_dim])
-
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
-    bind_dict = { 'a': [batch_size, seq_length, hidden_dim],
+    bind_dict = { # Variables
+                  'rnn/basic_lstm_cell/kernel': [2 * hidden_dim, 4 * hidden_dim],
+                  'rnn/basic_lstm_cell/bias': [4 * hidden_dim],
+                  # Placeholders
+                  'a': [batch_size, seq_length, hidden_dim],
                   'c_init_state': [batch_size, hidden_dim],
                   'h_init_state': [batch_size, hidden_dim],
-                  'out_correct': [batch_size, seq_length] }
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=True)
+                  'out_correct': [batch_size, seq_length],
+                  # Constants
+                  'Gradient/Compute/gradients/rnn/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [2 * hidden_dim, 4 * hidden_dim],
+                  'Gradient/Compute/gradients/rnn/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim],
+                }
+    graph.bindTensorShapeDimensions(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
+    # Finally, more hacking... StackPops can pull from their corresponding
+    # StackPushs. Try to propagate their shapes and/or values if possible
+    # NOTE: This code is pretty general and is likely to be migrated into
+    # Catamount ops for stacks later
+    for op in graph._ops_by_name.values():
+        op_name_split = op.name.split('/')
+        if 'StackPop' in op_name_split[-1]:
+            push_name_split = list(op_name_split)
+            push_name_split[-1] = push_name_split[-1].replace('StackPop',
+                                                              'StackPush')
+            push_name = '/'.join(push_name_split)
+            if push_name not in graph._ops_by_name.keys():
+                print('WARN: CANNOT FIND CORRESPONDING STACK PUSH: {}'
+                      .format(push_name))
+                continue
+            push_op = graph._ops_by_name[push_name]
+            # Verify StackPush input[1].shape == StackPop output[0].shape
+            assert push_op._inputs[1].shape == op._outputs[0].shape
+            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
+            if push_op._inputs[1].value is not None:
+                op._outputs[0].setValue(push_op._inputs[1].value)
+
+    # Bind and propagate again now that StackPops have correct shapes/values
+    graph.bindTensorShapeDimensions(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
 
     algorithmic_flops = graph.calcAlgFlops()
 
     # Update the algorithmic Flops formula
     # Sub the forward prop values
-    correct_alg_flops = correct_alg_flops.subs({ ba_0: batch_size,
+    correct_alg_flops = general_correct_alg_flops.subs({ ba_0: batch_size,
                                                  a_0: batch_size,
                                                  a1_0: batch_size,
                                                  mm_0: batch_size,
@@ -121,7 +191,7 @@ def test_tf_dynamic_rnn():
                                                  th_0: batch_size,
                                                  th1_0: batch_size,
                                                  sm_r_0: batch_size*seq_length,
-                                                 sm_r_1: 24, })
+                                                 sm_r_1: hidden_dim, })
 
     # Sub the backward prop values
     # TODO (Joel): Fix this up when all backprop works!
@@ -143,14 +213,11 @@ def test_tf_dynamic_rnn():
                                                  g_an_0: batch_size,
                                                  g_an1_0: batch_size,
                                                  g_sm_m_0: batch_size * seq_length,
-                                                 g_sm_m_1: 24, })
+                                                 g_sm_m_1: hidden_dim, })
 
     assert graph.isValid()
 
     print('BOUND GRAPH: {}\n\n'.format(graph))
-
-    # HHHHAAAAAAXXXXXX: FIX THIS! DUE TO SHAPEOP SYMBOL PROPAGATION!
-    algorithmic_flops = algorithmic_flops.subs({hidden_dim: 24})
 
     print('Bound Flops test:')
     print('    Catamount:   {}'.format(algorithmic_flops))
