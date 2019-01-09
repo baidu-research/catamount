@@ -86,22 +86,37 @@ def test_tf_dynamic_rnn():
     ta_op._outputs[0].mergeShape([batch_size, hidden_dim])
 
     # TODO (Joel): Fix this up when all stack ops work!
-    find_stack_shape = TensorShape([None, 24])
-    find_stack_shape_2 = TensorShape([None, 48])
-    for op in graph.opsByName.values():
-       op_name_suffix = op.name.split('/')[-1]
-       if 'StackPopV2' in op_name_suffix:
-           if op._outputs[0].shape == find_stack_shape:
-               op._outputs[0].mergeShape([batch_size, hidden_dim])
-           elif op._outputs[0].shape == find_stack_shape_2:
-               op._outputs[0].mergeShape([batch_size, 2 * hidden_dim])
-
+    # Bind first to get StackPush inputs
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': [batch_size, seq_length, hidden_dim],
                   'c_init_state': [batch_size, hidden_dim],
                   'h_init_state': [batch_size, hidden_dim],
                   'out_correct': [batch_size, seq_length] }
+    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=True)
+    # Finally, more hacking... StackPops can pull from their corresponding
+    # StackPushs. Try to propagate their shapes and/or values if possible
+    # NOTE: This code is pretty general and is likely to be migrated into
+    # Catamount ops for stacks later
+    for op in graph._ops_by_name.values():
+        op_name_split = op.name.split('/')
+        if 'StackPop' in op_name_split[-1]:
+            push_name_split = list(op_name_split)
+            push_name_split[-1] = push_name_split[-1].replace('StackPop',
+                                                              'StackPush')
+            push_name = '/'.join(push_name_split)
+            if push_name not in graph._ops_by_name.keys():
+                print('WARN: CANNOT FIND CORRESPONDING STACK PUSH: {}'
+                      .format(push_name))
+                continue
+            push_op = graph._ops_by_name[push_name]
+            # Verify StackPush input[1].shape == StackPop output[0].shape
+            assert push_op._inputs[1].shape == op._outputs[0].shape
+            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
+            if push_op._inputs[1].value is not None:
+                op._outputs[0].setValue(push_op._inputs[1].value)
+
+    # Bind and propagate again now that StackPops have correct shapes/values
     graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=True)
 
     algorithmic_flops = graph.calcAlgFlops()
