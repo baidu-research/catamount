@@ -226,6 +226,91 @@ def test_tf_dynamic_rnn():
         'Bound alg flops incorrect!\n  Expecting: {}\n  Calculated: {}\n  Difference: {}' \
         .format(correct_alg_flops, algorithmic_flops, algorithmic_flops - correct_alg_flops)
 
+    bind_subs = { # Symbols/names to bind in next tests:
+                  graph_iters: 1,
+                  rwb_iters: seq_length,
+                  grad_iters: seq_length,
+                  batch_size: 128,
+                  seq_length: 32,
+                  hidden_dim: 256,
+                }
+
+    print('\n\nBound values')
+    print('Symbol associations: {}\n'.format(bind_subs))
+
+    # Calculate model parameter count
+    parameters = graph.calcModelParameters()
+    resolved_params = parameters.subs(bind_subs)
+    try:
+        resolved_params = int(resolved_params)
+    except:
+        print('ERROR: resolved_params should be int, but is {} = {}'.format(
+              type(resolved_params), resolved_params))
+    correct_params = 525312
+    assert resolved_params == correct_params, \
+           'Incorrect model params: {}'.format(resolved_params)
+    print('Parameters: {}\nWith specified dims: {}\n'.format(parameters, resolved_params))
+
+    # Calculate algorithmic Flops
+    alg_flops = graph.calcAlgFlops()
+    resolved_flops = alg_flops.subs(bind_subs)
+    try:
+        resolved_flops = int(resolved_flops)
+    except:
+        print('ERROR: resolved_flops should be int, but is {} = {}'.format(
+              type(resolved_flops), resolved_flops))
+    correct_flops = 12980357379
+    assert resolved_flops == correct_flops, \
+           'Incorrect algorithmic flops: {}'.format(resolved_flops)
+    print('Algorithmic Flops: {}\nWith specified dims: {}\n'.format(alg_flops, resolved_flops))
+
+    # Calculate algorthmic Bytes accessed
+    alg_bytes = graph.calcAlgBytes()
+    resolved_bytes = alg_bytes.subs(bind_subs)
+    try:
+        resolved_bytes = int(resolved_bytes)
+    except:
+        print('ERROR: resolved_bytes should be int, but is {} = {}'.format(
+              type(resolved_bytes), resolved_bytes))
+    correct_bytes = 1134013160
+    assert resolved_bytes == correct_bytes, \
+           'Incorrect algorithmic bytes: {}'.format(resolved_bytes)
+    print('Alg bytes accessed: {}\nWith specified dims: {}\n'.format(alg_bytes, resolved_bytes))
+
+    # Calculate algorthmic Bytes accessed
+    alg_footprint = graph.calcAlgFootprint()
+    resolved_footprint = alg_footprint.subs(bind_subs)
+    try:
+        resolved_footprint = int(resolved_footprint)
+    except:
+        print('ERROR: resolved_footprint should be int, but is {} = {}'.format(
+              type(resolved_footprint), resolved_footprint))
+    correct_footprint = 441446544
+    assert resolved_footprint == correct_footprint, \
+           'Incorrect algorithmic footprint: {}'.format(resolved_footprint)
+    print('Alg mem footprint: {}\nWith specified dims: {}\n'.format(alg_footprint, resolved_footprint))
+
+    # Calculate the minimal memory footprint for a step
+    alg_min_footprint = graph.calcMinimalFootprint(symbol_subs=bind_subs)
+    resolved_min_footprint = alg_min_footprint
+    try:
+        resolved_min_footprint = int(resolved_min_footprint)
+    except:
+        print('ERROR: resolved_min_footprint should be int, but is {} = {}'.format(
+              type(resolved_min_footprint), resolved_min_footprint))
+    correct_min_footprint = 38153640
+    error_percent = abs(correct_min_footprint - resolved_min_footprint) / correct_min_footprint
+    assert error_percent < 0.15, \
+           'Incorrect algorithmic footprint: {} (err: {})'.format(resolved_min_footprint, error_percent)
+    print('Alg minimal footprint: {}\nWith specified dims: {} (err: {})\n'.format(alg_footprint, resolved_min_footprint, error_percent))
+
+    # Calculate algorithmic IO per step
+    total_io_footprint = 0
+    for op in graph.getPlaceholders():
+        total_io_footprint += op.calcAlgFootprint()
+    resolved_io_footprint = total_io_footprint.subs(bind_subs)
+    print('Alg IO footprint: {}\nWith specified dims: {}\n'.format(total_io_footprint, resolved_io_footprint))
+
 
 if __name__ == "__main__":
     test_tf_dynamic_rnn()
