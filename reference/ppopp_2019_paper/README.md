@@ -1,4 +1,4 @@
-## Beyond Human-Level Accuracy: Computational Challenges in Deep Learning [(PDF)](https://github.com/baidu-research/catamount/edit/dev_add_ppopp_paper/reference/ppopp_2019_paper/PPoPP_2019_Projecting_Deep_Learning_Hardware_Requirements_Final.pdf)
+## Beyond Human-Level Accuracy: Computational Challenges in Deep Learning [(PDF)](PPoPP_2019_Projecting_Deep_Learning_Hardware_Requirements_Final.pdf)
 
 [Joel Hestness](https://arxiv.org/search/cs?searchtype=author&query=Hestness%2C+J), [Newsha Ardalani](https://arxiv.org/search/cs?searchtype=author&query=Ardalani%2C+N), [Gregory Diamos](https://arxiv.org/search/cs?searchtype=author&query=Diamos%2C+G)
 
