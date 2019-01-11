@@ -1,3 +1,4 @@
+import sympy
 from .base_op import Op
 from ..api import utils
 
@@ -360,12 +361,13 @@ class SubgraphOp(Op):
         max_footprint, curr_footprint = self.calcMinimalFootprintSub(
                                             max_footprint, curr_footprint,
                                             tensors_to_consume, visited_ops,
-                                            symbol_subs)
+                                            verbose=verbose,
+                                            symbol_subs=symbol_subs)
         return max_footprint
 
     def calcMinimalFootprintSub(self, max_footprint, curr_footprint,
                                 tensors_to_consume, visited_ops,
-                                symbol_subs=None):
+                                verbose=False, symbol_subs=None):
         # NOTE: This function is currently an approximation for subgraphs!
         # TODO (Joel): Figure out how to pass feeds and fetches?
         # TODO (Joel): Move this out to the loop control block op!
@@ -400,7 +402,8 @@ class SubgraphOp(Op):
                                                       my_curr_footprint,
                                                       tensors_to_consume,
                                                       visited_ops,
-                                                      symbol_subs)
+                                                      verbose=verbose,
+                                                      symbol_subs=symbol_subs)
             if op.calcAlgFootprint() != 0:
                 # If the op receives some inputs from outside the subgraph,
                 # restore those inputs into the footprint to ensure that they
@@ -429,5 +432,12 @@ class SubgraphOp(Op):
         my_max_footprint = utils.getSymbolicMaximum(my_max_footprint,
                                                     my_curr_footprint,
                                                     symbol_subs)
+        if verbose:
+            if isinstance(my_curr_footprint, sympy.Expr):
+                my_int_curr_foot = my_curr_footprint.subs(symbol_subs)
+            else:
+                my_int_curr_foot = my_curr_footprint
+            print('  FOOT: {} {} {}'.format(self.name, my_max_footprint,
+                                            my_int_curr_foot))
         return my_max_footprint, my_curr_footprint
 
