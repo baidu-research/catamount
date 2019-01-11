@@ -114,8 +114,8 @@ class Op:
                              verbose=False, symbol_subs=None):
         # NOTE: Maybe take argument for training vs. inference (to decide
         # whether or not to save activations, respectively)
-        self.notImplemented('Op calcMinimalFootprint not implemented! {}'
-                            .format(type(self)))
+        raise RuntimeError('Op type {} does not support calcMinimalFootprint,'\
+                           ' which is a subgraph function!'.format(type(self)))
 
     @property
     def name(self):
@@ -159,7 +159,7 @@ class Op:
 
     def calcMinimalFootprintSub(self, max_footprint, curr_footprint,
                                 tensors_to_consume, visited_ops,
-                                symbol_subs=None):
+                                verbose=False, symbol_subs=None):
         # print('  Traversing {}, starting foot {}, max foot {}'
         #       .format(self.name, curr_footprint, max_footprint))
         if self.calcAlgFootprint() == 0:
@@ -198,7 +198,12 @@ class Op:
         if symbol_subs is not None and \
            isinstance(my_curr_footprint, sympy.Expr):
             my_curr_footprint = my_curr_footprint.subs(symbol_subs)
-        # print('    My final foot {}, max foot {}'.format(my_curr_footprint,
-        #       max_footprint))
+        if verbose:
+            if isinstance(my_curr_footprint, sympy.Expr):
+                my_int_curr_foot = my_curr_footprint.subs(symbol_subs)
+            else:
+                my_int_curr_foot = my_curr_footprint
+            print('    FOOT: {} {} {}'.format(self.name, max_footprint,
+                                              my_int_curr_foot))
         return max_footprint, my_curr_footprint
 
