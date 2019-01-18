@@ -125,6 +125,7 @@ TF_OP_TO_CATAMOUNT = {
     'PreventGradient': PreventGradientOp,
     'Prod': ReduceOp,
     'Pow': PowOp,
+    'RandomUniformInt': RandomInitializerOp,
     'RandomUniform': RandomInitializerOp,
     'RandomStandardNormal': RandomInitializerOp,
     'Range': RangeOp,
