@@ -2,6 +2,7 @@ import re
 from catamount.ops.base_op import Op
 from catamount.ops.constant import ConstantOp
 from catamount.ops.subgraph_op import SubgraphOp
+from catamount.ops.constant import ConstantOp
 from catamount.ops.placeholder import PlaceholderOp
 from catamount.ops.variable import VariableOp
 
@@ -39,10 +40,24 @@ class Graph(SubgraphOp):
         _catamount_default_graph = self
         return ctx_mgr
 
+    def getConstants(self):
+        to_return = []
+        for op in self._ops_by_name.values():
+            if isinstance(op, ConstantOp):
+                to_return.append(op)
+        return to_return
+
     def getPlaceholders(self):
         to_return = []
         for op in self._ops_by_name.values():
             if isinstance(op, PlaceholderOp):
+                to_return.append(op)
+        return to_return
+
+    def getVariables(self):
+        to_return = []
+        for op in self._ops_by_name.values():
+            if isinstance(op, VariableOp):
                 to_return.append(op)
         return to_return
 
