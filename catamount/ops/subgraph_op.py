@@ -73,6 +73,66 @@ class SubgraphOp(Op):
                     return False
         return True
 
+    def isEqual(self, other, verbose=False):
+        if len(self.opsByName) != len(other.opsByName):
+            if verbose:
+                print('Graph equality: Different op count: self: {} other: {}'
+                      .format(len(self.opsByName), len(other.opsByName)))
+            return False
+        for my_op in self.opsByName.values():
+            if my_op.name not in other.opsByName.keys():
+                if verbose:
+                    print('Graph equality: Op not found in other!: {}'
+                          .format(my_op.debugString()))
+                return False
+            if isinstance(my_op, SubgraphOp):
+                continue
+            other_op = other.opsByName[my_op.name]
+            # Check op type
+            if type(my_op) != type(other_op):
+                if verbose:
+                    print('Graph equality: Op not same type: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
+            # Check inputs
+            if len(my_op.inputs) != len(other_op.inputs):
+                if verbose:
+                    print('Graph equality: Inputs do not match: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
+            for idx, in_tensor in enumerate(my_op.inputs):
+                if in_tensor.shape != other_op.inputs[idx].shape:
+                    if verbose:
+                        print('Graph equality: In shapes do not match: {}\n{}'
+                              .format(my_op.debugString(),
+                                      other_op.debugString()))
+                    return False
+            # Check outputs
+            if len(my_op.outputs) != len(other_op.outputs):
+                if verbose:
+                    print('Graph equality: Outputs do not match: {}\n{}'
+                          .format(my_op.debugString(),
+                                  other_op.debugString()))
+                return False
+            for idx, out_tensor in enumerate(my_op.outputs):
+                if out_tensor.shape != other_op.outputs[idx].shape:
+                    if verbose:
+                        print('Graph equality: Out shapes do not match: {}\n{}'
+                              .format(my_op.debugString(),
+                                      other_op.debugString()))
+                    return False
+                for cons_name, my_consumer in out_tensor.consumers.items():
+                    other_consumer = other_op.outputs[idx].consumers[cons_name]
+                    if type(my_consumer) != type(other_consumer):
+                        if verbose:
+                            print('Graph equality: Out types do not match: '\
+                                  '{}\n{}'.format(my_consumer.debugString(),
+                                  other_consumer.debugString()))
+                        return False
+        return True
+
     def addOp(self, op):
         self.debugAssert(isinstance(op, Op))
         self.debugAssert(op.name not in self._ops_by_name.keys())

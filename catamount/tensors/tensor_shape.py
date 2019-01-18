@@ -277,6 +277,8 @@ class TensorShape(object):
             return True
         if self.rank != other.rank:
             return False
+        if self.rank is None:
+            return True
         for idx in range(self.rank):
             if self.dims[idx] is not None and other.dims[idx] is not None:
                 if self.dims[idx] != other.dims[idx]:
