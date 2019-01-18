@@ -15,6 +15,11 @@ from catamount.ops.variable import *
 
 is_pytest_run = False
 
+def test_tf_w2v_model():
+    global is_pytest_run
+    is_pytest_run = True
+    run_tf_w2v_model()
+
 def run_tf_w2v_model():
     global is_pytest_run
 
@@ -311,7 +316,7 @@ def run_tf_w2v_model():
 
 
 if __name__ == "__main__":
-    run_tf_w2v_model()
+    test_tf_w2v_model()
 
 
 
