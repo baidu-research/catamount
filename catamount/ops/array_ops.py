@@ -558,7 +558,7 @@ class PadOp(Op):
             new_dim += pad_cfg[idx][0]
             new_dim += pad_cfg[idx][1]
             out_shape.append(new_dim)
-        self._outputs[0].mergeShape(out_shape)
+        self._outputs[0].mergeShape(out_shape, make_symbolic=make_symbolic)
 
         # TODO: Propagate values if desired
 
@@ -1058,6 +1058,19 @@ class StridedSliceOp(Op):
                         dim_end = input_shape.dims[idx].symbol
                     else:
                         dim_end = end[idx]
+                    # Check if end dimension uses negative indexing, and if
+                    # so, add the input tensor dimension to resolve positive
+                    # index. NOTE: Must handle sympy symbols here:
+                    # TODO: Move this dimension handling into Dimension class.
+                    #       IOW, use all dimension handling functions here
+                    check_dim_end_negative = dim_end < 0
+                    try:
+                        check_dim_end_negative = bool(check_dim_end_negative)
+                    except:
+                        pass
+                    if isinstance(check_dim_end_negative, bool) and \
+                       check_dim_end_negative:
+                        dim_end += input_shape.dims[idx].symbol
                     dim_size = (dim_end - dim_begin + stride[idx] - 1)
                     dim_size //= stride[idx]
                     if self.isIndexSet(self._shrink_axis_mask, idx):
@@ -1181,12 +1194,24 @@ class TransposeOp(Op):
 class WhereOp(Op):
     def __init__(self, name):
         super(WhereOp, self).__init__(name)
+        # TODO: Make this parameterizable
+        # When we assume that WhereOp subsamples the data, not all of the
+        # input[0] values will exist in the output. The pessimistic view
+        # is to assume that all input values will exist in the output
+        # (i.e., self._use_subsampling = False)
+        self._use_subsampling = False
 
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._outputs) == 1)
         if len(self._inputs) == 1:
-            first_dim = utils.getIntSymbolFromString('{}::num_true'
-                            .format(self._inputs[0].name))
+            if self._inputs[0].shape.rank != 1:
+                self.notImplemented('Where with rank {} input'
+                                    .format(self._inputs[0].shape.rank))
+            if self._use_subsampling:
+                first_dim = utils.getIntSymbolFromString('{}::num_true'
+                                .format(self._inputs[0].name))
+            else:
+                first_dim = self._inputs[0].shape.dims[0]
             self._outputs[0].mergeShape([first_dim, 1],
                                         make_symbolic=make_symbolic)
         else:
