@@ -10,6 +10,9 @@ class MultinomialOp(Op):
     '''
     def __init__(self, name):
         super(MultinomialOp, self).__init__(name)
+        samps_name = '{}::rand_samps'.format(self.name)
+        self._num_samples_symbol = \
+            num_samples = utils.getIntSymbolFromString(samps_name)
 
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
@@ -21,8 +24,7 @@ class MultinomialOp(Op):
         self.debugAssert(self._inputs[0].shape.rank == 2)
         num_samples = self._inputs[1].value
         if num_samples == None:
-            samps_name = '{}::rand_samps'.format(self.name)
-            num_samples = utils.getIntSymbolFromString(samps_name)
+            num_samples = self._num_samples_symbol
         out_shape = []
         out_shape.append(self._inputs[0].shape.getDimension(0))
         out_shape.append(num_samples)
@@ -37,8 +39,7 @@ class MultinomialOp(Op):
         #        [batch_size, num_samples, num_classes]
         num_samples = self._inputs[1].value
         if num_samples == None:
-            samps_name = '{}::rand_samps'.format(self.name)
-            num_samples = utils.getIntSymbolFromString(samps_name)
+            num_samples = self._num_samples_symbol
         in_0_shape = self._inputs[0].shape
         full_shape_elts = in_0_shape.numElements() * num_samples
         total_flops = full_shape_elts
@@ -64,6 +65,9 @@ class CandidateSamplerOp(Op):
         # TODO: Depending on the generator, there should be some small number
         # of Flops per sampled element. Using (incorrect) 1 for now...
         self._flops_per_element = 1
+        samps_name = '{}::rand_samps'.format(self.name)
+        self._num_samples_symbol = \
+            num_samples = utils.getIntSymbolFromString(samps_name)
 
     def setNumTrue(self, num_true):
         self._num_true = num_true
@@ -84,13 +88,14 @@ class CandidateSamplerOp(Op):
                                     make_symbolic=make_symbolic)
         num_samples = None
         if self._num_sampled is None:
-            samps_name = '{}::rand_samps'.format(self.name)
-            num_samples = utils.getIntSymbolFromString(samps_name)
+            num_samples = self._num_samples_symbol
         else:
             self.notImplemented('CandidateSamplerOp: propagateShapes '\
                                 'num_sampled != None')
-        self._outputs[0].mergeShape([num_samples])
-        self._outputs[2].mergeShape([num_samples])
+        self._outputs[0].mergeShape([num_samples],
+                                    make_symbolic=make_symbolic)
+        self._outputs[2].mergeShape([num_samples],
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # TODO: This is a very conservative estimate that there is one Flop to
