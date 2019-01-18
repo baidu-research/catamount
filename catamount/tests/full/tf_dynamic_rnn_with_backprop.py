@@ -119,18 +119,7 @@ def test_tf_dynamic_rnn():
                    'rnn/Const': [hidden_dim],
                    'rnn/Const_1': [hidden_dim],
                  }
-    # TODO: This will be removed for a function that handles constants
-    for op_search_str, op_out_value in const_dict.items():
-        op_search_re = \
-            re.compile('^' + op_search_str + '$').match
-        op_name_found = False
-        for op in graph._ops_by_name.values():
-            if op_search_re(op.name):
-                op._outputs[0].setValue(op_out_value)
-                op_name_found = True
-        if not op_name_found:
-            print('WARN: During value bind, ConstantOp not found: {}'
-                  .format(op_search_str))
+    graph.bindConstantValues(const_dict)
 
     # Bind first to get StackPush inputs
     # TODO (Joel): Fix this up when all stack ops work!
@@ -148,7 +137,7 @@ def test_tf_dynamic_rnn():
                   'Gradient/Compute/gradients/rnn/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [2 * hidden_dim, 4 * hidden_dim],
                   'Gradient/Compute/gradients/rnn/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * hidden_dim],
                 }
-    graph.bindTensorShapeDimensions(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
+    graph.bindShapesAndPropagate(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
     # Finally, more hacking... StackPops can pull from their corresponding
     # StackPushs. Try to propagate their shapes and/or values if possible
     # NOTE: This code is pretty general and is likely to be migrated into
@@ -172,7 +161,7 @@ def test_tf_dynamic_rnn():
                 op._outputs[0].setValue(push_op._inputs[1].value)
 
     # Bind and propagate again now that StackPops have correct shapes/values
-    graph.bindTensorShapeDimensions(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
+    graph.bindShapesAndPropagate(bind_dict, make_symbolic=True, warn_if_ill_defined=True)
 
     algorithmic_flops = graph.calcAlgFlops()
 
