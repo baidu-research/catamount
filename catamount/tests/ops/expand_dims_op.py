@@ -58,7 +58,7 @@ def test_expanddims_op():
             feed_dict['in'] = ph_dims
             print('    Feed dict: {}'.format(feed_dict))
 
-            graph.bindTensorShapeDimensions(feed_dict)
+            graph.bindShapesAndPropagate(feed_dict)
             assert expanddims_out.shape == TensorShape(ed_out_dims)
         reset_symbols()
 

@@ -33,7 +33,7 @@ def test_tf_load_and_calculate():
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': [batch_size, None],
                   'b': [batch_size, None] }
-    graph.bindTensorShapeDimensions(bind_dict)
+    graph.bindShapesAndPropagate(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()
 

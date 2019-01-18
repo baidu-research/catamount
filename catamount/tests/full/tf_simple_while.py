@@ -28,7 +28,7 @@ def test_tf_simple_while_loop():
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': [batch_size, 1] }
-    graph.bindTensorShapeDimensions(bind_dict)
+    graph.bindShapesAndPropagate(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()
 

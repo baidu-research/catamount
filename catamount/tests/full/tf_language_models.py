@@ -72,6 +72,7 @@ def run_tf_language_model(domain=None, build_projection=False):
     assert graph.isValid()
 
     # Next, remove ops that are not executed during a standard training step:
+    # TODO: Implement feeds->fetches calcAlg*
     if domain == 'wordlm':
         graph_ops = list(graph._ops_by_name.values())
         for op in graph_ops:
@@ -259,23 +260,7 @@ def run_tf_language_model(domain=None, build_projection=False):
     else:
         raise NotImplementedError('Manually set constant op values for domain {}'.format(domain))
 
-    for const_key, const_val in const_dict.items():
-        try:
-            const_key_str = '^{}$'.format(const_key)
-            key_found = False
-            for op_key in graph.opsByName.keys():
-                if re.match(const_key_str, op_key):
-                    const_op = graph.opsByName[op_key]
-                    assert isinstance(const_op, ConstantOp), \
-                           'Matched non-const op!: {}' \
-                           .format(const_op.debugString())
-                    const_op._outputs[0].setValue(const_val)
-                    key_found = True
-            if not key_found:
-                print('WARN: ConstantOp not found: {}'.format(const_key_str))
-        except Exception as exc:
-            print('WARN: ConstantOp unknown problem: {}: {}'
-                  .format(const_key_str, exc))
+    graph.bindConstantValues(const_dict)
 
 
     # Next, bind the constant, placeholder, and variable shapes and propagate
@@ -352,7 +337,7 @@ def run_tf_language_model(domain=None, build_projection=False):
 
     print('Binding variables')
 
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
+    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
 
     # Finally, more hacking... StackPops can pull from their corresponding
@@ -377,7 +362,7 @@ def run_tf_language_model(domain=None, build_projection=False):
             if push_op._inputs[1].value is not None:
                 op._outputs[0].setValue(push_op._inputs[1].value)
 
-    graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
+    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
 
     num_sampled_vocab_symbol = subbatch_size_symbol * sequence_length_symbol
@@ -689,7 +674,7 @@ if False:
 
             # (4) Propagate shapes to check correctness
             print('Converted to LSTM-p!\n')
-            graph.bindTensorShapeDimensions(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
+            graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
             assert graph.isValid()
             print('')
             print(graph)

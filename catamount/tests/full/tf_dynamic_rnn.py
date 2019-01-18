@@ -33,7 +33,7 @@ def test_tf_dynamic_rnn():
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { 'a': ['batch_size', 'seq_length', 'hidden_dim'],
                   'init_state': ['batch_size', 'hidden_dim'] }
-    graph.bindTensorShapeDimensions(bind_dict)
+    graph.bindShapesAndPropagate(bind_dict)
 
     algorithmic_flops = graph.calcAlgFlops()
 

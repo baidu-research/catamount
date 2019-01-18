@@ -65,7 +65,7 @@ def test_concat_op():
                 feed_dict[in_ph.name] = in_ph_dims
             print('    Feed dict: {}'.format(feed_dict))
 
-            graph.bindTensorShapeDimensions(feed_dict)
+            graph.bindShapesAndPropagate(feed_dict)
 
             out_dims = TensorShape(in_phs[-1].shape.dims)
             out_dims.dims[axis] = out_c_dim

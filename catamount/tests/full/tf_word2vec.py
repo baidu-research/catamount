@@ -113,7 +113,7 @@ def run_tf_w2v_model():
     base_sequence_length = 32
     base_subbatch_size = 1
 
-
+    # Find and set constants that contain model hyperparameters
     const_dict = { 'Model/Gradient/Compute/gradients/Model/NceLoss_1_1/nce_loss/sub_1_grad/Shape_1': [nce_samples_symbol],
                    'Model/SkipGramSampler/Const': 2 * skip_window_symbol,
                    'Model/SkipGramSampler/strided_slice/stack': [0, skip_window_symbol],
@@ -127,24 +127,7 @@ def run_tf_w2v_model():
                    'Model/SkipGramSampler/Tile_1/multiples': [1, num_skips_symbol],
                    'Model/SkipGramSampler/Tile/multiples': [1, num_skips_symbol],
                  }
-    for const_key, const_val in const_dict.items():
-        try:
-            const_key_str = '^{}$'.format(const_key)
-            key_found = False
-            for op_key in graph.opsByName.keys():
-                if re.match(const_key_str, op_key):
-                    const_op = graph.opsByName[op_key]
-                    assert isinstance(const_op, ConstantOp), \
-                           'Matched non-const op!: {}' \
-                           .format(const_op.debugString())
-                    const_op._outputs[0].setValue(const_val)
-                    key_found = True
-            if not key_found:
-                print('WARN: ConstantOp not found: {}'.format(const_key_str))
-        except Exception as exc:
-            print('WARN: ConstantOp unknown problem: {}: {}'
-                  .format(const_key_str, exc))
-
+    graph.bindConstantValues(const_dict)
 
     # Next, bind the constant, placeholder, and variable shapes and propagate
     bind_dict = { # Constants
