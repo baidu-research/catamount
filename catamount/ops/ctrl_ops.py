@@ -30,12 +30,14 @@ class ControlBlockOp(SubgraphOp):
         the dynamic control operations. Note: ControlBlockOps can contain
         other ControlBlockOps (nesting).
     '''
-    def __init__(self, name, root_op, ops_list):
+    def __init__(self, name, root_op, ops_list, enter_ops, exit_ops):
         super(ControlBlockOp, self).__init__(name, ops_list)
         self.debugAssert(isinstance(root_op, Op))
         # The op that controls the execution of the children ops and
         # designation of the type of the control block
         self._root_op = root_op
+        self._enter_ops = enter_ops
+        self._exit_ops = exit_ops
 
     def calcAlgFlops(self):
         if not isinstance(self._root_op, LoopConditionOp):

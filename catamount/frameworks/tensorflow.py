@@ -639,6 +639,8 @@ def construct_catamount_graph(tf_sess, tf_graph):
         ctrl_block_frame = None
         subgraph_ops = [ctrl_op]
         visited_ops = set(subgraph_ops)
+        enter_ops = set()
+        exit_ops = set()
         frontier_ops = []
         for out_tensor in ctrl_op.outputs:
             for consumer in out_tensor.consumers.values():
@@ -656,7 +658,6 @@ def construct_catamount_graph(tf_sess, tf_graph):
                 continue
             assert not next_op.isControlOp(), \
                 'Catamount Framework(TF): Should be no up-stream control blocks!'
-            visited_ops.add(next_op)
             if isinstance(next_op, EnterOp):
                 # Add EnterOps to the frontier and visited by looking up all
                 # the EnterOps associated with their context frame. Will
@@ -668,45 +669,47 @@ def construct_catamount_graph(tf_sess, tf_graph):
                 for enter_op in ctx_frame._enter_ops.values():
                     if enter_op not in frontier_ops:
                         frontier_ops.append(enter_op)
-                        visited_ops.add(enter_op)
+                        enter_ops.add(enter_op)
                 # Do not traverse past EnterOps
                 continue
             elif isinstance(next_op, NextIterationOp):
+                visited_ops.add(next_op)
                 # Do not traverse past NextIterationOps
                 continue
             elif isinstance(next_op, MergeOp):
+                visited_ops.add(next_op)
                 frontier_ops.append(next_op)
             for in_tensor in next_op.inputs:
+                visited_ops.add(next_op)
                 bwd_frontier_ops.append(in_tensor.producer)
 
         # B) Traverse forward to get the SwitchOps, ExitOps, IdentityOps,
         #    body, NextIterationOps.
         fwd_frontier_ops = []
-        for switch_op in frontier_ops:
-            for out_tensor in switch_op.outputs:
+        for frontier_op in frontier_ops:
+            for out_tensor in frontier_op.outputs:
                 fwd_frontier_ops.extend(out_tensor.consumers.values())
         while len(fwd_frontier_ops) > 0:
             next_op = fwd_frontier_ops.pop(0)
-            if next_op in visited_ops:
+            if next_op in visited_ops or next_op in enter_ops:
+                continue
+            if isinstance(next_op, ExitOp):
+                # Do not traverse past ExitOps
+                exit_ops.add(next_op)
                 continue
             if next_op.isControlOp():
                 raise NotImplementedError(
                     'Catamount Framework(TF): Need nested control blocks')
             visited_ops.add(next_op)
-            if isinstance(next_op, ExitOp):
-                # Do not traverse past ExitOps
-                continue
             for out_tensor in next_op.outputs:
                 fwd_frontier_ops.extend(out_tensor.consumers.values())
-
-        # [_] TODO (Joel): May need to go backward again to other EnterOps or to
-        # identify the loop condition that gets executed...
 
         # Finally, create a ControlBlockOp (subgraph) with the main control
         # node as the ctrl_op, and add the ControlBlockOp to the Catamount graph
         # (which will move the graph ops into the subgraph)
         ctrl_block_op = ControlBlockOp('{}_block'.format(ctrl_op.name),
-                                       ctrl_op, visited_ops)
+                                       ctrl_op, visited_ops, enter_ops,
+                                       exit_ops)
         ctrl_block_op.setContextFrame(ctrl_block_frame)
         graph.addOp(ctrl_block_op)
 
