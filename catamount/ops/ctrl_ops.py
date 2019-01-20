@@ -3,6 +3,26 @@ from .subgraph_op import SubgraphOp
 from ..api import utils
 
 
+class ContextFrame:
+    def __init__(self, name):
+        self._name = name
+        self._enter_ops = {}
+
+    @property
+    def name(self):
+        return self._name
+
+    def __str__(self):
+        to_return = 'ContextFrame(name: {}):'.format(self._name)
+        for enter_op in self._enter_ops.values():
+            to_return += '\n  Enter: {}'.format(enter_op.name)
+        return to_return
+
+    def addEnterOp(self, enter_op):
+        self._enter_ops[enter_op.name] = enter_op
+        enter_op.setContextFrame(self)
+
+
 class ControlBlockOp(SubgraphOp):
     ''' A ControlBlockOp designates a subgraph that manages some form of
         dynamic control flow for a compute graph (e.g., if-conditionals or
@@ -10,12 +30,14 @@ class ControlBlockOp(SubgraphOp):
         the dynamic control operations. Note: ControlBlockOps can contain
         other ControlBlockOps (nesting).
     '''
-    def __init__(self, name, root_op, ops_list):
+    def __init__(self, name, root_op, ops_list, enter_ops, exit_ops):
         super(ControlBlockOp, self).__init__(name, ops_list)
         self.debugAssert(isinstance(root_op, Op))
         # The op that controls the execution of the children ops and
         # designation of the type of the control block
         self._root_op = root_op
+        self._enter_ops = enter_ops
+        self._exit_ops = exit_ops
 
     def calcAlgFlops(self):
         if not isinstance(self._root_op, LoopConditionOp):
@@ -95,6 +117,18 @@ class EnterOp(Op):
     '''
     def __init__(self, name):
         super(EnterOp, self).__init__(name)
+        self._frame_name = None
+        self._context_frame = None
+
+    def setFrameName(self, frame_name):
+        self.debugAssert(self._frame_name is None)
+        self._frame_name = frame_name
+
+    def getFrameName(self):
+        return self._frame_name
+
+    def setContextFrame(self, context_frame):
+        self._context_frame = context_frame
 
     def propagateShapes(self, make_symbolic=False):
         # EnterOps should forward their inputs to their outputs
