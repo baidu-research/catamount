@@ -193,7 +193,7 @@ class Graph(SubgraphOp):
         self.bindOpShapeDimensions(bind_dict, make_symbolic=make_symbolic)
         self.propagateTensorShapeNames(warn_if_ill_defined,
                                        make_symbolic=make_symbolic,
-                                       verbose=True)
+                                       verbose=verbose)
 
 
 # The Catamount default graph is used throughout the API
