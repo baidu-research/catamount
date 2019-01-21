@@ -3,7 +3,7 @@ from .base_op import Op
 from ..api import utils
 
 # HACK: Remove me later
-from .stack_ops import StackPushOp, StackPopOp
+from .stack_ops import StackPushOp
 
 
 class SubgraphOp(Op):
