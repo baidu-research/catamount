@@ -333,31 +333,6 @@ def run_tf_language_model(domain=None, build_projection=False):
     graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
 
-    # Finally, more hacking... StackPops can pull from their corresponding
-    # StackPushs. Try to propagate their shapes and/or values if possible
-    # NOTE: This code is pretty general and is likely to be migrated into
-    # Catamount ops for stacks later
-    for op in graph._ops_by_name.values():
-        op_name_split = op.name.split('/')
-        if 'StackPop' in op_name_split[-1]:
-            push_name_split = list(op_name_split)
-            push_name_split[-1] = push_name_split[-1].replace('StackPop',
-                                                              'StackPush')
-            push_name = '/'.join(push_name_split)
-            if push_name not in graph._ops_by_name.keys():
-                print('WARN: CANNOT FIND CORRESPONDING STACK PUSH: {}'
-                      .format(push_name))
-                continue
-            push_op = graph._ops_by_name[push_name]
-            # Verify StackPush input[1].shape == StackPop output[0].shape
-            assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
-            if push_op._inputs[1].value is not None:
-                op._outputs[0].setValue(push_op._inputs[1].value)
-
-    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
-    assert graph.isValid()
-
     num_sampled_vocab_symbol = subbatch_size_symbol * sequence_length_symbol
     if domain == 'wordlm':
         base_sequence_length = 80

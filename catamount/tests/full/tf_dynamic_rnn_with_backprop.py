@@ -121,8 +121,6 @@ def test_tf_dynamic_rnn():
                  }
     graph.bindConstantValues(const_dict)
 
-    # Bind first to get StackPush inputs
-    # TODO (Joel): Fix this up when all stack ops work!
     # NOTE: This also works: batch_size = 'batch_size'
     # Bind placeholders (a and b) output dimensions 0 to name batch_size
     bind_dict = { # Variables

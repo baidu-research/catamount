@@ -234,22 +234,22 @@ def run_tf_speech_attention():
     # or Stack ops. Here, manually set the dimensions of these ops' tensors.
     for op in graph._ops_by_name.values():
         op_name_suffix = op.name.split('/')[-1]
-        if 'StackPush' in op_name_suffix:
-            assert len(op._inputs) == 2
-            assert len(op._outputs) == 1
-            out_shape = None
-            if len(op._outputs[0].consumers) > 0:
-                print('TODO: StackPush should prop shapes: {}'
-                      .format(op.debugString()))
-            if op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2_1':
-                out_shape = [1, 1, num_conv_filters_symbol, attn_dim_symbol]
-            elif op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2':
-                out_shape = [subbatch_size_symbol, 1,
-                             (encoder_steps_symbol // 2) // 2,
-                             num_conv_filters_symbol]
-            if out_shape is not None:
-                op._outputs[0].mergeShape(out_shape, make_symbolic=True)
-        elif 'TensorArrayGather' in op_name_suffix:
+#        if 'StackPush' in op_name_suffix:
+#            assert len(op._inputs) == 2
+#            assert len(op._outputs) == 1
+#            out_shape = None
+#            if len(op._outputs[0].consumers) > 0:
+#                print('TODO: StackPush should prop shapes: {}'
+#                      .format(op.debugString()))
+#            if op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2_1':
+#                out_shape = [1, 1, num_conv_filters_symbol, attn_dim_symbol]
+#            elif op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2':
+#                out_shape = [subbatch_size_symbol, 1,
+#                             (encoder_steps_symbol // 2) // 2,
+#                             num_conv_filters_symbol]
+#            if out_shape is not None:
+#                op._outputs[0].mergeShape(out_shape, make_symbolic=True)
+        if 'TensorArrayGather' in op_name_suffix:
             assert isinstance(op, UnknownOp)
             assert len(op._inputs) == 3
             assert len(op._outputs) == 1
@@ -385,10 +385,6 @@ def run_tf_speech_attention():
                 if out_shape is not None:
                     op._outputs[0].mergeShape(out_shape, make_symbolic=True)
 
-
-
-    graph.bindShapesAndPropagate(bind_dict, make_symbolic=True)
-
     # Manually set a couple shapes for max ops that can't yet resolve
     # maximums of 1 vs. positive symbols:
     max_op = graph._ops_by_name['attn_model/AttentionModel/gradients/attn_model/AttentionEncoderDecoder/Sum_grad/Maximum']
@@ -406,28 +402,6 @@ def run_tf_speech_attention():
     # [1 subbatch_size 2*enc_hidden_dim]
     max_op._outputs[0].setValue([1, subbatch_size_symbol,
                                  2 * enc_hidden_dim_symbol])
-
-    # Finally, more hacking... StackPops can pull from their corresponding
-    # StackPushs. Try to propagate their shapes and/or values if possible
-    # NOTE: This code is pretty general and is likely to be migrated into
-    # Catamount ops for stacks later
-    for op in graph._ops_by_name.values():
-        op_name_split = op.name.split('/')
-        if 'StackPop' in op_name_split[-1]:
-            push_name_split = list(op_name_split)
-            push_name_split[-1] = push_name_split[-1].replace('StackPop',
-                                                              'StackPush')
-            push_name = '/'.join(push_name_split)
-            if push_name not in graph._ops_by_name.keys():
-                print('WARN: CANNOT FIND CORRESPONDING STACK PUSH: {}'
-                      .format(push_name))
-                continue
-            push_op = graph._ops_by_name[push_name]
-            # Verify StackPush input[1].shape == StackPop output[0].shape
-            assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
-            if push_op._inputs[1].value is not None:
-                op._outputs[0].setValue(push_op._inputs[1].value)
 
     print('Binding variables')
 
