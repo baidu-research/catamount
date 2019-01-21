@@ -234,21 +234,6 @@ def run_tf_speech_attention():
     # or Stack ops. Here, manually set the dimensions of these ops' tensors.
     for op in graph._ops_by_name.values():
         op_name_suffix = op.name.split('/')[-1]
-#        if 'StackPush' in op_name_suffix:
-#            assert len(op._inputs) == 2
-#            assert len(op._outputs) == 1
-#            out_shape = None
-#            if len(op._outputs[0].consumers) > 0:
-#                print('TODO: StackPush should prop shapes: {}'
-#                      .format(op.debugString()))
-#            if op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2_1':
-#                out_shape = [1, 1, num_conv_filters_symbol, attn_dim_symbol]
-#            elif op.name == 'attn_model/AttentionModel/gradients/attn_model/Decoder/while/attn_model/conv1d_1/Conv2D_grad/ShapeN/StackPushV2':
-#                out_shape = [subbatch_size_symbol, 1,
-#                             (encoder_steps_symbol // 2) // 2,
-#                             num_conv_filters_symbol]
-#            if out_shape is not None:
-#                op._outputs[0].mergeShape(out_shape, make_symbolic=True)
         if 'TensorArrayGather' in op_name_suffix:
             assert isinstance(op, UnknownOp)
             assert len(op._inputs) == 3
