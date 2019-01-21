@@ -132,7 +132,7 @@ class StackPopOp(BaseStackOp):
         self.debugAssert(self._stack._reference is not None)
         in_tensor = self._stack._reference
         in_shape = in_tensor.shape
-        self._outputs[0].mergeShape(in_shape)
+        self._outputs[0].mergeShape(in_shape, make_symbolic=make_symbolic)
 
         if in_tensor.value is not None:
             self._outputs[0].setValue(in_tensor.value)
@@ -152,7 +152,7 @@ class StackPushOp(BaseStackOp):
         self.debugAssert(len(self._outputs) == 1)
 
         in_shape = self._inputs[1].shape
-        self._outputs[0].mergeShape(in_shape)
+        self._outputs[0].mergeShape(in_shape, make_symbolic=make_symbolic)
 
         if self._inputs[1].value is not None:
             self._outputs[0].setValue(self._inputs[1].value)
