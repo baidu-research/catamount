@@ -552,7 +552,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
             graph.addInputToOp(op, tensors[in_tensor])
 
     # Propagate stack pointers for StackOps. These ops always occur as a
-    # series of ops. The StackOp is first, and propagates its' outputs to
+    # series of ops. The StackOp is first, and propagates its outputs to
     # (optionally) EnterOps, and then to StackPush and StackPop ops. The
     # StackPush and StackPop ops need to get the pointer for the stack
     # created for the StackOp

@@ -255,34 +255,16 @@ class SubgraphOp(Op):
             raise NotImplementedError(
                 'Implement getTopologicalOpOrder to take fetches')
 
-        print('-----------\nENTERING SUBGRAPH: {}\n.... HIERARCHICAL: {}'.format(self.debugString(), hierarchical))
-
         topo_ordered_ops = []
         op_inputs_visited = {}
         frontier_ops = set()
         visited_ops = set()
-
-        # HAXXX! TOTAL HACKS TO TEST THAT THIS WILL WORK
-        for op in self._ops_by_name.values():
-            if isinstance(op, StackPopOp) and op.parent == self:
-                stack_push_op = op._stack._push
-                self.debugAssert(stack_push_op.parent != self)
-                if op not in op_inputs_visited:
-                    op_inputs_visited[op] = set()
-                op_inputs_visited[op].add(stack_push_op)
-                visited_ops.add(stack_push_op)
-                print('PRIMING STACKPOP: {}\n.... WITH PUSH: {}'.format(op.debugString(), stack_push_op.name))
-        # HAXXX! TOTAL HACKS TO TEST THAT THIS WILL WORK
-
         # Prime the frontier with source ops
         # TODO (Joel): Could set frontier equal to feed_dict?
         for source_op in self._sources.values():
             self.debugAssert(source_op.parent == self)
-#            TODO: REVERT TO THIS AFTER REMOVING HAXXX!
-#            self.debugAssert(source_op not in op_inputs_visited)
-#            op_inputs_visited[source_op] = set()
-            if source_op not in op_inputs_visited:
-                op_inputs_visited[source_op] = set()
+            self.debugAssert(source_op not in op_inputs_visited)
+            op_inputs_visited[source_op] = set()
             for in_tensor in source_op.inputs:
                 self.debugAssert(self.parent is not None)
                 # If the producer op is not from this subgraph, it needs
@@ -295,7 +277,6 @@ class SubgraphOp(Op):
         # Continually visit frontier ops until none left
         while len(frontier_ops) > 0:
             next_op = frontier_ops.pop()
-            print('VISITING: {}'.format(next_op.debugString()))
             self.debugAssert(next_op.canVisit(visited_ops),
                              'Next op {} cannot visit. Visited: {}'
                              .format(next_op.name, visited_ops))
@@ -303,9 +284,7 @@ class SubgraphOp(Op):
                 topo_ordered_ops.append(next_op)
             visited_ops.add(next_op)
             for out_tensor in next_op.outputs:
-                print('    VISITING OUT: {}'.format(out_tensor))
                 for consumer in out_tensor.consumers.values():
-                    print('        VISITING CONS: {}'.format(consumer.name))
                     if consumer in visited_ops:
                         continue
                     if consumer not in op_inputs_visited:
@@ -320,13 +299,6 @@ class SubgraphOp(Op):
                             producer_op = out_tensor.producer
                             visited_ops.add(producer_op)
                     op_inputs_visited[consumer].add(producer_op)
-
-                    # TODO: REMOVE ME
-                    from .ctrl_ops import EnterOp
-                    if isinstance(consumer, (StackPushOp, EnterOp)):
-                        print('TRYING TO VISIT STACKPUSH OR ENTER: {}'.format(consumer.debugString()))
-                    # TODO: REMOVE ME
-
                     # Check if the consumer can now be visited, and if so,
                     # add it to the frontier
                     if consumer.canVisit(op_inputs_visited[consumer]):
@@ -344,7 +316,6 @@ class SubgraphOp(Op):
             # frontier.
             # TODO: Replace this check with control dependencies?
             if isinstance(next_op, StackPushOp):
-                print('CHECKING TO VISIT ASSOCIATED STACK POP. PUSH {}'.format(next_op))
                 stack_pop_op = next_op._stack._pop
                 self.debugAssert(stack_pop_op not in visited_ops)
                 if stack_pop_op not in op_inputs_visited:
@@ -505,9 +476,6 @@ class SubgraphOp(Op):
                 if in_tensor.producer.parent != self:
                     assert in_tensor.producer not in self._ops_by_name.keys()
                     my_visited_ops.add(in_tensor.producer)
-            # HAXXX: TOTAL HACKS TO GET THIS TO RUN
-            if isinstance(op, StackPopOp) and op.parent == self:
-                my_visited_ops.add(op._stack._push)
         my_max_footprint = max_footprint
         my_curr_footprint = curr_footprint
         for op in ops_to_execute:

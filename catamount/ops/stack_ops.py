@@ -36,6 +36,7 @@ class TensorStack:
         return self._parent.name
 
     def addReferenceTensor(self, tensor):
+        assert self._reference is None
         self._reference = tensor
 
     def push(self, tensor):
@@ -63,10 +64,6 @@ class BaseStackOp(Op):
     def setStack(self, stack):
         self.debugAssert(self._stack is None)
         self._stack = stack
-        if isinstance(self, StackPushOp):
-            assert(self._stack._reference is None)
-            self._stack.associatePush(self)
-            self._stack.addReferenceTensor(self.outputs[0])
 
     def getStack(self):
         return self._stack
@@ -108,6 +105,13 @@ class StackPopOp(BaseStackOp):
     def __init__(self, name):
         super(StackPopOp, self).__init__(name)
 
+    @property
+    def inputs(self):
+        tensor_inputs = list(super(StackPopOp, self).inputs)
+        if self._stack is not None:
+            tensor_inputs.append(self._stack._reference)
+        return tensor_inputs
+
     def setStack(self, stack):
         super(StackPopOp, self).setStack(stack)
         self._stack.associatePop(self)
@@ -117,7 +121,6 @@ class StackPopOp(BaseStackOp):
         stack_push_op = self._stack._reference.producer
         self.debugAssert(stack_push_op == self._stack._push)
         self.debugAssert(isinstance(stack_push_op, StackPushOp))
-        print('\n\nStackPopOp canVisit: {}\n  VISITED: {}\n\n'.format(self.debugString(), [op.name for op in visited_ops]))
         if stack_push_op not in visited_ops:
             return False
         return super(StackPopOp, self).canVisit(visited_ops)
@@ -139,9 +142,10 @@ class StackPushOp(BaseStackOp):
     def __init__(self, name):
         super(StackPushOp, self).__init__(name)
 
-    def canVisit(self, visited_ops):
-        print('StackPushOp canVisit: {}\n  VISITED: {}\n\n'.format(self.debugString(), [op.name for op in visited_ops]))
-        return super(StackPushOp, self).canVisit(visited_ops)
+    def setStack(self, stack):
+        super(StackPushOp, self).setStack(stack)
+        self._stack.associatePush(self)
+        self._stack.addReferenceTensor(self.outputs[0])
 
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) == 2)
