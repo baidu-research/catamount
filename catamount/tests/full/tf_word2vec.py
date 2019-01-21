@@ -63,20 +63,12 @@ def run_tf_w2v_model():
             'Model/Mask_1/' in op.name:
              graph.removeOp(op)
          elif \
+              op.name == 'Model/Cast_1' or \
               op.name == 'Model/Sum_1' or \
               op.name == 'Model/Size_1' or \
-              op.name == 'Model/Cast_5' or \
               op.name == 'Model/Exp_1' or \
               op.name == 'Model/truediv_2' or \
-              op.name == 'Model/truediv_3' or \
-              op.name == 'Model/MPIAllreduce_4' or \
-              op.name == 'Model/MPIAllreduce_5' or \
-              op.name == 'Model/MPIAllreduce_6' or \
-              op.name == 'Model/MPIAllreduce_7' or \
-              op.name == 'Model/div_4' or \
-              op.name == 'Model/div_5' or \
-              op.name == 'Model/div_6' or \
-              op.name == 'Model/div_7':
+              op.name == 'Model/truediv_3':
              graph.removeOp(op)
 
     if not is_pytest_run:
@@ -168,10 +160,10 @@ def run_tf_w2v_model():
     # Verify parameter counts first
     parameters = graph.calcModelParameters()
 
-    correct_params = 32043206
-    correct_flops = 21148824
-    correct_bytes = 23762592
-    correct_total_footprint = 137949964
+    correct_params = 32043205
+    correct_flops = 21148823
+    correct_bytes = 23762537
+    correct_total_footprint = 137949925
 
     print('Symbol associations: {}\n'.format(bind_subs))
 
