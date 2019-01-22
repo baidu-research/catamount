@@ -64,8 +64,6 @@ class Graph(SubgraphOp):
     def getFreeSymbols(self):
         to_return = set()
         for op in self._ops_by_name.values():
-            op_free_symbols = op.getFreeSymbols()
-            print('{}: {}'.format(op.name, op_free_symbols))
             to_return.update(op.getFreeSymbols())
         return to_return
 
