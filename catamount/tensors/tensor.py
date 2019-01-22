@@ -188,6 +188,13 @@ class Tensor:
         cons_op = self._consumers.pop(op.name, None)
         assert cons_op is None or cons_op == op
 
+    def getFreeSymbols(self):
+        to_return = set()
+        for dim in self._shape.dims:
+            if dim._symbol is not None:
+                to_return.update(dim._symbol.free_symbols)
+        return to_return
+
     def mergeShape(self, other, make_symbolic=False):
         self.shape.mergeShape(other, make_symbolic=make_symbolic)
         # If the new shape is under-specified, the tensor cannot track

@@ -61,6 +61,14 @@ class Graph(SubgraphOp):
                 to_return.append(op)
         return to_return
 
+    def getFreeSymbols(self):
+        to_return = set()
+        for op in self._ops_by_name.values():
+            op_free_symbols = op.getFreeSymbols()
+            print('{}: {}'.format(op.name, op_free_symbols))
+            to_return.update(op.getFreeSymbols())
+        return to_return
+
     def propagateTensorShapeNames(self, warn_if_ill_defined=False,
                                   make_symbolic=False, verbose=False):
 
