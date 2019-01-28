@@ -161,6 +161,9 @@ TF_OP_TO_CATAMOUNT = {
     'Sum': ReduceOp,
     'Square': SquareOp,
     'Squeeze': SqueezeOp,
+    'StackPopV2': StackPopOp,
+    'StackPushV2': StackPushOp,
+    'StackV2': StackOp,
     'StopGradient': StopGradientOp,
     'Switch': SwitchOp,
     'Tanh': TanhOp,
@@ -465,6 +468,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
     tensors = {}
     op_inputs = {}
     ctrl_frames = {}
+    all_stack_ops = []
     for tf_op in tf_graph._nodes_by_name.values():
         if tf_op.type in TF_OP_TO_CATAMOUNT.keys():
             # Map to Catamount op type
@@ -529,11 +533,13 @@ def construct_catamount_graph(tf_sess, tf_graph):
         # Get the tf_op's attributes and set them as necessary
         parse_tf_op_attributes_into_op(tf_sess, tf_op, op)
 
-        if catamount_type == EnterOp:
+        if isinstance(op, EnterOp):
             frame_name = op.getFrameName()
             if frame_name not in ctrl_frames:
                 ctrl_frames[frame_name] = ContextFrame(frame_name)
             ctrl_frames[frame_name].addEnterOp(op)
+        elif isinstance(op, StackOp):
+            all_stack_ops.append(op)
 
         graph.addOp(op)
 
@@ -544,6 +550,23 @@ def construct_catamount_graph(tf_sess, tf_graph):
             assert in_tensor in tensors.keys(), \
                    'Unknown input tensor {}'.format(in_tensor)
             graph.addInputToOp(op, tensors[in_tensor])
+
+    # Propagate stack pointers for StackOps. These ops always occur as a
+    # series of ops. The StackOp is first, and propagates its outputs to
+    # (optionally) EnterOps, and then to StackPush and StackPop ops. The
+    # StackPush and StackPop ops need to get the pointer for the stack
+    # created for the StackOp
+    for stack_op in all_stack_ops:
+        # Traverse out tensor to find all StackPush and StackPop
+        out_tensor = stack_op.outputs[0]
+        for cons_op in out_tensor.consumers.values():
+            while not isinstance(cons_op, BaseStackOp):
+                assert(isinstance(cons_op, (EnterOp, SwitchOp)))
+                assert(len(cons_op.outputs[0].consumers) == 1)
+                cons_ops = list(cons_op.outputs[0].consumers.values())
+                cons_op = cons_ops[0]
+            cons_op.setStack(stack_op.getStack())
+            assert(cons_op.getStack() is not None)
 
     # Remove any Tensorflow model saver ops from the graph. These ops
     # always occur as a series of 6 ops:

@@ -172,7 +172,7 @@ class Graph(SubgraphOp):
                       .format(op_search_str))
 
     def bindShapesAndPropagate(self, bind_dict, warn_if_ill_defined=False,
-                               make_symbolic=False):
+                               make_symbolic=False, verbose=False):
         ''' Bind the tensor dimensions as defined in the bind_dict, and then
             propagate those dimensions through the graph.
 
@@ -192,7 +192,8 @@ class Graph(SubgraphOp):
         '''
         self.bindOpShapeDimensions(bind_dict, make_symbolic=make_symbolic)
         self.propagateTensorShapeNames(warn_if_ill_defined,
-                                       make_symbolic=make_symbolic)
+                                       make_symbolic=make_symbolic,
+                                       verbose=verbose)
 
 
 # The Catamount default graph is used throughout the API

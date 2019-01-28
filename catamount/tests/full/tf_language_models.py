@@ -152,18 +152,11 @@ def run_tf_language_model(domain=None, build_projection=False):
     else:
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
 
-    # HAXXX: Manually setting TensorArray and StackPop shapes!
+    # HAXXX: Manually setting TensorArray shapes!
     if domain == 'wordlm' or domain == 'charlm' or domain == 'nmt':
         for op in graph._ops_by_name.values():
             op_name_suffix = op.name.split('/')[-1]
-            if 'StackPop' in op_name_suffix:
-                # HAXXXX: Just verify op structure. Pull shapes and values
-                # from corresponding StackPush ops below
-                assert isinstance(op, UnknownOp)
-                assert len(op._inputs) == 1
-                assert len(op._outputs) == 1
-                continue
-            elif 'TensorArrayGather' in op_name_suffix:
+            if 'TensorArrayGather' in op_name_suffix:
                 assert isinstance(op, UnknownOp)
                 assert len(op._inputs) == 3
                 assert len(op._outputs) == 1
@@ -336,31 +329,6 @@ def run_tf_language_model(domain=None, build_projection=False):
         raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
 
     print('Binding variables')
-
-    graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
-    assert graph.isValid()
-
-    # Finally, more hacking... StackPops can pull from their corresponding
-    # StackPushs. Try to propagate their shapes and/or values if possible
-    # NOTE: This code is pretty general and is likely to be migrated into
-    # Catamount ops for stacks later
-    for op in graph._ops_by_name.values():
-        op_name_split = op.name.split('/')
-        if 'StackPop' in op_name_split[-1]:
-            push_name_split = list(op_name_split)
-            push_name_split[-1] = push_name_split[-1].replace('StackPop',
-                                                              'StackPush')
-            push_name = '/'.join(push_name_split)
-            if push_name not in graph._ops_by_name.keys():
-                print('WARN: CANNOT FIND CORRESPONDING STACK PUSH: {}'
-                      .format(push_name))
-                continue
-            push_op = graph._ops_by_name[push_name]
-            # Verify StackPush input[1].shape == StackPop output[0].shape
-            assert push_op._inputs[1].shape == op._outputs[0].shape
-            op._outputs[0].mergeShape(push_op._inputs[1].shape, make_symbolic=True)
-            if push_op._inputs[1].value is not None:
-                op._outputs[0].setValue(push_op._inputs[1].value)
 
     graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
