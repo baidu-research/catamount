@@ -67,6 +67,12 @@ class Op:
         self._outputs.append(tensor)
         tensor.setProducer(self)
 
+    def getFreeSymbols(self):
+        to_return = set()
+        for out_tens in self._outputs:
+            to_return.update(out_tens.getFreeSymbols())
+        return to_return
+
     def canVisit(self, visited_ops):
         ''' Whether this op can be visited given the previous ops that
             have been visited according to the input set visited_ops.

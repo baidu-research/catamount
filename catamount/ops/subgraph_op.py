@@ -239,6 +239,13 @@ class SubgraphOp(Op):
                 if is_sink:
                     self._sinks[op.name] = op
 
+    def getFreeSymbols(self):
+        to_return = super(SubgraphOp, self).getFreeSymbols()
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
+        to_return.add(loop_iters)
+        return to_return
+
     def propagateShapes(self, make_symbolic=False):
         # Propagating shapes is a flattened operation, so subgraphs
         # do not need to do any work for them

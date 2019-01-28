@@ -39,6 +39,14 @@ class ControlBlockOp(SubgraphOp):
         self._enter_ops = enter_ops
         self._exit_ops = exit_ops
 
+    def getFreeSymbols(self):
+        to_return = super(ControlBlockOp, self).getFreeSymbols()
+        # TODO: Move this symbol to a loop-like op
+        loop_iter_name = '{}::iters'.format(self.name)
+        loop_iters = utils.getIntSymbolFromString(loop_iter_name)
+        to_return.add(loop_iters)
+        return to_return
+
     def calcAlgFlops(self):
         if not isinstance(self._root_op, LoopConditionOp):
             raise NotImplementedError(
