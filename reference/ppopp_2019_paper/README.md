@@ -7,6 +7,8 @@ __Abstract:__
 
 > We further characterize and project the computational requirements to train these applications at scale. Our characterization reveals an important segmentation of DL training challenges for recurrent neural networks (RNNs) that contrasts with prior studies of deep convolutional networks. RNNs will have comparatively moderate operational intensities and very large memory footprint requirements. In contrast to emerging accelerator designs, large-scale RNN training characteristics suggest designs with significantly larger memory capacity and on-chip caches.
 
+The paper can also be found on the [ACM website here](https://dl.acm.org/citation.cfm?doid=3293883.3295710)
+
 Comments: 14 pages, 12 figures, In Proceedings of the 24th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP '19). ACM, Washington DC, USA
 
 BibTex:
