@@ -119,6 +119,15 @@ class EqualOp(BasePointwiseOp):
         super(EqualOp, self).__init__(name)
 
 
+class ErfOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(ErfOp, self).__init__(name)
+        # TODO(Joel): Could assume using the approximated error function:
+        # sign(x) * sqrt(1 - exp(-x * x * (4 / pi + a_for_erf * x * x) /
+        # (1 + a_for_erf * x * x)))
+        # For now, GPUs support 1 instruction for this, so assume 1 Flop
+
+
 class ExpOp(BasePointwiseOp):
     def __init__(self, name):
         super(ExpOp, self).__init__(name)
@@ -180,6 +189,22 @@ class GreaterEqualOp(BasePointwiseOp):
         in_0_val = self._inputs[0].value
         in_1_val = self._inputs[1].value
         out_val = in_0_val >= in_1_val
+        self._outputs[0].setValue(out_val)
+
+
+class LessEqualOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(LessEqualOp, self).__init__(name)
+
+    def propagateShapes(self, make_symbolic=False):
+        super(LessEqualOp, self).propagateShapes(make_symbolic=make_symbolic)
+        self.debugAssert(len(self._inputs) == 2)
+        if self._inputs[0].value is None or \
+           self._inputs[1].value is None:
+            return
+        in_0_val = self._inputs[0].value
+        in_1_val = self._inputs[1].value
+        out_val = in_0_val <= in_1_val
         self._outputs[0].setValue(out_val)
 
 
@@ -363,6 +388,12 @@ class SigmoidGradOp(Op):
 class SquareOp(BasePointwiseOp):
     def __init__(self, name):
         super(SquareOp, self).__init__(name)
+
+
+class SquaredDifferenceOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(SquaredDifferenceOp, self).__init__(name)
+        self._flops_per_element = 2
 
 
 class SqrtOp(BasePointwiseOp):

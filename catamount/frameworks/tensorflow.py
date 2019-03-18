@@ -69,6 +69,7 @@ TF_OP_TO_CATAMOUNT = {
     'DynamicStitch': DynamicStitchOp,
     'Enter': EnterOp,
     'Equal': EqualOp,
+    'Erf': ErfOp,
     'Exit': ExitOp,
     'Exp': ExpOp,
     'ExpandDims': ExpandDimsOp,
@@ -87,6 +88,7 @@ TF_OP_TO_CATAMOUNT = {
     'InTopKV2': InTopKOp,
     'InvertPermutation': InvertPermutationOp,
     'Less': LessOp,
+    'LessEqual': LessEqualOp,
     'ListDiff': ListDiffOp,
     'Log': LogOp,
     'Log1p': Log1pOp,
@@ -122,6 +124,7 @@ TF_OP_TO_CATAMOUNT = {
     'Pack': PackOp,
     'Pad': PadOp,
     'Placeholder': PlaceholderOp,
+    'PlaceholderWithDefault': IdentityOp,
     'PreventGradient': PreventGradientOp,
     'Prod': ReduceOp,
     'Pow': PowOp,
@@ -159,6 +162,7 @@ TF_OP_TO_CATAMOUNT = {
     'StridedSlice': StridedSliceOp,
     'Sub': SubOp,
     'Sum': ReduceOp,
+    'SquaredDifference': SquaredDifferenceOp,
     'Square': SquareOp,
     'Squeeze': SqueezeOp,
     'StackPopV2': StackPopOp,
@@ -171,6 +175,7 @@ TF_OP_TO_CATAMOUNT = {
     'TensorArrayV3': TensorArrayOp,
     'Tile': TileOp,
     'Transpose': TransposeOp,
+    'TruncatedNormal': RandomInitializerOp,
     'Unpack': UnpackOp,
     'UnsortedSegmentSum': UnsortedSegmentSumOp,
     'VariableV2': VariableOp,
@@ -421,6 +426,9 @@ def get_batch_matmul_attributes_from_op(tf_sess, tf_op, op):
 def get_enter_frame_name_from_op(tf_sess, tf_op, op):
     op.setFrameName(tf_op.get_attr('frame_name').decode('utf-8'))
 
+def get_squeeze_dims_from_op(tf_sess, tf_op, op):
+    op.setSqueezeDims(tf_op.get_attr('squeeze_dims'))
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -459,6 +467,9 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
 
     elif isinstance(op, EnterOp):
         get_enter_frame_name_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, SqueezeOp):
+        get_squeeze_dims_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)
@@ -592,7 +603,8 @@ def construct_catamount_graph(tf_sess, tf_graph):
             assert len(saver_op.inputs) == 3
             for in_tensor in saver_op.inputs:
                 const_op = in_tensor.producer
-                assert isinstance(const_op, ConstantOp)
+                assert isinstance(const_op, (ConstantOp, IdentityOp)), \
+                       'Not const or identity: {}'.format(const_op.debugString())
                 ops_to_remove.add(const_op)
             assert len(saver_op.outputs) >= 1
             # Restore ops can package all tensors together into a single
@@ -608,7 +620,8 @@ def construct_catamount_graph(tf_sess, tf_graph):
             for idx in range(3):
                 in_tensor = saver_op.inputs[idx]
                 const_op = in_tensor.producer
-                assert isinstance(const_op, ConstantOp)
+                assert isinstance(const_op, (ConstantOp, IdentityOp)), \
+                       'Not const or identity: {}'.format(const_op.debugString())
                 ops_to_remove.add(const_op)
             assert len(saver_op.outputs) == 0
     model_name_consumers = []
