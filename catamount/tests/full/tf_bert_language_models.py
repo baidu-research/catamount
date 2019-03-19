@@ -15,23 +15,17 @@ from catamount.ops.variable import *
 
 is_pytest_run = False
 
-def test_tf_word_language_model():
+def test_tf_cased_L12_H768_A12_model():
     global is_pytest_run
     is_pytest_run = True
 
-    run_tf_bert_lm(model_name='wordlm')
+    run_tf_bert_lm(model_name='cased_L-12_H-768_A-12')
 
-def test_tf_character_language_model():
+def test_tf_cased_L24_H1024_A16_model():
     global is_pytest_run
     is_pytest_run = True
 
-    run_tf_bert_lm(model_name='charlm')
-
-def test_tf_machine_translation_model():
-    global is_pytest_run
-    is_pytest_run = True
-
-    run_tf_bert_lm(model_name='nmt')
+    run_tf_bert_lm(model_name='cased_L-24_H-1024_A-16')
 
 def run_tf_bert_lm(model_name):
     global is_pytest_run
@@ -252,7 +246,7 @@ def run_tf_bert_lm(model_name):
         correct_flops = 22419929740
         correct_bytes = 1099363516
         correct_total_footprint = 783867512
-    if model_name == 'chinese_L-12_H-768_A-12':
+    elif model_name == 'chinese_L-12_H-768_A-12':
         correct_flops = 22419929740
         correct_bytes = 1099363516
         correct_total_footprint = 759665544

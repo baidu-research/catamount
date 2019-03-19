@@ -963,8 +963,12 @@ class SqueezeOp(Op):
             in_shape = self._inputs[0].shape.dims
             out_shape = []
             for idx, dim in enumerate(in_shape):
-                if dim.value is None or dim.value > 1 or \
-                   idx in self._squeeze_dims:
+                if dim.value == 1 and ((len(self._squeeze_dims) == 0) or \
+                                       idx in self._squeeze_dims):
+                    # Remove all dimensions == 1 except those *not* included
+                    # in (unempty) self._squeeze_dims
+                    pass
+                else:
                     out_shape.append(dim)
             self._outputs[0].mergeShape(out_shape,
                                         make_symbolic=make_symbolic)
