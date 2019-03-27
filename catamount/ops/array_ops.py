@@ -258,6 +258,9 @@ class ExpandDimsOp(Op):
             print('WARN: Undetermined axis for ExpandDimsOp {}'
                   .format(self._name))
             return
+        elif isinstance(axis, (list, np.ndarray)):
+            self.debugAssert(len(axis) == 1)
+            axis = axis[0]
         if self._inputs[0].shape.rank == 0:
             self.debugAssert(axis == 0)
             if not self._outputs[0].shape.isFullyNumeric():
@@ -947,6 +950,11 @@ class SqueezeOp(Op):
     '''
     def __init__(self, name):
         super(SqueezeOp, self).__init__(name)
+        self._squeeze_dims = []
+
+    def setSqueezeDims(self, squeeze_dims=None):
+        if squeeze_dims is not None:
+            self._squeeze_dims.extend(squeeze_dims)
 
     def propagateShapes(self, make_symbolic=False):
         self.debugAssert(len(self._inputs) > 0)
@@ -954,8 +962,13 @@ class SqueezeOp(Op):
         if len(self._inputs) == 1:
             in_shape = self._inputs[0].shape.dims
             out_shape = []
-            for dim in in_shape:
-                if dim.value is None or dim.value > 1:
+            for idx, dim in enumerate(in_shape):
+                if dim.value == 1 and ((len(self._squeeze_dims) == 0) or \
+                                       idx in self._squeeze_dims):
+                    # Remove all dimensions == 1 except those *not* included
+                    # in (unempty) self._squeeze_dims
+                    pass
+                else:
                     out_shape.append(dim)
             self._outputs[0].mergeShape(out_shape,
                                         make_symbolic=make_symbolic)
@@ -1007,7 +1020,7 @@ class StridedSliceOp(Op):
         self._shrink_axis_mask = mask
 
     def isIndexSet(self, mask, bit_idx):
-        return (mask >> bit_idx % 2) == 1
+        return ((mask >> bit_idx) % 2) == 1
 
     def propagateShapes(self, make_symbolic=False):
         # Note: StridedSliceOp has many, many potential inputs and outputs,
