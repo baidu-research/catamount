@@ -81,6 +81,7 @@ def run_tf_bert_lm(model_name):
     print('')
 
     # Set up symbols to name dimensions
+    subbatch_size_symbol = utils.getIntSymbolFromString('subbatch_size')
     attn_head_size_symbol = utils.getIntSymbolFromString('attn_head_size')
     attn_heads_symbol = utils.getIntSymbolFromString('attn_heads')
     hidden_dim_symbol = attn_head_size_symbol * attn_heads_symbol
@@ -89,23 +90,20 @@ def run_tf_bert_lm(model_name):
     intermediate_dim_symbol = utils.getIntSymbolFromString('inter_dim')
     max_position_width_symbol = utils.getIntSymbolFromString('max_pos_width')
     graph_iters_symbol = utils.getIntSymbolFromString('graph::iters')
-    # TODO(Joel): WHERE IS SUBBATCH SIZE?!
 
     # Convert these constant dimensions to symbols
-    # TODO(Joel)
-    # base_subbatch_size = None
     const_dict = {
-                  'bert/embeddings/Reshape/shape': [1, sequence_length_symbol, hidden_dim_symbol],
-                  'bert/embeddings/Reshape_2/shape': [1, sequence_length_symbol, hidden_dim_symbol],
+                  'bert/embeddings/Reshape/shape': [subbatch_size_symbol, sequence_length_symbol, hidden_dim_symbol],
+                  'bert/embeddings/Reshape_2/shape': [subbatch_size_symbol, sequence_length_symbol, hidden_dim_symbol],
                   'bert/embeddings/Reshape_3/shape': [1, sequence_length_symbol, hidden_dim_symbol],
                   'bert/embeddings/Slice/size': [sequence_length_symbol, -1],
-                  'bert/encoder/Reshape/shape': [1, 1, sequence_length_symbol],
+                  'bert/encoder/Reshape/shape': [subbatch_size_symbol, 1, sequence_length_symbol],
                   'bert/encoder/Reshape_1/shape': [-1, hidden_dim_symbol],
-                  'bert/encoder/Reshape_[2-9]/shape': [1, sequence_length_symbol, hidden_dim_symbol],
-                  'bert/encoder/Reshape_[1-9][0-9]/shape': [1, sequence_length_symbol, hidden_dim_symbol],
-                  'bert/encoder/layer_[0-9]*/attention/self/Reshape/shape': [1, sequence_length_symbol, attn_heads_symbol, attn_head_size_symbol],
-                  'bert/encoder/layer_[0-9]*/attention/self/Reshape_[1-2]/shape': [1, sequence_length_symbol, attn_heads_symbol, attn_head_size_symbol],
-                  'bert/encoder/layer_[0-9]*/attention/self/Reshape_3/shape': [sequence_length_symbol, hidden_dim_symbol],
+                  'bert/encoder/Reshape_[2-9]/shape': [subbatch_size_symbol, sequence_length_symbol, hidden_dim_symbol],
+                  'bert/encoder/Reshape_[1-9][0-9]/shape': [subbatch_size_symbol, sequence_length_symbol, hidden_dim_symbol],
+                  'bert/encoder/layer_[0-9]*/attention/self/Reshape/shape': [subbatch_size_symbol, sequence_length_symbol, attn_heads_symbol, attn_head_size_symbol],
+                  'bert/encoder/layer_[0-9]*/attention/self/Reshape_[1-2]/shape': [subbatch_size_symbol, sequence_length_symbol, attn_heads_symbol, attn_head_size_symbol],
+                  'bert/encoder/layer_[0-9]*/attention/self/Reshape_3/shape': [subbatch_size_symbol*sequence_length_symbol, hidden_dim_symbol],
                  }
     graph.bindConstantValues(const_dict)
 
@@ -114,9 +112,9 @@ def run_tf_bert_lm(model_name):
     bind_dict = { # Constants
                   'bert/encoder/ones': [1, sequence_length_symbol, 1],
                   # Placeholders
-                  'Placeholder': [1, sequence_length_symbol],
-                  'Placeholder_1': [1, sequence_length_symbol],
-                  'Placeholder_2': [1, sequence_length_symbol],
+                  'Placeholder': [subbatch_size_symbol, sequence_length_symbol],
+                  'Placeholder_1': [subbatch_size_symbol, sequence_length_symbol],
+                  'Placeholder_2': [subbatch_size_symbol, sequence_length_symbol],
                   # Variables
                   'bert/embeddings/word_embeddings': [vocab_size_symbol, hidden_dim_symbol],
                   'bert/embeddings/token_type_embeddings': [2, hidden_dim_symbol],
@@ -151,7 +149,7 @@ def run_tf_bert_lm(model_name):
     graph.bindShapesAndPropagate(bind_dict, warn_if_ill_defined=(not is_pytest_run), make_symbolic=True)
     assert graph.isValid()
 
-    # TODO: base_subbatch_size = ???
+    base_subbatch_size = 1
     base_sequence_length = 128
     base_max_pos_width = 512
     if model_name == 'cased_L-12_H-768_A-12':
@@ -206,7 +204,7 @@ def run_tf_bert_lm(model_name):
         graph_iters_symbol: 1,
         attn_head_size_symbol: base_attn_head_size,
         sequence_length_symbol: base_sequence_length,
-        # subbatch_size_symbol: base_subbatch_size,
+        subbatch_size_symbol: base_subbatch_size,
         vocab_size_symbol: base_vocab_size,
         attn_heads_symbol: base_attn_heads,
         attn_head_size_symbol: base_attn_head_size,
