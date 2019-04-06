@@ -329,6 +329,13 @@ class RsqrtOp(BasePointwiseOp):
         self._flops_per_element = 2
 
 
+class RsqrtGradOp(BasePointwiseOp):
+    def __init__(self, name):
+        super(RsqrtGradOp, self).__init__(name)
+        # Assume reciprocal square root is 2 Flops per element
+        self._flops_per_element = 2
+
+
 class SigmoidOp(BasePointwiseOp):
     def __init__(self, name):
         super(SigmoidOp, self).__init__(name)
@@ -1061,6 +1068,7 @@ class ReduceOp(Op):
         self._axes = axes
         self._flops_per_element = 1
         self._reduction_op = reduction_op
+        self._keep_dims = False
 
     def setAxes(self, axes):
         if isinstance(axes, int):
@@ -1070,6 +1078,9 @@ class ReduceOp(Op):
     def setReductionOp(self, reduction_op):
         self.debugAssert(reduction_op in self.OpTypes)
         self._reduction_op = reduction_op
+
+    def setKeepDims(self, keep_dims):
+        self._keep_dims = keep_dims
 
     def propagateShapes(self, make_symbolic=False):
         # First input is always the tensor to be reduced, and the optional
@@ -1093,6 +1104,8 @@ class ReduceOp(Op):
                 if dim_index not in axes:
                     dim = self._inputs[0].shape.getDimension(dim_index)
                     out_shape.append(dim)
+                elif self._keep_dims:
+                    out_shape.append(1)
             self._outputs[0].mergeShape(out_shape,
                                         make_symbolic=make_symbolic)
 
@@ -1200,6 +1213,7 @@ class SelectOp(Op):
 class SoftmaxOp(Op):
     ''' Normalize the input using a soft-max function:
         softmax[i, j] = exp(logits[i, j]) / sum_j(exp(logits[i, j]))
+        Also used for Tensorflow LogSoftmax
     '''
     def __init__(self, name):
         super(SoftmaxOp, self).__init__(name)

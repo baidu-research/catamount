@@ -92,6 +92,7 @@ TF_OP_TO_CATAMOUNT = {
     'ListDiff': ListDiffOp,
     'Log': LogOp,
     'Log1p': Log1pOp,
+    'LogSoftmax': SoftmaxOp,
     'LogUniformCandidateSampler': CandidateSamplerOp,
     'LogicalAnd': LogicalAndOp,
     'LogicalOr': LogicalOrOp,
@@ -143,6 +144,7 @@ TF_OP_TO_CATAMOUNT = {
     'RestoreV2': TFRestoreOp, # Identify Restore ops for removal
     'ReverseSequence': ReverseSequenceOp,
     'Rsqrt': RsqrtOp,
+    'RsqrtGrad': RsqrtGradOp,
     'SaveV2': TFSaveOp, # Identify Saver ops for removal
     'Scatter': ScatterOp,
     'ScatterSub': ScatterUpdateOp,
@@ -160,6 +162,7 @@ TF_OP_TO_CATAMOUNT = {
     'Sqrt': SqrtOp,
     'SqrtGrad': SqrtGradOp,
     'StridedSlice': StridedSliceOp,
+    'StridedSliceGrad': StridedSliceGradOp,
     'Sub': SubOp,
     'Sum': ReduceOp,
     'SquaredDifference': SquaredDifferenceOp,
@@ -429,6 +432,15 @@ def get_enter_frame_name_from_op(tf_sess, tf_op, op):
 def get_squeeze_dims_from_op(tf_sess, tf_op, op):
     op.setSqueezeDims(tf_op.get_attr('squeeze_dims'))
 
+def get_keep_dims_from_op(tf_sess, tf_op, op):
+    keep_dims = False
+    try:
+        keep_dims = tf_op.get_attr('keep_dims')
+    except:
+        pass
+    if keep_dims:
+        op.setKeepDims(tf_op.get_attr('keep_dims'))
+
 def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
     # tf_op.op_def is the parameterization for protobuf
     # tf_op.node_def contains the arguments from protobuf to apply to op
@@ -470,6 +482,9 @@ def parse_tf_op_attributes_into_op(tf_sess, tf_op, op):
 
     elif isinstance(op, SqueezeOp):
         get_squeeze_dims_from_op(tf_sess, tf_op, op)
+
+    elif isinstance(op, ReduceOp):
+        get_keep_dims_from_op(tf_sess, tf_op, op)
 
     # print(tf_op.op_def)
     # print(tf_op.node_def)
@@ -599,31 +614,61 @@ def construct_catamount_graph(tf_sess, tf_graph):
                 model_name_ops.add(op.inputs[0].producer)
     for saver_op in saver_ops:
         if isinstance(saver_op, TFRestoreOp):
-            # Get input ops and verify they are consts
             assert len(saver_op.inputs) == 3
-            for in_tensor in saver_op.inputs:
-                const_op = in_tensor.producer
-                assert isinstance(const_op, (ConstantOp, IdentityOp)), \
-                       'Not const or identity: {}'.format(const_op.debugString())
-                ops_to_remove.add(const_op)
+        else:
+            assert isinstance(saver_op, TFSaveOp)
+            # First 3 inputs are config inputs
+            assert len(saver_op.inputs) >= 3
+            assert len(saver_op.outputs) == 0
+
+        # Get input ops and trace back to through consts and idents
+        parent_ops_to_trace_and_remove = []
+        for idx in range(3):
+            in_tensor = saver_op.inputs[idx]
+            input_op = in_tensor.producer
+            ops_to_remove.add(input_op)
+            if len(input_op.inputs) > 0:
+                assert isinstance(input_op, (IdentityOp, UnknownOp)), \
+                   'Not ident or unk: {}'.format(input_op.debugString())
+                parent_ops_to_trace_and_remove.append(input_op)
+            else:
+                assert isinstance(input_op, ConstantOp), \
+                   'Not const: {}'.format(input_op.debugString())
+        while len(parent_ops_to_trace_and_remove) > 0:
+            parent_op = parent_ops_to_trace_and_remove.pop(0)
+            for in_tensor in parent_op.inputs:
+                input_op = in_tensor.producer
+                ops_to_remove.add(input_op)
+                if len(input_op.inputs) > 0:
+                    assert isinstance(input_op, (IdentityOp, UnknownOp)), \
+                        'Not ident or unk: {}'.format(input_op.debugString())
+                    parent_ops_to_trace_and_remove.append(input_op)
+                else:
+                    assert isinstance(input_op, ConstantOp), \
+                        'Not const: {}'.format(input_op.debugString())
+
+        if isinstance(saver_op, TFRestoreOp):
             assert len(saver_op.outputs) >= 1
             # Restore ops can package all tensors together into a single
             # op, so need to traverse all outputs to their assign ops
+            child_ops_to_trace_and_remove = []
             for out_tensor in saver_op.outputs:
                 assert len(out_tensor.consumers) == 1
-                for assign_op in out_tensor.consumers.values():
-                    assert isinstance(assign_op, AssignOp)
-                    ops_to_remove.add(assign_op)
-        else:
-            assert isinstance(saver_op, TFSaveOp)
-            assert len(saver_op.inputs) >= 3
-            for idx in range(3):
-                in_tensor = saver_op.inputs[idx]
-                const_op = in_tensor.producer
-                assert isinstance(const_op, (ConstantOp, IdentityOp)), \
-                       'Not const or identity: {}'.format(const_op.debugString())
-                ops_to_remove.add(const_op)
-            assert len(saver_op.outputs) == 0
+                output_op = list(out_tensor.consumers.values())[0]
+                ops_to_remove.add(output_op)
+                if isinstance(output_op, AssignOp):
+                    assert len(output_op.outputs) == 1
+                    assert len(output_op.outputs[0].consumers) == 0
+                else:
+                    assert isinstance(output_op, IdentityOp)
+                    child_ops_to_trace_and_remove.append(output_op)
+            while len(child_ops_to_trace_and_remove) > 0:
+                child_op = child_ops_to_trace_and_remove.pop(0)
+                ops_to_remove.add(child_op)
+                for child_tens in child_op.outputs:
+                    for next_op in child_tens.consumers.values():
+                        assert isinstance(next_op, (AssignOp, UnknownOp))
+                        child_ops_to_trace_and_remove.append(next_op)
     model_name_consumers = []
     for model_name_op in model_name_ops:
         assert len(model_name_op.outputs) == 1
@@ -633,10 +678,12 @@ def construct_catamount_graph(tf_sess, tf_graph):
         if saver_op not in ops_to_remove:
             # Only other op to catch is the control dependency op, which
             # is an IdentityOp and has no outputs
-            assert isinstance(saver_op, IdentityOp)
-            assert len(saver_op.outputs) == 1
-            assert len(saver_op.outputs[0].consumers) == 0
-            assert '/control_dependency' in saver_op.name
+            if isinstance(saver_op, IdentityOp):
+                assert len(saver_op.outputs) == 1
+                assert len(saver_op.outputs[0].consumers) == 0
+            else:
+                print('WARN: Unknown model_name_consumer: {}'
+                      .format(saver_op.debugString()))
             ops_to_remove.add(saver_op)
     for op in ops_to_remove:
         graph.removeOp(op)

@@ -41,6 +41,8 @@ class AssignOp(Op):
                          self._inputs[1].shape.dims is None or \
                          self._inputs[0].shape == self._inputs[1].shape)
         self.debugAssert(self._inputs[0].shape == self._outputs[0].shape)
+        self._outputs[0].mergeShape(self._inputs[0].shape,
+                                    make_symbolic=make_symbolic)
 
     def calcAlgFlops(self):
         # Assignments have no Flops

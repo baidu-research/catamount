@@ -397,6 +397,10 @@ class TensorShape(object):
             (self.isScalar() and other.isScalar()), \
             'Ranks: {} != {}'.format(self, other)
         assert other.dims is not None
+        if self.isScalar() and self.rank == 0:
+            if other.rank == 1 and other.isScalar():
+                # Keep scalars as rank = 0
+                return
         # Now perform merging
         if self.rank is None:
             self._dims = [Dimension(None) for x in range(other.rank)]
