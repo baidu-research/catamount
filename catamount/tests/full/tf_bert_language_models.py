@@ -716,60 +716,47 @@ def run_tf_bert_lm(model_name):
     if is_pytest_run:
         return
 
-    # TODO(Joel): For more advanced testing, continue from here
-    return
-
     print('\n\n======= Algorithmic graph-level analytics: =======')
 
-    if domain == 'wordlm':
-        hidden_dims = [1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 14, 18, 20, 25, 28, 35, 40, 50, 56, 69, 78, 86, 96, 108, 119, 123, 133, 148, 163, 182, 202, 221, 246, 273, 297, 329, 330, 364, 396, 436, 437, 520, 572, 617, 676, 740, 796, 869, 948, 1017, 1106, 1202, 1286, 1394, 1510, 1611, 1742, 1882, 2004, 2161, 2476, 3040, 3714, 4520, 5478, 6628, 8019, 9702, 11739, 14204, 17186, 20795, 25161, 30444, 36837, 38100]
-        bind_subs[subbatch_size_symbol] = 128
-    elif domain == 'charlm':
-        hidden_dims = [1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 14, 18, 20, 25, 28, 35, 40, 50, 56, 69, 78, 86, 96, 108, 119, 123, 133, 148, 163, 182, 202, 221, 246, 273, 297, 329, 330, 364, 396, 436, 437, 520, 572, 617, 676, 740, 796, 869, 948, 1017, 1106, 1202, 1286, 1394, 1510, 1611, 1742, 1882, 2004, 2161, 2476, 3040, 3714, 5051, 6869, 9341, 12703, 17276, 23495, 31953, 43456, 59100, 80376, 81400]
-        bind_subs[subbatch_size_symbol] = 96
-    elif domain == 'nmt':
-        hidden_dims = [32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 1536, 2048, 2560, 3072, 3747, 4571, 5576, 6802, 8298, 10123, 12350, 15067, 18381, 22350]
-        bind_subs[subbatch_size_symbol] = 96
-        bind_subs[sequence_length_symbol] = 26
-    else:
-        raise NotImplementedError('ERROR: Unknown domain: {}'.format(domain))
+    attn_head_sizes = [1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 14, 18, 20, 25, 28, 35, 40, 50, 56, 69, 78, 86, 96, 108, 119, 123, 133, 148, 163, 182, 202, 221, 246, 273, 297, 329, 330, 364, 396, 436, 437, 520, 572, 617, 676, 740, 796, 869, 948, 1017, 1106, 1202, 1286, 1394, 1510, 1611, 1742, 1882, 2004, 2161, 2476, 3040, 3714, 4520, 5478, 6628, 8019, 9702, 11739, 14204, 17186, 20795, 25161, 30444, 36837, 38100]
+    bind_subs[subbatch_size_symbol] = 32
 
-    bind_subs.pop(hidden_dim_symbol)
+    bind_subs.pop(attn_head_size_symbol)
     resolved_params = parameters.subs(bind_subs)
 
     print('Symbol associations: {}\n'.format(bind_subs))
 
     print('Algorithmic Flops by hidden dimension, params, and per-batch-sample:')
     resolved_flops = alg_flops.subs(bind_subs)
-    for hid_dim in hidden_dims:
-        graph_params = resolved_params.subs({hidden_dim_symbol: hid_dim})
-        graph_flops = resolved_flops.subs({hidden_dim_symbol: hid_dim})
+    for attn_head_size in attn_head_sizes:
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
+        graph_flops = resolved_flops.subs({attn_head_size_symbol: attn_head_size})
         graph_flops_per_sample = float(graph_flops) / \
                                  bind_subs[subbatch_size_symbol]
-        print('{}\t{}\t{}\t{}'.format(hid_dim, graph_params, graph_flops,
+        print('{}\t{}\t{}\t{}'.format(attn_head_size, graph_params, graph_flops,
                                       int(graph_flops_per_sample)))
 
     print('\nAlgorithmic bytes accessed by hidden dimension, params:')
     resolved_bytes = alg_bytes.subs(bind_subs)
-    for hid_dim in hidden_dims:
-        graph_params = resolved_params.subs({hidden_dim_symbol: hid_dim})
-        graph_bytes = resolved_bytes.subs({hidden_dim_symbol: hid_dim})
-        print('{}\t{}\t{}'.format(hid_dim, graph_params, graph_bytes))
+    for attn_head_size in attn_head_sizes:
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
+        graph_bytes = resolved_bytes.subs({attn_head_size_symbol: attn_head_size})
+        print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_bytes))
 
     print('\nAlgorithmic total memory footprint by hidden dimension, params:')
     resolved_footprint = alg_footprint.subs(bind_subs)
-    for hid_dim in hidden_dims:
-        graph_params = resolved_params.subs({hidden_dim_symbol: hid_dim})
-        graph_footprint = resolved_footprint.subs({hidden_dim_symbol: hid_dim})
-        print('{}\t{}\t{}'.format(hid_dim, graph_params, graph_footprint))
+    for attn_head_size in attn_head_sizes:
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
+        graph_footprint = resolved_footprint.subs({attn_head_size_symbol: attn_head_size})
+        print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_footprint))
 
     print('\nAlgorithmic minimal memory footprint by hidden dimension, params:')
     full_subs = dict(bind_subs)
-    for hid_dim in hidden_dims:
-        graph_params = resolved_params.subs({hidden_dim_symbol: hid_dim})
-        full_subs[hidden_dim_symbol] = hid_dim
+    for attn_head_size in attn_head_sizes:
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
+        full_subs[attn_head_size_symbol] = attn_head_size
         graph_min_foot = graph.calcMinimalFootprint(symbol_subs=full_subs)
-        print('{}\t{}\t{}'.format(hid_dim, graph_params, graph_min_foot))
+        print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_min_foot))
 
 
 if __name__ == "__main__":
