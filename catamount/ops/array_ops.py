@@ -1133,6 +1133,37 @@ class StridedSliceOp(Op):
         return self.bytesAccessOutput()
 
 
+class StridedSliceGradOp(Op):
+    def __init__(self, name):
+        super(StridedSliceGradOp, self).__init__(name)
+
+    def propagateShapes(self, make_symbolic=False):
+        # Note: StridedSliceGradOp has many, many potential inputs and
+        # outputs, so this function may only handle common cases
+        # First input is the shape of the original tensor (unsliced). Inputs
+        # second, third, and fourth are slicing config, fifth input is tensor
+        # to unslice.
+        self.debugAssert(len(self._inputs) == 5)
+        self.debugAssert(len(self._outputs) == 1)
+        if self._inputs[0].value is not None:
+            out_dims = self._inputs[0].value
+            self._outputs[0].mergeShape(out_dims,
+                                        make_symbolic=make_symbolic)
+        else:
+            self.notImplemented('StridedSliceGradOp propagateShapes')
+
+    def calcAlgFlops(self):
+        # StridedSliceGradOps have no Flops
+        return 0
+
+    def calcAlgBytes(self):
+        return self.bytesAccessInput() + self.bytesAccessOutput()
+
+    def calcAlgFootprint(self):
+        # Return the size of the output tensor, which must be accessed
+        return self.bytesAccessOutput()
+
+
 class TileOp(Op):
     def __init__(self, name):
         super(TileOp, self).__init__(name)
