@@ -729,8 +729,10 @@ def run_tf_bert_lm(model_name):
     print('Algorithmic Flops by hidden dimension, params, and per-batch-sample:')
     resolved_flops = alg_flops.subs(bind_subs)
     for attn_head_size in attn_head_sizes:
-        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
-        graph_flops = resolved_flops.subs({attn_head_size_symbol: attn_head_size})
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size,
+                                             intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
+        graph_flops = resolved_flops.subs({attn_head_size_symbol: attn_head_size,
+                                           intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
         graph_flops_per_sample = float(graph_flops) / \
                                  bind_subs[subbatch_size_symbol]
         print('{}\t{}\t{}\t{}'.format(attn_head_size, graph_params, graph_flops,
@@ -739,21 +741,27 @@ def run_tf_bert_lm(model_name):
     print('\nAlgorithmic bytes accessed by hidden dimension, params:')
     resolved_bytes = alg_bytes.subs(bind_subs)
     for attn_head_size in attn_head_sizes:
-        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
-        graph_bytes = resolved_bytes.subs({attn_head_size_symbol: attn_head_size})
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size,
+                                             intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
+        graph_bytes = resolved_bytes.subs({attn_head_size_symbol: attn_head_size,
+                                           intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
         print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_bytes))
 
     print('\nAlgorithmic total memory footprint by hidden dimension, params:')
     resolved_footprint = alg_footprint.subs(bind_subs)
     for attn_head_size in attn_head_sizes:
-        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
-        graph_footprint = resolved_footprint.subs({attn_head_size_symbol: attn_head_size})
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size,
+                                             intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
+        graph_footprint = resolved_footprint.subs({attn_head_size_symbol: attn_head_size,
+                                           intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
         print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_footprint))
 
     print('\nAlgorithmic minimal memory footprint by hidden dimension, params:')
     full_subs = dict(bind_subs)
+    full_subs[intermediate_dim_symbol] = 4 * attn_head_size_symbol * attn_heads_symbol
     for attn_head_size in attn_head_sizes:
-        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size})
+        graph_params = resolved_params.subs({attn_head_size_symbol: attn_head_size,
+                                             intermediate_dim_symbol: 4 * attn_head_size_symbol * attn_heads_symbol})
         full_subs[attn_head_size_symbol] = attn_head_size
         graph_min_foot = graph.calcMinimalFootprint(symbol_subs=full_subs)
         print('{}\t{}\t{}'.format(attn_head_size, graph_params, graph_min_foot))
