@@ -43,7 +43,7 @@ Catamount is a compute graph analysis tool to load, construct, and modify deep l
    WARNING: This may change currently installed Tensorflow to a particular minimum version. If you have an older version installed already, you can try removing the version dependency in `setup.py`.
 
 
-   ### 4. Quick test!
+   ### 4. Quick example!
 
    A quick and interesting test to run is the basic LSTM language model. You can run it with the following command:
 
@@ -75,6 +75,47 @@ Catamount is a compute graph analysis tool to load, construct, and modify deep l
    6. __A cool op-by-op breakdown of algorithmic Flops, bytes, memory footprint__
 
 
+## How does Catamount work?
+
+At a high level, Catamount is just a simple tool for constructing, modifying, and analyzing compute graphs. These compute graphs include nodes, or "ops", that perform a mathematical computation---e.g., matrix-vector multiplication, convolution, or pointwise operations---on input data. Data is passed between ops using "tensors" (like data arrays) that encode the data’s structure and dependencies between ops.
+
+We recommend inspecting the example code (used in the Quick Start above) in [`catamount/tests/full/tf_language_models.py`](https://github.com/baidu-research/catamount/blob/master/catamount/tests/full/tf_language_models.py). Briefly, this code does the following:
+
+First, it loads an LSTM word-level language model from a Tensorflow checkpoint. Then, it names all the dimensions for weights, inputs ("placeholders"), and constants, and then propagates these names through the graph. Afterward, it calculates algorithmic compute requirements. For example, you'll find a couple lines like the following (`graph.calcAlgFlops()` in code):
+```
+Algorithmic Flops: Model/Gradient/Compute/gradients/b_count_2_block::iters*(32*hidden_dim**2*subbatch_size + 8*hidden_dim**2 + 37*hidden_dim*subbatch_size + 4*hidden_dim + 3) + Model/Gradient/Compute/gradients/b_count_6_block::iters*(32*hidden_dim**2*subbatch_size + 8*hidden_dim**2 + 37*hidden_dim*subbatch_size + 4*hidden_dim + 3) + Model/Recurrent_1_lstm_1/rnn/while/LoopCond_block::iters*(16*hidden_dim**2*subbatch_size + 33*hidden_dim*subbatch_size + 6) + Model/Recurrent_2_lstm_1/rnn/while/LoopCond_block::iters*(16*hidden_dim**2*subbatch_size + 33*hidden_dim*subbatch_size + 6) + 48*hidden_dim**2 + 6*hidden_dim*sequence_length*subbatch_size*vocab_size + 4*hidden_dim*sequence_length*subbatch_size + 3*hidden_dim*vocab_size + 24*hidden_dim + 7*sequence_length*subbatch_size*vocab_size + 4*sequence_length*subbatch_size + 3*vocab_size + 53
+With specified dims: 2597058084257
+```
+
+This output shows that there are 2 recurrent layers in the model's forward pass (Model/Recurrent_1_lstm_1/rnn/while, and Model/Recurrent_2_lstm_1/rnn/while), and their respective backward passes, each with different compute ops. Then there are a few other non-recurrent layers (embeddings, output layer GEMM and biases, loss, etc.) with different compute requirements. All of these formulas are symbolic (using the Python package `sympy`), and you can evaluate them with particular values by running something like `graph.calcAlgFlops().subs({'batch_size': 32, 'hidden_dim': 1024, ...})`
+
+The tool has functionality for algorithmic FLOPs, memory bytes accessed in an iteration, the total memory footprint (total bytes of all tensors that must be used during an iteration), and an estimate of a minimal memory footprint assuming that tensors can be freed from memory after their last use.
+
+
+## What models are currently included with Catamount?
+
+Catamount includes a number of existing models (loaded from Tensorflow graphs) that you can analyze:
+
+1. Character language modeling with a Recurrent Highway Network (RHN): `python catamount/tests/full/tf_language_models.py --domain charlm`
+2. Word language modeling with an LSTM: `python catamount/tests/full/tf_language_models.py --domain wordlm`
+3. The Google NMT hybrid attention recurrent model: `python catamount/tests/full/tf_language_models.py --domain nmt`
+4. A few ResNets (of varying depth, filter scaling---proportional to the baseline number of filters): `python catamount/tests/full/tf_image_resnet.py --help`
+5. The Word2Vec implementation in Tensorflow tutorials: `python catamount/tests/full/tf_word2vec.py`
+6. A speech recognition model, recurrent encoder-decoder with attention: `python catamount/tests/full/tf_speech_attention.py`
+7. The BERT word-level language model: `python catamount/tests/full/tf_bert_language_models.py --model_name cased_L-12_H-768_A-12`
+
+More may be added later! If you set up a graph, please contribute it back!
+
+
 ## How can I use Catamount?
 
-We used Catamount to perform an extensive analysis of compute requirements across many deep learning applications. To get a sense for Catamount's power, we recommend reading our paper, ["Beyond Human-Level Accuracy: Computational Challenges in Deep Learning"](https://github.com/baidu-research/catamount/blob/master/reference/ppopp_2019_paper/PPoPP_2019_Projecting_Deep_Learning_Hardware_Requirements_Final.pdf) ([ACM link](https://dl.acm.org/citation.cfm?id=3295710)), published in the Principles and Practice of Parallel Programming (PPoPP), 2019.
+We used Catamount to perform an extensive analysis of compute requirements across many deep learning applications. To get a sense for Catamount's power, we recommend reading our paper, ["Beyond Human-Level Accuracy: Computational Challenges in Deep Learning"](https://github.com/baidu-research/catamount/blob/master/reference/ppopp_2019_paper/PPoPP_2019_Projecting_Deep_Learning_Hardware_Requirements_Final.pdf) ([ACM link](https://dl.acm.org/citation.cfm?id=3295710)), published in the Principles and Practice of Parallel Programming (PPoPP), 2019. See the paper artifact (pp. 13-14) for more details for running Catamount.
+
+
+## What haven't we covered above... (a lot)
+
+   1. Catamount has a (preliminary) programming API that allows you to manually specify graphs. This API is intended to look much like Tensorflow or PyTorch code. See `catamount/api`.
+   2. To run all the regression tests, simply execute `bash catamount/tests/run_tests.sh`. All tests should pass if (when ;) you contribute code back to Catamount.
+   3. Catamount chooses a "generously large" graph-level intermediate representation that maps many Tensorflow ops. We expect it will be easily adaptable to load from other frameworks (e.g., ONNX, PyTorch, or MXNet). We also expect it should be easy to add graph-level transforms for op-level fusion or fission (e.g., to transform from an LSTM cell op to constituent GEMM and pointwise operations).
+   4. Given the computational requirements for each op in a Catamount graph, one can trivially estimate ["Roofline" level performance](https://people.eecs.berkeley.edu/~kubitron/courses/cs252-S12/handouts/papers/RooflineVyNoYellow.pdf) for each op and for the whole graph. Further performance estimates can be achieved by extending the graph definition with hardware-implementation-specific performance models.
+
