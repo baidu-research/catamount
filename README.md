@@ -14,23 +14,27 @@ To get a quick overview of Catamount and see how it works, you can follow this q
 
 To create a virtual environment for Catamount:
 
-```python -m venv catamount_venv```
+```python -m venv catamount_venv
+```
 
 Source the virtual environment
 
-```source catamount_venv/bin/activate```
+```source catamount_venv/bin/activate
+```
 
 
 ### Install Catamount requirements:
 
-```pip install -r requirements.txt```
+```pip install -r requirements.txt
+```
 
 WARNING: This may change currently installed packages (e.g., Tensorflow), which may cause backward compatibility issues. If you have previously-installed packages, we recommend installing these requirements manually (e.g., `pip install <package>` with no version requirements).
 
 
 ### Install Catamount:
 
-```python setup.py install```
+```python setup.py install
+```
 
 WARNING: This may change currently installed Tensorflow to a particular minimum version. If you have an older version installed already, you can try removing the version dependency in `setup.py`.
 
@@ -39,7 +43,8 @@ WARNING: This may change currently installed Tensorflow to a particular minimum 
 
 A quick and interesting test to run is the basic LSTM language model. You can run it with the following command:
 
-```python catamount/tests/full/tf_language_models.py --domain wordlm```
+```python catamount/tests/full/tf_language_models.py --domain wordlm
+```
 
 We recommend piping the output to a file and browsing the file afterward.
 
