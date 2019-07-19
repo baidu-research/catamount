@@ -28,29 +28,6 @@ def run_tf_w2v_model():
     graph = catamount.frameworks.tensorflow.import_graph(graph_meta)
     assert graph.isValid()
 
-    # ============ TO REMOVE INITIALIZATION OPS! =============
-    # NOTE: This code is pretty general and is likely to be migrated into
-    # Catamount code for removing TF-specific initialization ops
-    from catamount.ops import AssignOp
-    from catamount.ops import VariableOp
-    assign_ops = set()
-    for op in graph.opsByName.values():
-        if isinstance(op, AssignOp):
-            assign_ops.add(op)
-    for assign_op in assign_ops:
-        my_ancestors = set()
-        my_frontier = set()
-        my_frontier.add(assign_op)
-        while len(my_frontier) > 0:
-            next_op = my_frontier.pop()
-            for in_tensor in next_op.inputs:
-                if not isinstance(in_tensor.producer, VariableOp):
-                    my_frontier.add(in_tensor.producer)
-            my_ancestors.add(next_op)
-        for next_op in my_ancestors:
-            graph.removeOp(next_op)
-    assert graph.isValid()
-
     # Next, remove ops that are not executed during a standard training step:
     graph_ops = list(graph._ops_by_name.values())
     for op in graph_ops:

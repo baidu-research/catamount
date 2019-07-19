@@ -42,40 +42,6 @@ def run_tf_bert_lm(model_name):
     graph = catamount.frameworks.tensorflow.import_graph(graph_meta)
     assert graph.isValid()
 
-    # ============ TO REMOVE INITIALIZATION OPS! =============
-    # NOTE: This code is pretty general and is likely to be migrated into
-    # Catamount code for removing TF-specific initialization ops
-    from catamount.ops import AssignOp
-    from catamount.ops import VariableOp
-    assign_ops = set()
-    for op in graph.opsByName.values():
-        if isinstance(op, AssignOp):
-            assign_ops.add(op)
-    op_types = set()
-    for assign_op in assign_ops:
-        assert isinstance(assign_op.inputs[0].producer, VariableOp)
-        # assert isinstance(assign_op.inputs[1].producer, ConstantOp)
-        my_ancestors = set()
-        my_frontier = set()
-        my_frontier.add(assign_op)
-        while len(my_frontier) > 0:
-            next_op = my_frontier.pop()
-            for in_tensor in next_op.inputs:
-                if not isinstance(in_tensor.producer, VariableOp):
-                    my_frontier.add(in_tensor.producer)
-            my_ancestors.add(next_op)
-            if len(my_ancestors) > 100:
-                break
-        if len(my_ancestors) <= 8:
-            op_types.update(set(type(op) for op in my_ancestors))
-            for next_op in my_ancestors:
-                graph.removeOp(next_op)
-        else:
-            print('WARN: Unable to remove: {}'.format(assign_op.debugString()))
-            print('    COUNT: {}'.format(len(my_ancestors)))
-    print('OP TYPES REMOVED: {}'.format(op_types))
-    assert graph.isValid()
-
     # Next, remove ops that are not executed during a standard training step:
     # TODO(Joel)
 
