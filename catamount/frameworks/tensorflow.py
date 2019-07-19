@@ -594,6 +594,36 @@ def construct_catamount_graph(tf_sess, tf_graph):
             cons_op.setStack(stack_op.getStack())
             assert(cons_op.getStack() is not None)
 
+    # Remove TF variable initialization (Assign) ops
+    # These are not necessary to fully specify the graph
+    assign_ops = set()
+    for op in graph.opsByName.values():
+        if isinstance(op, AssignOp):
+            assign_ops.add(op)
+    op_types = set()
+    for assign_op in assign_ops:
+        assert isinstance(assign_op.inputs[0].producer, VariableOp)
+        # assert isinstance(assign_op.inputs[1].producer, ConstantOp)
+        my_ancestors = set()
+        my_frontier = set()
+        my_frontier.add(assign_op)
+        while len(my_frontier) > 0:
+            next_op = my_frontier.pop()
+            for in_tensor in next_op.inputs:
+                if not isinstance(in_tensor.producer, VariableOp):
+                    my_frontier.add(in_tensor.producer)
+            my_ancestors.add(next_op)
+            if len(my_ancestors) > 100:
+                break
+        if len(my_ancestors) <= 8:
+            op_types.update(set(type(op) for op in my_ancestors))
+            for next_op in my_ancestors:
+                graph.removeOp(next_op)
+        else:
+            print('WARN: Unable to remove: {}'.format(assign_op.debugString()))
+            print('    COUNT: {}'.format(len(my_ancestors)))
+    assert graph.isValid()
+
     # Remove any Tensorflow model saver ops from the graph. These ops
     # always occur as a series of 6 ops:
     # 1) Three ConstOps that define the (A) the name of the model, (B) the
