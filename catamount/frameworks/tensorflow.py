@@ -368,8 +368,12 @@ def get_const_value_from_op(tf_sess, tf_op):
                 value = np.full(np_shape, value[0], dtype=float)
             else:
                 value = np.array(value)
+            if list(value.shape) != tf_op.outputs[0].shape.as_list():
+                value = np.reshape(value, tf_op.outputs[0].shape.as_list())
             assert list(value.shape) == tf_op.outputs[0].shape.as_list(), \
-                'Op: {}, value: {}'.format(tf_op.name, value)
+                'Op: {}, value: {}, len(value): {}, out_shape: {}' \
+                .format(tf_op.name, value, list(value.shape),
+                        tf_op.outputs[0].shape.as_list())
     elif value_proto.dtype == types_pb2.DT_STRING:
         if tf_op.outputs[0].shape.ndims == 0 or \
            tf_op.outputs[0].shape.num_elements() == 1:

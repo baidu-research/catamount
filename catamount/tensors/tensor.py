@@ -232,6 +232,9 @@ class Tensor:
                        value.dtype.kind in np_string_types, \
                     '{}:\nTrying to set value dtype to {}' \
                     .format(self, value.dtype)
+                if list(value.shape) != self._shape.asList():
+                    # Try to reshape if not already correct
+                    value = np.reshape(value, self._shape.asList())
                 assert list(value.shape) == self._shape.asList(), \
                     '{}:\nShape mismatch. Value {}, shapes {} != {}' \
                     .format(self, value, list(value.shape),
