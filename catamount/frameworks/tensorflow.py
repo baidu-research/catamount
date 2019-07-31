@@ -368,8 +368,16 @@ def get_const_value_from_op(tf_sess, tf_op):
                 value = np.full(np_shape, value[0], dtype=float)
             else:
                 value = np.array(value)
-            if list(value.shape) != tf_op.outputs[0].shape.as_list():
-                value = np.reshape(value, tf_op.outputs[0].shape.as_list())
+            tf_op_shape_list = tf_op.outputs[0].shape.as_list()
+            if list(value.shape) != tf_op_shape_list:
+                try:
+                    value = np.reshape(value, tf_op_shape_list)
+                except ValueError as err:
+                    print('{}:\nShape mismatch. Value {}, shapes '\
+                          '{} != {}'.format(tf_op.name, value,
+                                            list(value.shape),
+                                            tf_op_shape_list))
+                    raise err
             assert list(value.shape) == tf_op.outputs[0].shape.as_list(), \
                 'Op: {}, value: {}, len(value): {}, out_shape: {}' \
                 .format(tf_op.name, value, list(value.shape),

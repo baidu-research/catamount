@@ -234,7 +234,14 @@ class Tensor:
                     .format(self, value.dtype)
                 if list(value.shape) != self._shape.asList():
                     # Try to reshape if not already correct
-                    value = np.reshape(value, self._shape.asList())
+                    try:
+                        value = np.reshape(value, self._shape.asList())
+                    except ValueError as err:
+                        print('{}:\nShape mismatch. Value {}, shapes '\
+                              '{} != {}'.format(self, value,
+                                                list(value.shape),
+                                                self._shape.asList()))
+                        raise err
                 assert list(value.shape) == self._shape.asList(), \
                     '{}:\nShape mismatch. Value {}, shapes {} != {}' \
                     .format(self, value, list(value.shape),
