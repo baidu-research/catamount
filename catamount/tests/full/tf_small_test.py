@@ -17,7 +17,7 @@ def test_tf_load_and_calculate():
     correct_alg_flops = 256 * add_dim_0 + \
                         65536 * matmul_dim_0 + \
                         256 * mul_dim_0 + \
-                        98307
+                        1
 
     print('Loaded Flops test:')
     print('    Catamount:   {}'.format(algorithmic_flops))

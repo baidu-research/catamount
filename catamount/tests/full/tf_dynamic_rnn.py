@@ -16,8 +16,7 @@ def test_tf_dynamic_rnn():
     mm_0 = utils.getIntSymbolFromString('rnn/while/basic_rnn_cell/MatMul:0::dim_0')
     th_0 = utils.getIntSymbolFromString('rnn/while/basic_rnn_cell/Tanh:0::dim_0')
     correct_alg_flops = rwb_iters * \
-                        (24 * ba_0 + 2304 * mm_0 + 144 * th_0 + 5) + \
-                        2305
+                        (24 * ba_0 + 2304 * mm_0 + 144 * th_0 + 5)
 
     print('Loaded Flops test:')
     print('    Catamount:   {}'.format(algorithmic_flops))

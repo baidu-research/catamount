@@ -146,7 +146,8 @@ def run_tf_speech_attention():
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer2/RNNEncoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * enc_hidden_dim_symbol],
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer2/RNNEncoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * enc_hidden_dim_symbol, 4 * enc_hidden_dim_symbol],
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer2/RNNEncoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * enc_hidden_dim_symbol],
-                  'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer2/RNNEncoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * enc_hidden_dim_symbol, 4 * enc_hidden_dim_symbol],                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer4/RNNEncoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * enc_hidden_dim_symbol],
+                  'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer2/RNNEncoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * enc_hidden_dim_symbol, 4 * enc_hidden_dim_symbol],
+                  'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer4/RNNEncoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * enc_hidden_dim_symbol],
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer4/RNNEncoder/bidirectional_rnn/bw/bw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * enc_hidden_dim_symbol, 4 * enc_hidden_dim_symbol],
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer4/RNNEncoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/BiasAdd/Enter_grad/b_acc': [4 * enc_hidden_dim_symbol],
                   'attn_model/AttentionModel/gradients/attn_model/StackedEncoder/Layer4/RNNEncoder/bidirectional_rnn/fw/fw/while/basic_lstm_cell/MatMul/Enter_grad/b_acc': [3 * enc_hidden_dim_symbol, 4 * enc_hidden_dim_symbol],
@@ -216,20 +217,11 @@ def run_tf_speech_attention():
             assert isinstance(op, UnknownOp)
             assert len(op._inputs) == 3
             assert len(op._outputs) == 1
-            if op._outputs[0].shape.isUnknown():
+            if op._outputs[0].shape.rank == 1 or op._outputs[0].shape.rank == 2:
                 if len(op._outputs[0].consumers) > 0:
-                    out_shape = None
-                    if op.name == 'attn_model/Decoder/TensorArrayStack/TensorArrayGatherV3':
-                        # Rank-3: decoder_steps, subbatch_size, output_vocab
-                        out_shape = [decoder_steps_symbol,
-                                     subbatch_size_symbol,
-                                     output_vocab_symbol]
-                    else:
-                        print('TODO: Unknown TensorArrayGather {}'
-                              .format(op.debugString()))
-                    if out_shape is not None:
-                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
-            elif op._outputs[0].shape.rank == 3:
+                    print('TODO: Unknown TensorArrayGather (rank {}): {}'
+                          .format(op._outputs[0].shape.rank, op.debugString()))
+            elif op._outputs[0].shape.isUnknown() or op._outputs[0].shape.rank == 3:
                 if len(op._outputs[0].consumers) > 0:
                     # If output rank is 3, then appears to be:
                     # [seq_length, batch_size, enc_hid], where
@@ -272,12 +264,6 @@ def run_tf_speech_attention():
                     else:
                         print('TODO: Unknown TensorArrayGather {}'
                               .format(op.debugString()))
-                    if out_shape is not None:
-                        op._outputs[0].mergeShape(out_shape, make_symbolic=True)
-            elif op._outputs[0].shape.rank == 2:
-                if len(op._outputs[0].consumers) > 0:
-                    out_shape = None
-                    print('TODO: Unknown TensorArrayGather (rank 2): {}'.format(op.debugString()))
                     if out_shape is not None:
                         op._outputs[0].mergeShape(out_shape, make_symbolic=True)
             else:

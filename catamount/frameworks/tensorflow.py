@@ -674,7 +674,7 @@ def construct_catamount_graph(tf_sess, tf_graph):
                    'Not ident or unk: {}'.format(input_op.debugString())
                 parent_ops_to_trace_and_remove.append(input_op)
             else:
-                assert isinstance(input_op, ConstantOp), \
+                assert isinstance(input_op, (ConstantOp, IdentityOp)), \
                    'Not const: {}'.format(input_op.debugString())
         while len(parent_ops_to_trace_and_remove) > 0:
             parent_op = parent_ops_to_trace_and_remove.pop(0)

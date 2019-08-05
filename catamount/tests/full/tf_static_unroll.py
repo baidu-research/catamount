@@ -28,7 +28,7 @@ def test_tf_static_unroll_rnn():
     th_4 = utils.getIntSymbolFromString('basic_rnn_cell/Tanh_4:0::dim_0')
     correct_alg_flops = 24 * (ba_0 + ba_1 + ba_2 + ba_3 + ba_4) + \
                         2304 * (mm_0 + mm_1 + mm_2 + mm_3 + mm_4) + \
-                        144 * (th_0 + th_1 + th_2 + th_3 + th_4) + 2305
+                        144 * (th_0 + th_1 + th_2 + th_3 + th_4)
 
     print('Loaded Flops test:')
     print('    Catamount:   {}'.format(algorithmic_flops))
